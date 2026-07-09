@@ -1,0 +1,97 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helpers
+    function isSignedIn() { return request.auth != null; }
+    function isAdmin() { 
+        return isSignedIn() && 'email' in request.auth.token && request.auth.token.email.matches('(?i)sergio\\.uragan@gmail\\.com');
+    }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    function isValidUser(data) {
+        return data.email is string && data.role in ['Admin', 'Educator', 'Student'];
+    }
+
+    match /settings/{settingId} {
+        allow read: if true;
+        allow write: if isAdmin();
+    }
+
+    match /users/{userId} {
+        allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+        allow create: if isSignedIn() && request.auth.uid == userId && isValidUser(incoming()) && (
+            incoming().role == 'Student' || 
+            incoming().role == 'Educator' ||
+            (incoming().role == 'Admin' && 'email' in request.auth.token && request.auth.token.email.matches('(?i)sergio\\.uragan@gmail\\.com'))
+        );
+        allow update: if isSignedIn() && (
+          isAdmin() || 
+          (request.auth.uid == userId && isValidUser(incoming()) && (
+              (!incoming().diff(existing()).affectedKeys().hasAny(['role'])) ||
+              ('email' in request.auth.token && request.auth.token.email.matches('(?i)sergio\\.uragan@gmail\\.com'))
+          ))
+        );
+        allow delete: if isAdmin();
+    }
+
+    match /plans/{planId} {
+        allow read: if isSignedIn();
+        allow write: if isAdmin();
+    }
+
+    match /subscriptions/{subId} {
+        allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+        allow create: if isSignedIn() && incoming().userId == request.auth.uid;
+        allow update, delete: if isAdmin();
+    }
+    
+    match /analytics/{analyticId} {
+        allow read: if isSignedIn();
+        allow write, create, update: if isAdmin();
+    }
+    
+    match /teachers/{teacherId} {
+        allow read: if isSignedIn();
+        allow create, update, delete: if isAdmin();
+    }
+    
+    match /classes/{classId} {
+        allow read: if isSignedIn();
+        allow create, update, delete: if isAdmin();
+    }
+    
+    match /students/{studentId} {
+        allow read: if isSignedIn();
+        allow create, update: if isSignedIn() && (request.auth.uid == studentId || isAdmin());
+        allow delete: if isAdmin();
+    }
+
+    match /google_meet_spaces/{spaceId} {
+        allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+        allow create: if isSignedIn() && incoming().userId == request.auth.uid;
+        allow update, delete: if isAdmin();
+    }
+
+    match /admin_logs/{logId} {
+        allow read, create: if isAdmin();
+        allow update, delete: if false;
+    }
+
+    match /email_permissions/{email} {
+        allow read: if isSignedIn();
+        allow write: if isAdmin();
+    }
+
+    match /user_achievements/{userId} {
+        allow read, create, update: if isSignedIn();
+        allow delete: if isAdmin();
+    }
+
+    match /schools/{schoolId} {
+        allow read, write: if isSignedIn();
+    }
+  }
+}

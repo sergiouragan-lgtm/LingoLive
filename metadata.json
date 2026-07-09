@@ -1,0 +1,6 @@
+{
+  "name": "LingoLIVE IA",
+  "description": "Plataforma de ensino de idiomas com IA para todas as idades: de crianças e adolescentes a estudantes universitários, escolas e empresas. Transformamos o aprendizado numa experiência interativa, personalizada e divertida em Inglês, Português, Francês, Mandarim e mais.",
+  "requestFramePermissions": ["microphone", "camera", "geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,213 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "System user",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["Admin", "Educator", "Student"] },
+        "subscriptionId": { "type": "string" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Plan": {
+      "title": "Plan",
+      "description": "Subscription plan",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "price": { "type": "number" }
+      },
+      "required": ["id", "name", "price"]
+    },
+    "Teacher": {
+      "title": "Teacher",
+      "description": "Educator profile",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "nome": { "type": "string" },
+        "email": { "type": "string" },
+        "telefone": { "type": "string" },
+        "idioma": { "type": "string" },
+        "sala": { "type": "string" },
+        "turno": { "type": "string" },
+        "invitationCode": { "type": "string" }
+      },
+      "required": ["uid", "nome", "email", "telefone", "idioma", "sala", "turno"]
+    },
+    "Class": {
+      "title": "Class",
+      "description": "Classroom group",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "teacherUid": { "type": "string" },
+        "studentUids": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["id", "name", "teacherUid"]
+    },
+    "Student": {
+      "title": "Student",
+      "description": "Student profile",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "age": { "type": "number" },
+        "targetLanguage": { "type": "string" },
+        "teacherUid": { "type": "string" }
+      },
+      "required": ["uid", "name"]
+    },
+    "Subscription": {
+      "title": "Subscription",
+      "description": "User subscription",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "planId": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "inactive"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "planId", "status", "createdAt"]
+    },
+    "PlatformFeatures": {
+      "title": "PlatformFeatures",
+      "description": "System feature toggles controlled by school admins",
+      "type": "object",
+      "properties": {
+        "practiceRoom": { "type": "boolean" },
+        "languageQuiz": { "type": "boolean" },
+        "liveChat": { "type": "boolean" },
+        "vocabDeck": { "type": "boolean" },
+        "educatorDashboard": { "type": "boolean" }
+      },
+      "required": ["practiceRoom", "languageQuiz", "liveChat", "vocabDeck", "educatorDashboard"]
+    },
+    "GoogleMeetSpace": {
+      "title": "GoogleMeetSpace",
+      "description": "Google Meet space reservation records",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "meetingUri": { "type": "string" },
+        "meetingCode": { "type": "string" },
+        "title": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "meetingUri", "meetingCode", "title"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Administrative audit logs",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "adminEmail": { "type": "string" },
+        "action": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["adminEmail", "action", "timestamp"]
+    },
+    "Analytic": {
+      "title": "Analytic",
+      "description": "AI pedagogical insights and correction records",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "alunoId": { "type": "string" },
+        "detected_error": { "type": "string" },
+        "correction": { "type": "string" },
+        "pedagogical_note": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["alunoId", "detected_error", "correction", "pedagogical_note"]
+    },
+    "UserAchievements": {
+      "title": "UserAchievements",
+      "description": "Tracks real-time progress for student achievement badges",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "languagesExplored": { "type": "array", "items": { "type": "string" } },
+        "quizzesCompleted": { "type": "number" },
+        "badges": { "type": "object" }
+      },
+      "required": ["userId"]
+    },
+    "School": {
+      "title": "School",
+      "description": "Registered B2B school profile",
+      "type": "object",
+      "properties": {
+        "nome": { "type": "string" },
+        "numeroFiscal": { "type": "string" },
+        "endereco": { "type": "string" },
+        "emailPrincipal": { "type": "string" },
+        "telefonePrincipal": { "type": "string" },
+        "contactoAlternativo": { "type": "string" },
+        "country": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending_payment", "active"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["nome", "numeroFiscal", "endereco", "emailPrincipal", "telefonePrincipal", "country", "status"]
+    }
+  },
+  "firestore": {
+    "schools/{schoolId}": {
+      "schema": "School",
+      "description": "B2B Schools registered on the platform"
+    },
+    "user_achievements/{userId}": {
+      "schema": "UserAchievements",
+      "description": "Tracks real-time student badges and progress"
+    },
+    "users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "teachers/{teacherId}": {
+      "schema": "Teacher",
+      "description": "Teacher profiles"
+    },
+    "classes/{classId}": {
+      "schema": "Class",
+      "description": "Classroom groups"
+    },
+    "students/{studentId}": {
+      "schema": "Student",
+      "description": "Student profiles"
+    },
+    "plans/{planId}": {
+      "schema": "Plan",
+      "description": "Available plans"
+    },
+    "subscriptions/{subId}": {
+      "schema": "Subscription",
+      "description": "User subscriptions"
+    },
+    "settings/{settingId}": {
+      "schema": "PlatformFeatures",
+      "description": "Platform global settings and features control"
+    },
+    "google_meet_spaces/{spaceId}": {
+      "schema": "GoogleMeetSpace",
+      "description": "Google Meet space histories"
+    },
+    "admin_logs/{logId}": {
+      "schema": "AuditLog",
+      "description": "Admin activity and audit logs"
+    },
+    "analytics/{analyticId}": {
+      "schema": "Analytic",
+      "description": "AI-generated insights and error corrections"
+    }
+  }
+}

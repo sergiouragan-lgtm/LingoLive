@@ -1,0 +1,41 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&family=Nunito:wght@400;600;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Poppins", sans-serif;
+  --font-kids: "Nunito", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* Design System Colors */
+  --color-primary: #2563EB; /* Azul */
+  --color-success: #10B981; /* Verde */
+  --color-gamification: #F59E0B; /* Laranja */
+  --color-alert: #EF4444; /* Vermelho */
+  --color-bg-light: #F8FAFC; /* Cinzento claro */
+  --color-bg-dark: #0F172A; /* Azul-escuro */
+
+  --animate-pulse-border: pulse-border 2s ease-in-out infinite;
+  --keyframes-pulse-border: {
+    0%, 100% { border-color: #e2e8f0; }
+    50% { border-color: #6366f1; }
+  };
+  --animate-shake: shake 0.4s ease-in-out;
+  --keyframes-shake: {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+  };
+  --animate-shimmer: shimmer 2s infinite linear;
+  --keyframes-shimmer: {
+    0% { background-position: -1000px 0; }
+    100% { background-position: 1000px 0; }
+  };
+}
+
+@layer base {
+  body {
+    @apply bg-bg-light text-slate-900;
+  }
+}
+
