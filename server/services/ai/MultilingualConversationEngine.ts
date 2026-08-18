@@ -2,6 +2,9 @@ import { GoogleGenAI } from "@google/genai";
 import { AI_CONFIG } from "./orchestration/config/AIConfig";
 import { AIOrchestrationLogger } from "./orchestration/utils/Logger";
 import { safeGetDoc, safeSetDoc } from "../firestoreSafe.service";
+import { dbAdmin } from "../../config/firebaseAdmin";
+import { buildTutorSessionContext } from "../../../src/features/tutor/tutorSessionContextBuilder";
+import { composeTutorSystemInstruction } from "../../../src/features/tutor/tutorPromptComposer";
 
 // Supported languages definition
 export type SupportedLanguage = "pt" | "en" | "fr" | "zh";
@@ -140,6 +143,40 @@ export class MultilingualConversationEngine {
     const history = await this.getHistory(request.userId, request.sessionId);
     const historySummary = history.map(h => `${h.role === 'user' ? 'Aluno' : 'Tutor'}: ${h.content}`).join("\n");
 
+    // 2.5 Carregar a identidade linguística/cultural do utilizador (mesma fonte
+    // usada pelas sessões "Live") para adaptar o tutor de texto ao dialeto/região
+    // preferidos do aluno — fecha a lacuna em que só o Live tinha esta adaptação.
+    let culturalGeoInput: {
+      countryCode: string | null;
+      primaryLanguage: string | null;
+      interfaceLanguage: string | null;
+      languageVariant: string | null;
+    } = {
+      countryCode: null,
+      primaryLanguage: request.sourceLanguage || null,
+      interfaceLanguage: null,
+      languageVariant: null,
+    };
+    try {
+      const lieSnap = await dbAdmin
+        .collection("users")
+        .doc(request.userId)
+        .collection("settings")
+        .doc("linguistic_identity")
+        .get();
+      if (lieSnap.exists) {
+        const lie = lieSnap.data() as any;
+        culturalGeoInput = {
+          countryCode: lie?.regionalVariant || null,
+          primaryLanguage: lie?.nativeLanguage || request.sourceLanguage || null,
+          interfaceLanguage: lie?.interfaceLanguage || null,
+          languageVariant: lie?.preferredDialect || null,
+        };
+      }
+    } catch (err: any) {
+      AIOrchestrationLogger.warn(`Não foi possível carregar identidade linguística de ${request.userId}, a seguir sem adaptação cultural: ${err.message}`);
+    }
+
     const systemPrompt = `Você é um tutor nativo especialista de inteligência artificial de LingoLIVE.
 Sua missão é responder ao aluno, corrigir erros gramaticais de forma amigável, sugerir vocabulários mais ricos, fornecer dicas de pronúncia legíveis foneticamente e avaliar o desempenho dele em tempo real.
 
@@ -187,6 +224,18 @@ Estruture a resposta OBRIGATORIAMENTE no seguinte formato JSON (sem blocos exter
   }
 }`;
 
+    const sessionContext = buildTutorSessionContext({
+      targetLanguage: request.targetLanguage,
+      cefrLevel: request.userCEFR,
+      geoInput: culturalGeoInput,
+      sessionGoals: request.currentTopic ? [request.currentTopic] : null,
+    });
+
+    const finalSystemPrompt = composeTutorSystemInstruction({
+      baseInstruction: systemPrompt,
+      sessionContext,
+    }) || systemPrompt;
+
     const promptMessage = `Histórico de Conversas Prévias:\n${historySummary}\n\nMensagem recente do Aluno: "${request.userMessage}"`;
 
     if (!AI_CONFIG.providers.google.apiKey && !process.env.GEMINI_API_KEY) {
@@ -199,7 +248,7 @@ Estruture a resposta OBRIGATORIAMENTE no seguinte formato JSON (sem blocos exter
         model: "gemini-3.5-flash",
         contents: promptMessage,
         config: {
-          systemInstruction: systemPrompt,
+          systemInstruction: finalSystemPrompt,
           temperature: 0.6,
           responseMimeType: "application/json"
         }
