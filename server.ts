@@ -36,6 +36,7 @@ import assessmentRouter from "./server/routes/assessment.routes";
 import languagesRouter from "./server/routes/languages.routes";
 import gamificationRouter from "./server/routes/gamification.routes";
 import adminPaymentRouter from "./server/routes/adminPayment.routes";
+import geoRouter from "./server/routes/geo.routes";
 
 const app = express();
 
@@ -60,6 +61,7 @@ app.use("/api/assessment", assessmentRouter);
 app.use("/api", languagesRouter);
 app.use("/api/gamification", gamificationRouter);
 app.use("/api", adminPaymentRouter);
+app.use("/api/geo", geoRouter);
 
 // Endpoint for Service Worker Background Sync of vocabulary updates
 app.post("/api/sync-vocabulary", async (req, res) => {

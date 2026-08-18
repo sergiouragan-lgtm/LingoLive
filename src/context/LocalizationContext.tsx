@@ -12,6 +12,8 @@ import {
   DOMAIN_TRANSLATIONS 
 } from '../data/localizationData';
 import { resolveInterfaceLanguage } from '../services/interfaceLanguageResolver';
+import { detectVisitorCountry } from '../services/geoDetectionService';
+import { getDefaultInterfaceLanguageForCountry } from '../data/regionalLanguageCatalog';
 
 declare global {
   interface WindowEventMap {
@@ -179,6 +181,58 @@ export const LocalizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   // Automatically enforce RTL document attributes when interface language is RTL (ar, he)
   const isRtl = ['ar', 'he', 'árabe', 'hebraico'].includes(linguisticIdentity.interfaceLanguage.toLowerCase());
+
+  // Regista, à criação do componente, se o visitante JÁ tinha alguma preferência
+  // guardada (localização ou identidade linguística). Isto acontece apenas uma vez,
+  // antes de qualquer deteção automática poder escrever no localStorage — garante
+  // que a deteção por geolocalização nunca sobrepõe uma escolha anterior do utilizador.
+  const hadStoredPreferenceRef = React.useRef<boolean>(
+    typeof localStorage !== 'undefined' &&
+    (!!localStorage.getItem('lingolive_localization') || !!localStorage.getItem('lingolive_lie'))
+  );
+
+  // Motor GeoLinguístico — Deteção automática de País → Idioma (IP-based).
+  // Só corre para visitantes de primeira vez (sem nenhuma preferência guardada).
+  // Falha de forma totalmente silenciosa: se a deteção não for possível, a app
+  // continua a funcionar com o idioma do browser, exatamente como acontecia antes.
+  useEffect(() => {
+    if (hadStoredPreferenceRef.current) return;
+
+    let cancelled = false;
+    (async () => {
+      const geo = await detectVisitorCountry();
+      if (cancelled || geo.status !== 'detected' || !geo.countryCode) return;
+      // Se, entretanto, o utilizador já tiver feito uma escolha manual, não a sobrepomos.
+      if (typeof localStorage !== 'undefined' && localStorage.getItem('lingolive_localization')) return;
+
+      const countryCode = geo.countryCode.toUpperCase();
+      const regionalLang = getDefaultInterfaceLanguageForCountry(countryCode);
+      const supportedInterfaceLanguages = Object.keys(TRANSLATIONS);
+
+      const resolution = resolveInterfaceLanguage({
+        countryCode,
+        browserLanguages: typeof navigator !== 'undefined' ? Array.from(navigator.languages || [navigator.language]) : [],
+        supportedInterfaceLanguages,
+        fallbackLanguage: linguisticIdentity.interfaceLanguage,
+      });
+
+      const currencyByCountry: Record<string, string> = {
+        AO: 'AOA', BR: 'BRL', PT: 'EUR', MZ: 'MZN', US: 'USD', ZA: 'ZAR',
+        CV: 'CVE', GW: 'XOF', ST: 'STN', TL: 'USD',
+      };
+
+      await setLocalization({
+        country: countryCode,
+        language: resolution.language,
+        currency: currencyByCountry[countryCode] || localization.currency,
+      });
+
+      console.log(`[LocalizationContext] País detetado automaticamente por IP: ${countryCode} (${geo.detectedVia}) → idioma: ${resolution.language}`);
+    })();
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
