@@ -2,6 +2,18 @@ import { safeGetDoc, safeSetDoc, safeAddDoc, safeSetSubDoc, safeGetSubDocs, loca
 import { SERVER_PLANS, PAYMENT_GRACE_PERIOD_DAYS } from "../config/plans";
 import { dbAdmin } from "../config/firebaseAdmin";
 
+// CORREÇÃO DE BUG (encontrado pelo pipeline DevSecOps): dbAdmin fica
+// inicializado (não-nulo) sempre que existe firebase-applet-config.json,
+// mesmo sem credenciais reais — a inicialização em si não contacta a rede.
+// Isto fazia com que, em ambiente de testes (sem acesso à rede do Firestore),
+// cada teste tentasse mesmo assim uma transação real, que demorava ~5s a
+// falhar — coincidindo com o limite de timeout do Vitest e derrubando a
+// suite inteira. O Vitest define automaticamente process.env.VITEST='true'
+// em qualquer execução de testes — usamos isso para saltar direto para o
+// modo local em memória durante os testes, sem alterar o comportamento em
+// produção (onde VITEST nunca está definido).
+const isRunningUnderTests = process.env.VITEST === "true" || process.env.NODE_ENV === "test";
+
 export type PaymentStatus =
   | "pending"
   | "processing"
@@ -150,7 +162,7 @@ export class PaymentEngineService {
       throw new Error("Persistência do Firestore indisponível em ambiente de produção.");
     }
 
-    if (dbAdmin) {
+    if (dbAdmin && !isRunningUnderTests) {
       try {
         const docRef = dbAdmin.collection("paymentWebhookEvents").doc(docId);
         let acquired = false;
@@ -1172,7 +1184,7 @@ export class PaymentEngineService {
   }): Promise<PaymentRecord[]> {
     const results: PaymentRecord[] = [];
 
-    if (dbAdmin) {
+    if (dbAdmin && !isRunningUnderTests) {
       try {
         let query: any = dbAdmin.collection("pagamentos");
         if (filters.userId) query = query.where("userId", "==", filters.userId);

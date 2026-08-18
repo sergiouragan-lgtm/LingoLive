@@ -5,6 +5,10 @@ import { appBaseUrl } from "../config/env";
 import { PaymentEngineService } from "./paymentEngine.service";
 import { safeGetDoc } from "./firestoreSafe.service";
 
+// Ver nota equivalente em paymentEngine.service.ts: evita chamadas reais e
+// lentas ao Firestore durante testes automatizados (Vitest define VITEST=true).
+const isRunningUnderTests = process.env.VITEST === "true" || process.env.NODE_ENV === "test";
+
 export class StripeService {
   static async createCheckoutSession(userId: string, planId: string) {
     if (!stripe) {
@@ -171,7 +175,7 @@ export class StripeService {
 
         let userId: string | null = invoice.subscription_details?.metadata?.userId || invoice.lines?.data?.[0]?.metadata?.userId || invoice.metadata?.userId || null;
 
-        if (!userId && dbAdmin && customerId) {
+        if (!userId && dbAdmin && customerId && !isRunningUnderTests) {
           const userSnap = await dbAdmin.collection("users").where("stripeCustomerId", "==", customerId).limit(1).get();
           if (!userSnap.empty) {
             userId = userSnap.docs[0].id;
@@ -270,7 +274,7 @@ export class StripeService {
         const currency = invoice.currency || "usd";
 
         let userId: string | null = invoice.subscription_details?.metadata?.userId || invoice.lines?.data?.[0]?.metadata?.userId || invoice.metadata?.userId || null;
-        if (!userId && dbAdmin && customerId) {
+        if (!userId && dbAdmin && customerId && !isRunningUnderTests) {
           const userSnap = await dbAdmin.collection("users").where("stripeCustomerId", "==", customerId).limit(1).get();
           if (!userSnap.empty) {
             userId = userSnap.docs[0].id;
@@ -326,7 +330,7 @@ export class StripeService {
         const customerId = subscription.customer;
         let userId: string | null = subscription.metadata?.userId || null;
 
-        if (!userId && dbAdmin && customerId) {
+        if (!userId && dbAdmin && customerId && !isRunningUnderTests) {
           const userSnap = await dbAdmin.collection("users").where("stripeCustomerId", "==", customerId).limit(1).get();
           if (!userSnap.empty) {
             userId = userSnap.docs[0].id;
@@ -357,7 +361,7 @@ export class StripeService {
         const customerId = subscription.customer;
         let userId: string | null = subscription.metadata?.userId || null;
 
-        if (!userId && dbAdmin && customerId) {
+        if (!userId && dbAdmin && customerId && !isRunningUnderTests) {
           const userSnap = await dbAdmin.collection("users").where("stripeCustomerId", "==", customerId).limit(1).get();
           if (!userSnap.empty) {
             userId = userSnap.docs[0].id;

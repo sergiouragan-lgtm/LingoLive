@@ -1,6 +1,23 @@
 import { dbAdmin } from "../config/firebaseAdmin";
 import { ENABLE_SANDBOX_FALLBACK } from "../config/env";
 
+// CORREÇÃO DE BUG CRÍTICO (encontrado pelo pipeline DevSecOps): este ficheiro
+// é o caminho central de leitura/escrita usado em quase todo o backend
+// (safeGetDoc, safeSetDoc, safeSetSubDoc, safeGetSubDocs, safeAddDoc).
+// dbAdmin fica sempre inicializado (não-nulo) quando existe
+// firebase-applet-config.json, mesmo sem credenciais reais — a
+// inicialização em si não contacta a rede, só as chamadas reais o fazem.
+// Isto fazia com que, em ambiente de testes automatizados (sem acesso à
+// rede do Firestore), CADA operação de leitura/escrita em CADA teste
+// tentasse uma chamada real de rede antes de cair no modo local — e cada
+// tentativa falhada demorava perto do limite de timeout do Vitest,
+// derrubando suites inteiras (ex: 88 testes em webhooks.test.ts). Usamos a
+// variável VITEST, definida automaticamente pelo Vitest em qualquer
+// execução de testes, para saltar direto para o modo local em memória
+// durante os testes — o comportamento em produção não muda.
+const isRunningUnderTests = process.env.VITEST === "true" || process.env.NODE_ENV === "test";
+const dbAdminUsable = () => dbAdmin && !isRunningUnderTests;
+
 export function shouldFallback(err: any): boolean {
   if (ENABLE_SANDBOX_FALLBACK) return true;
   const errMsg = err?.message || String(err || "");
@@ -48,7 +65,7 @@ seedStudents.forEach(s => localMemoryDb.set(`students_${s.id}`, s));
 
 // Robust wrapper functions for database reading and writing
 export async function safeGetDoc(collectionName: string, docId: string) {
-  if (dbAdmin) {
+  if (dbAdminUsable()) {
     try {
       const docRef = dbAdmin.collection(collectionName).doc(docId);
       const docSnap = await docRef.get();
@@ -98,7 +115,7 @@ export async function safeSetDoc(
   const existingLocal = localMemoryDb.get(key) || {};
   localMemoryDb.set(key, merge ? { ...existingLocal, ...cleanedData } : cleanedData);
 
-  if (dbAdmin) {
+  if (dbAdminUsable()) {
     try {
       await dbAdmin.collection(collectionName).doc(docId).set(cleanedData, { merge });
       return true;
@@ -126,7 +143,7 @@ export async function safeSetSubDoc(
   const existingLocal = localMemoryDb.get(key) || {};
   localMemoryDb.set(key, { ...existingLocal, ...cleanedData });
 
-  if (dbAdmin) {
+  if (dbAdminUsable()) {
     try {
       await dbAdmin
         .collection(parentCollection)
@@ -148,7 +165,7 @@ export async function safeGetSubDocs(
   subCollection: string
 ): Promise<any[]> {
   const results: any[] = [];
-  if (dbAdmin) {
+  if (dbAdminUsable()) {
     try {
       const snap = await dbAdmin
         .collection(parentCollection)
@@ -179,7 +196,7 @@ export async function safeAddDoc(collectionName: string, data: any) {
   const randomId = `local_${Math.random().toString(36).substring(2, 11)}`;
   localMemoryDb.set(`${collectionName}_${randomId}`, { ...cleanedData, id: randomId });
 
-  if (dbAdmin) {
+  if (dbAdminUsable()) {
     try {
       const ref = await dbAdmin.collection(collectionName).add(cleanedData);
       return { id: ref.id, source: "firestore" };
