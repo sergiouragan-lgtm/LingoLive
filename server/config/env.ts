@@ -10,4 +10,8 @@ export const appBaseUrl = (() => {
   }
   return url;
 })();
-export const PORT = 3000;
+// PORT: Cloud Run, Render e a generalidade das plataformas de nuvem atribuem
+// a porta dinamicamente via variável de ambiente PORT. Um valor fixo aqui
+// impede o arranque correto em produção nessas plataformas. 3000 mantém-se
+// como reserva apenas para desenvolvimento local.
+export const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
