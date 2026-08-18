@@ -1,6 +1,16 @@
 import dotenv from "dotenv";
 dotenv.config();
 
+// Rede de segurança: erros assíncronos não tratados (ex: falhas de credenciais
+// do Google Cloud disparadas em segundo plano pelo SDK do Firestore/gRPC) não
+// devem derrubar o servidor inteiro. Registamos o erro e mantemos o processo vivo.
+process.on("unhandledRejection", (reason: any) => {
+  console.error("[unhandledRejection] Erro assíncrono não tratado (servidor continua ativo):", reason?.message || reason);
+});
+process.on("uncaughtException", (err: any) => {
+  console.error("[uncaughtException] Erro não tratado (servidor continua ativo):", err?.message || err);
+});
+
 import express from "express";
 import http from "http";
 import path from "path";
