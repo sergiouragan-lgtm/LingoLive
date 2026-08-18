@@ -9,10 +9,13 @@ import {
 } from "../data/regionalLanguageCatalog";
 
 describe("Central Regional Language Catalog", () => {
-  it("catalog contains exactly the 10 initial countries with uppercase keys", () => {
+  it("catalog contains the 10 original countries plus the 10 expandidos nesta sessão (20 no total), todos com chaves maiúsculas", () => {
     const keys = Object.keys(REGIONAL_LANGUAGE_CATALOG);
     expect(keys.sort()).toEqual(
-      ["AO", "BR", "CA", "ES", "FR", "JP", "MX", "MZ", "US", "ZA"].sort()
+      [
+        "AO", "BR", "CA", "ES", "FR", "JP", "MX", "MZ", "US", "ZA", // 10 originais
+        "CV", "GW", "ST", "TL", "NG", "GB", "DE", "IT", "CN", "IN", // 10 expandidos (lusofonia + mercados globais)
+      ].sort()
     );
     keys.forEach((key) => {
       expect(key).toBe(key.toUpperCase());

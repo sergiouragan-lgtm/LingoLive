@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { Localization, LinguisticIdentity } from '../types';
@@ -244,17 +244,39 @@ export const LocalizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   }, [linguisticIdentity.interfaceLanguage, isRtl]);
 
+  // CORREÇÃO DE BUG CRÍTICO: logFallback() era chamado de forma síncrona
+  // durante a renderização (via translateMessage), e atualizava sempre o
+  // estado do React mesmo quando a mesma chave em falta era repetida. Isso
+  // causava "Maximum update depth exceeded" (ciclo infinito de renderização)
+  // sempre que um componente pedia uma tradução para uma chave sem entrada
+  // definida (ex: GamificationWidget a pedir 'gamification.error'). Agora,
+  // cada combinação chave+domínio+idioma só atualiza o estado do React UMA
+  // vez — repetições da mesma chave em falta são ignoradas silenciosamente.
+  const loggedFallbackKeysRef = useRef<Set<string>>(new Set());
+
   const logFallback = (key: string, domain: string, language: string) => {
+    const dedupeKey = `${domain}::${key}::${language}`;
+    if (loggedFallbackKeysRef.current.has(dedupeKey)) {
+      return;
+    }
+    loggedFallbackKeysRef.current.add(dedupeKey);
+
     const newLog: FallbackLog = {
       timestamp: new Date().toISOString(),
       key,
       domain,
       language
     };
-    setFallbackLogs(prev => {
-      const updated = [newLog, ...prev].slice(0, 100);
-      localStorage.setItem('lingolive_fallback_logs', JSON.stringify(updated));
-      return updated;
+    // Adiado para depois da renderização (translateMessage é normalmente
+    // chamado de forma síncrona DURANTE a renderização de outros componentes,
+    // e o React não permite/recomenda atualizar o estado de um contexto
+    // enquanto outro componente ainda está a renderizar).
+    queueMicrotask(() => {
+      setFallbackLogs(prev => {
+        const updated = [newLog, ...prev].slice(0, 100);
+        localStorage.setItem('lingolive_fallback_logs', JSON.stringify(updated));
+        return updated;
+      });
     });
   };
 
