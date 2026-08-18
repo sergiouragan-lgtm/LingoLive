@@ -2,7 +2,8 @@ import * as http from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { ai } from "../config/gemini";
 import { Modality, LiveServerMessage } from "@google/genai";
-import { authAdmin } from "../config/firebaseAdmin";
+import { authAdmin, dbAdmin } from "../config/firebaseAdmin";
+import { resolveServerSideAgeGroup, buildAgeSafetyDirective, getSafetySettingsForAgeGroup } from "../services/childSafety.service";
 import { ENABLE_SANDBOX_FALLBACK } from "../config/env";
 import { checkWsRateLimit } from "../middleware/rateLimit";
 import { buildTutorSessionContext, TutorSessionContext } from "../../src/features/tutor/tutorSessionContextBuilder";
@@ -191,7 +192,18 @@ export function setupWebSocket(server: http.Server) {
 
     const language = normalizedGateway.language;
     const proficiency = normalizedGateway.cefrLevel || "A1";
-    const ageGroup = sanitizeCode(urlObj.searchParams.get("ageGroup"), 20) || "Kids";
+
+    // REFORÇO DE SEGURANÇA: a faixa etária NUNCA é aceite do cliente (era
+    // falsificável via parâmetro de URL). É sempre verificada a partir do
+    // perfil real do utilizador autenticado no servidor. Qualquer falha ou
+    // ausência de dados resulta na faixa mais protegida (Kids), nunca em Adult.
+    const clientSuppliedAgeGroup = sanitizeCode(urlObj.searchParams.get("ageGroup"), 20);
+    const { ageGroup: verifiedAgeGroup, isMinor } = await resolveServerSideAgeGroup(userUid);
+    const ageGroup = verifiedAgeGroup;
+    if (clientSuppliedAgeGroup && clientSuppliedAgeGroup !== ageGroup) {
+      console.warn(`[ChildSafety] Faixa etária enviada pelo cliente (${clientSuppliedAgeGroup}) difere da verificada no servidor (${ageGroup}) para user=${userUid}. A usar SEMPRE o valor do servidor.`);
+    }
+
     const scenario = sanitizePromptInput(urlObj.searchParams.get("scenario"), 100) || "Casual Chat";
     const voice = sanitizeCode(urlObj.searchParams.get("voice"), 30) || "Zephyr";
 
@@ -250,6 +262,8 @@ export function setupWebSocket(server: http.Server) {
   2. Response Length: Keep responses extremely concise to minimize latency in Live audio streaming. Maximum 2 sentences for older cohorts (Cohort 3 & 4), and maximum 4 words per sentence/turn for the youngest cohort (Cohort 1).
   3. Strictly adapt your linguistic complexity to match their proficiency level (${proficiency}).
   4. SAFETY (GUARDRAILS): You are operating in a protected school/daycare environment. Strictly refuse to engage in, comment on, or generate content regarding adult topics, politics, violence, or religion.
+
+  ${buildAgeSafetyDirective(ageGroup)}
   5. TEACHER INTEGRATION & DATA LOGGING:
   To power the school's dashboard and allow educators to track student progress, you MUST analyze the student's language performance in the background. At the very end of your response, if the student made a notable grammatical or phonetic error, output a data payload using hidden XML tags exactly like this:
   <analytics>
@@ -288,6 +302,7 @@ export function setupWebSocket(server: http.Server) {
             voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } },
           },
           systemInstruction: finalSystemInstruction,
+          safetySettings: getSafetySettingsForAgeGroup(ageGroup),
           inputAudioTranscription: {},
           outputAudioTranscription: {},
         },

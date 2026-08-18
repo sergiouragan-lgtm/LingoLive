@@ -5,6 +5,7 @@ import { safeGetDoc, safeSetDoc } from "../firestoreSafe.service";
 import { dbAdmin } from "../../config/firebaseAdmin";
 import { buildTutorSessionContext } from "../../../src/features/tutor/tutorSessionContextBuilder";
 import { composeTutorSystemInstruction } from "../../../src/features/tutor/tutorPromptComposer";
+import { resolveServerSideAgeGroup, buildAgeSafetyDirective, getSafetySettingsForAgeGroup } from "../childSafety.service";
 
 // Supported languages definition
 export type SupportedLanguage = "pt" | "en" | "fr" | "zh";
@@ -177,6 +178,12 @@ export class MultilingualConversationEngine {
       AIOrchestrationLogger.warn(`Não foi possível carregar identidade linguística de ${request.userId}, a seguir sem adaptação cultural: ${err.message}`);
     }
 
+    // REFORÇO DE SEGURANÇA (auditoria): o chat de texto não tinha, até agora,
+    // NENHUMA adaptação ou proteção por faixa etária — só as sessões de voz
+    // (Live) tinham. A faixa etária é sempre verificada a partir do perfil
+    // real do utilizador no servidor, nunca aceite de um parâmetro do cliente.
+    const { ageGroup } = await resolveServerSideAgeGroup(request.userId);
+
     const systemPrompt = `Você é um tutor nativo especialista de inteligência artificial de LingoLIVE.
 Sua missão é responder ao aluno, corrigir erros gramaticais de forma amigável, sugerir vocabulários mais ricos, fornecer dicas de pronúncia legíveis foneticamente e avaliar o desempenho dele em tempo real.
 
@@ -184,6 +191,8 @@ O aluno está aprendendo o idioma alvo: "${request.targetLanguage}" (Código do 
 Nível CEFR do aluno: "${request.userCEFR}".
 Idioma nativo do aluno: "${request.sourceLanguage}".
 Se "voiceInput" for verdadeiro (${request.voiceInput ? "Sim" : "Não"}), simplifique a resposta para que soe natural se falada em áudio.
+
+${buildAgeSafetyDirective(ageGroup)}
 
 Estruture a resposta OBRIGATORIAMENTE no seguinte formato JSON (sem blocos externos adicionais):
 {
@@ -249,6 +258,7 @@ Estruture a resposta OBRIGATORIAMENTE no seguinte formato JSON (sem blocos exter
         contents: promptMessage,
         config: {
           systemInstruction: finalSystemPrompt,
+          safetySettings: getSafetySettingsForAgeGroup(ageGroup),
           temperature: 0.6,
           responseMimeType: "application/json"
         }
