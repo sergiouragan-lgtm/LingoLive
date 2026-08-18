@@ -427,6 +427,308 @@ export const REGIONAL_LANGUAGE_CATALOG: Readonly<
       },
     ],
   },
+
+  // --- PALOP e lusofonia (missão central do LingoLive) ---
+  CV: {
+    countryCode: "CV",
+    countryName: "Cabo Verde",
+    defaultInterfaceLanguage: "pt-CV",
+    officialLanguages: [
+      { code: "pt", name: "Portuguese", nativeName: "Português" },
+    ],
+    regionalOptions: [
+      {
+        id: "kriolu-santiago",
+        name: "Cape Verdean Creole (Santiago)",
+        nativeName: "Kriolu di Santiagu",
+        countryCodes: ["CV"],
+        kind: "national",
+      },
+      {
+        id: "kriolu-sao-vicente",
+        name: "Cape Verdean Creole (São Vicente)",
+        nativeName: "Kriolu di São Vicente",
+        countryCodes: ["CV"],
+        kind: "national",
+      },
+    ],
+  },
+  GW: {
+    countryCode: "GW",
+    countryName: "Guiné-Bissau",
+    defaultInterfaceLanguage: "pt-GW",
+    officialLanguages: [
+      { code: "pt", name: "Portuguese", nativeName: "Português" },
+    ],
+    regionalOptions: [
+      {
+        id: "kriol-gb",
+        name: "Guinea-Bissau Creole",
+        nativeName: "Kriol",
+        countryCodes: ["GW"],
+        kind: "national",
+      },
+      {
+        id: "balanta",
+        name: "Balanta",
+        nativeName: "Balanta",
+        countryCodes: ["GW"],
+        kind: "indigenous",
+      },
+      {
+        id: "fula-gb",
+        name: "Fula",
+        nativeName: "Pular",
+        countryCodes: ["GW"],
+        kind: "indigenous",
+      },
+    ],
+  },
+  ST: {
+    countryCode: "ST",
+    countryName: "São Tomé e Príncipe",
+    defaultInterfaceLanguage: "pt-ST",
+    officialLanguages: [
+      { code: "pt", name: "Portuguese", nativeName: "Português" },
+    ],
+    regionalOptions: [
+      {
+        id: "forro",
+        name: "Forro",
+        nativeName: "Forro",
+        countryCodes: ["ST"],
+        kind: "national",
+      },
+      {
+        id: "angolar",
+        name: "Angolar",
+        nativeName: "Ngola",
+        countryCodes: ["ST"],
+        kind: "national",
+      },
+      {
+        id: "principense",
+        name: "Principense",
+        nativeName: "Lung'Ie",
+        countryCodes: ["ST"],
+        kind: "national",
+      },
+    ],
+  },
+  TL: {
+    countryCode: "TL",
+    countryName: "Timor-Leste",
+    defaultInterfaceLanguage: "pt-TL",
+    officialLanguages: [
+      { code: "pt", name: "Portuguese", nativeName: "Português" },
+      { code: "tet", name: "Tetum", nativeName: "Tetun" },
+    ],
+    regionalOptions: [
+      {
+        id: "mambai",
+        name: "Mambai",
+        nativeName: "Mambai",
+        countryCodes: ["TL"],
+        kind: "indigenous",
+      },
+      {
+        id: "fataluku",
+        name: "Fataluku",
+        nativeName: "Fataluku",
+        countryCodes: ["TL"],
+        kind: "indigenous",
+      },
+    ],
+  },
+
+  // --- Mercados globais chave ---
+  NG: {
+    countryCode: "NG",
+    countryName: "Nigeria",
+    defaultInterfaceLanguage: "en-NG",
+    officialLanguages: [
+      { code: "en", name: "English", nativeName: "English" },
+    ],
+    regionalOptions: [
+      {
+        id: "igbo",
+        name: "Igbo",
+        nativeName: "Igbo",
+        countryCodes: ["NG"],
+        kind: "national",
+      },
+      {
+        id: "yoruba",
+        name: "Yoruba",
+        nativeName: "Yorùbá",
+        countryCodes: ["NG"],
+        kind: "national",
+      },
+      {
+        id: "hausa",
+        name: "Hausa",
+        nativeName: "Hausa",
+        countryCodes: ["NG"],
+        kind: "national",
+      },
+    ],
+  },
+  GB: {
+    countryCode: "GB",
+    countryName: "United Kingdom",
+    defaultInterfaceLanguage: "en-GB",
+    officialLanguages: [
+      { code: "en", name: "English", nativeName: "English" },
+    ],
+    regionalOptions: [
+      {
+        id: "scots",
+        name: "Scots",
+        nativeName: "Scots",
+        countryCodes: ["GB"],
+        kind: "regional",
+      },
+      {
+        id: "welsh",
+        name: "Welsh",
+        nativeName: "Cymraeg",
+        countryCodes: ["GB"],
+        kind: "national",
+      },
+      {
+        id: "scottish-gaelic",
+        name: "Scottish Gaelic",
+        nativeName: "Gàidhlig",
+        countryCodes: ["GB"],
+        kind: "indigenous",
+      },
+    ],
+  },
+  DE: {
+    countryCode: "DE",
+    countryName: "Germany",
+    defaultInterfaceLanguage: "de-DE",
+    officialLanguages: [
+      { code: "de", name: "German", nativeName: "Deutsch" },
+    ],
+    regionalOptions: [
+      {
+        id: "bavarian",
+        name: "Bavarian",
+        nativeName: "Bairisch",
+        countryCodes: ["DE"],
+        kind: "dialect",
+      },
+      {
+        id: "swabian",
+        name: "Swabian",
+        nativeName: "Schwäbisch",
+        countryCodes: ["DE"],
+        kind: "dialect",
+      },
+    ],
+  },
+  IT: {
+    countryCode: "IT",
+    countryName: "Italy",
+    defaultInterfaceLanguage: "it-IT",
+    officialLanguages: [
+      { code: "it", name: "Italian", nativeName: "Italiano" },
+    ],
+    regionalOptions: [
+      {
+        id: "sicilian",
+        name: "Sicilian",
+        nativeName: "Sicilianu",
+        countryCodes: ["IT"],
+        kind: "dialect",
+      },
+      {
+        id: "neapolitan",
+        name: "Neapolitan",
+        nativeName: "Napulitano",
+        countryCodes: ["IT"],
+        kind: "dialect",
+      },
+      {
+        id: "venetian",
+        name: "Venetian",
+        nativeName: "Vèneto",
+        countryCodes: ["IT"],
+        kind: "dialect",
+      },
+    ],
+  },
+  CN: {
+    countryCode: "CN",
+    countryName: "China",
+    defaultInterfaceLanguage: "zh-CN",
+    officialLanguages: [
+      { code: "zh", name: "Mandarin Chinese", nativeName: "普通话" },
+    ],
+    regionalOptions: [
+      {
+        id: "cantonese",
+        name: "Cantonese",
+        nativeName: "粵語",
+        countryCodes: ["CN"],
+        kind: "dialect",
+      },
+      {
+        id: "shanghainese",
+        name: "Shanghainese",
+        nativeName: "上海話",
+        countryCodes: ["CN"],
+        kind: "dialect",
+      },
+      {
+        id: "hokkien",
+        name: "Hokkien",
+        nativeName: "閩南語",
+        countryCodes: ["CN"],
+        kind: "dialect",
+      },
+    ],
+  },
+  IN: {
+    countryCode: "IN",
+    countryName: "India",
+    defaultInterfaceLanguage: "en-IN",
+    officialLanguages: [
+      { code: "en", name: "English", nativeName: "English" },
+      { code: "hi", name: "Hindi", nativeName: "हिन्दी" },
+    ],
+    regionalOptions: [
+      {
+        id: "bengali",
+        name: "Bengali",
+        nativeName: "বাংলা",
+        countryCodes: ["IN"],
+        kind: "national",
+      },
+      {
+        id: "tamil",
+        name: "Tamil",
+        nativeName: "தமிழ்",
+        countryCodes: ["IN"],
+        kind: "national",
+      },
+      {
+        id: "marathi",
+        name: "Marathi",
+        nativeName: "मराठी",
+        countryCodes: ["IN"],
+        kind: "national",
+      },
+      {
+        id: "punjabi",
+        name: "Punjabi",
+        nativeName: "ਪੰਜਾਬੀ",
+        countryCodes: ["IN"],
+        kind: "national",
+      },
+    ],
+  },
 });
 
 export const normalizeCountryCode = (
