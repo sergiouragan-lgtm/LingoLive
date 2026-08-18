@@ -1,4 +1,5 @@
 import admin from "firebase-admin";
+import { cert } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 import path from "path";
@@ -25,12 +26,33 @@ try {
   if (admin.getApps().length === 0) {
     const options: any = {};
     const ambientProjectId = process.env.GOOGLE_CLOUD_PROJECT || process.env.GCP_PROJECT;
-    if (firebaseProjectID) {
-      options.projectId = firebaseProjectID;
-      console.log(`[Firebase Admin] Using explicit Firebase Project ID from config: ${firebaseProjectID}`);
-    } else if (ambientProjectId) {
-      options.projectId = ambientProjectId;
-      console.log(`[Firebase Admin] Using ambient GCP Project ID: ${ambientProjectId}`);
+
+    // Prioridade 1: credencial explícita via variável de ambiente (JSON em string).
+    // Formato ideal para plataformas de deploy (Render, Vercel) onde não há
+    // sistema de ficheiros persistente para guardar o .json da conta de serviço.
+    const explicitCredentialJson = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+    if (explicitCredentialJson) {
+      try {
+        const serviceAccount = JSON.parse(explicitCredentialJson);
+        options.credential = cert(serviceAccount);
+        options.projectId = serviceAccount.project_id;
+        console.log(`[Firebase Admin] Using explicit service account credential from FIREBASE_SERVICE_ACCOUNT_KEY for project: ${serviceAccount.project_id}`);
+      } catch (parseErr: any) {
+        console.error(`[Firebase Admin] Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY: ${parseErr.message}`);
+      }
+    }
+
+    // Prioridade 2: apenas o Project ID (usa Application Default Credentials,
+    // por exemplo via GOOGLE_APPLICATION_CREDENTIALS a apontar para um ficheiro local,
+    // ou credenciais ambiente quando corre dentro da infraestrutura da Google).
+    if (!options.credential) {
+      if (firebaseProjectID) {
+        options.projectId = firebaseProjectID;
+        console.log(`[Firebase Admin] Using explicit Firebase Project ID from config: ${firebaseProjectID}`);
+      } else if (ambientProjectId) {
+        options.projectId = ambientProjectId;
+        console.log(`[Firebase Admin] Using ambient GCP Project ID: ${ambientProjectId}`);
+      }
     }
     app = admin.initializeApp(options);
   } else {
