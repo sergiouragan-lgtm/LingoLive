@@ -32,6 +32,9 @@ jobs:
       contents: read
       security-events: write
     steps:
+      - name: "Verificar disponibilidade do SONAR_TOKEN (sem expor o valor)"
+        run: echo "SONAR_TOKEN_SET=${{ secrets.SONAR_TOKEN != '' }}" >> "$GITHUB_ENV"
+
       - name: Checkout (histórico completo para o Gitleaks analisar commits antigos)
         uses: actions/checkout@v4
         with:
@@ -63,7 +66,7 @@ jobs:
           args: --severity-threshold=high
 
       - name: "SonarCloud — Qualidade de código, cobertura e code smells"
-        if: ${{ secrets.SONAR_TOKEN != '' }}
+        if: ${{ env.SONAR_TOKEN_SET == 'true' }}
         uses: SonarSource/sonarqube-scan-action@v4
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
