@@ -1,9 +1,12 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { signOut } from "firebase/auth";
 import { auth } from "../../../firebase";
+import { WhisperService } from "../../../services/audio/whisper";
 import { Language, Proficiency, AgeGroup, Scenario, Voice, TranscriptItem, SavedWord } from "../../../types";
 import { PronunciationTipModal } from '../PronunciationTipModal';
 import { AudioVisualizer } from '../AudioVisualizer';
+import { SmartProfile } from "../../../profile/types";
+import { buildTutorSessionContext, TutorSessionContext } from "../../../features/tutor/tutorSessionContextBuilder";
 import { 
   Mic, 
   MicOff, 
@@ -29,37 +32,68 @@ import {
   Compass,
   Gamepad2,
   Star,
-  Focus
+  Focus,
+  Coffee,
+  Wind,
+  Sliders
 } from "lucide-react";
 
-interface PracticeRoomProps {
+export interface PracticeRoomProps {
   language: Language;
   proficiency: Proficiency;
   ageGroup: AgeGroup;
+  userAge?: number;
   scenario: Scenario;
   voice: Voice;
   onEndSession: (transcript: TranscriptItem[], audioUrl?: string | null) => void;
   onExit: () => void;
   onSaveWord: (word: SavedWord) => void;
   savedWords: SavedWord[];
+  smartProfile?: SmartProfile | Partial<SmartProfile> | null;
+  sessionContext?: TutorSessionContext;
 }
 
 export default function PracticeRoom({
   language,
   proficiency,
   ageGroup,
+  userAge,
   scenario,
   voice,
   onEndSession,
   onExit,
   onSaveWord,
-  savedWords
+  savedWords,
+  smartProfile: propSmartProfile,
+  sessionContext: propSessionContext
 }: PracticeRoomProps) {
+  // Profile & Session Context initialization
+  const [userProfile] = useState<SmartProfile | Partial<SmartProfile> | null>(() => {
+    if (propSmartProfile) return propSmartProfile;
+    if (auth.currentUser) {
+      const stored = localStorage.getItem(`lingolive_smart_profile_${auth.currentUser.uid}`) || localStorage.getItem(`lingolive_user_sub_${auth.currentUser.uid}`);
+      if (stored) {
+        try { return JSON.parse(stored); } catch (e) {}
+      }
+    }
+    return null;
+  });
+
+  const effectiveSessionContext = useMemo<TutorSessionContext>(() => {
+    if (propSessionContext) return propSessionContext;
+    return buildTutorSessionContext({
+      smartProfile: propSmartProfile || userProfile,
+      targetLanguage: language.name || language.code,
+      cefrLevel: proficiency,
+    });
+  }, [propSessionContext, propSmartProfile, userProfile, language, proficiency]);
+
   // Session UI states
   const [sessionStatus, setSessionStatus] = useState<"connecting" | "ready" | "closed" | "error">("connecting");
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [errorMessage, setErrorMessage] = useState("");
   const [isMuted, setIsMuted] = useState(false);
+  const [speakOutMode, setSpeakOutMode] = useState<"tts-only" | "voice-input">("voice-input");
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [textInput, setTextInput] = useState("");
@@ -71,6 +105,250 @@ export default function PracticeRoom({
   const [showPronunciationModal, setShowPronunciationModal] = useState(false);
   const [currentTip, setCurrentTip] = useState<string | null>(null);
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
+
+  // Whisper Speech-to-Text states
+  const [isWhisperRecording, setIsWhisperRecording] = useState(false);
+  const [isWhisperTranscribing, setIsWhisperTranscribing] = useState(false);
+  const whisperRecorderRef = useRef<MediaRecorder | null>(null);
+  const whisperChunksRef = useRef<Blob[]>([]);
+
+  const startWhisperRecording = async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      alert("Microfone não suportado no seu navegador.");
+      return;
+    }
+    
+    try {
+      // Temporarily mute real-time microphone to prevent feedback/duplicate sound
+      const oldIsMuted = isMuted;
+      setIsMuted(true);
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      whisperChunksRef.current = [];
+      
+      let options = { mimeType: "audio/webm" };
+      if (typeof MediaRecorder !== "undefined" && !MediaRecorder.isTypeSupported("audio/webm")) {
+        options = { mimeType: "audio/ogg" };
+      }
+      if (typeof MediaRecorder !== "undefined" && !MediaRecorder.isTypeSupported("audio/ogg") && !MediaRecorder.isTypeSupported("audio/webm")) {
+        options = {} as any;
+      }
+      
+      const recorder = new MediaRecorder(stream, options);
+      whisperRecorderRef.current = recorder;
+      
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          whisperChunksRef.current.push(e.data);
+        }
+      };
+      
+      recorder.onstop = async () => {
+        // Stop all tracks to release the microphone
+        stream.getTracks().forEach((track) => track.stop());
+        
+        // Restore mute state if desired, or keep muted
+        setIsMuted(oldIsMuted);
+
+        const audioBlob = new Blob(whisperChunksRef.current, { type: options.mimeType || "audio/webm" });
+        if (audioBlob.size === 0) return;
+        
+        setIsWhisperTranscribing(true);
+        try {
+          const transcription = await WhisperService.transcribe(audioBlob, language.name);
+          if (transcription.trim()) {
+            setTextInput((prev) => (prev ? prev + " " + transcription : transcription));
+          }
+        } catch (err: any) {
+          console.error("Whisper transcription failed:", err);
+        } finally {
+          setIsWhisperTranscribing(false);
+        }
+      };
+      
+      recorder.start();
+      setIsWhisperRecording(true);
+    } catch (err) {
+      console.error("Failed to start Whisper recording:", err);
+    }
+  };
+
+  const stopWhisperRecording = () => {
+    if (whisperRecorderRef.current && whisperRecorderRef.current.state !== "inactive") {
+      whisperRecorderRef.current.stop();
+    }
+    setIsWhisperRecording(false);
+  };
+
+  const toggleWhisperRecording = () => {
+    if (isWhisperRecording) {
+      stopWhisperRecording();
+    } else {
+      startWhisperRecording();
+    }
+  };
+
+  // Background Ambient Sound States and Synthesis using Web Audio API
+  const [ambientMode, setAmbientMode] = useState<'none' | 'white' | 'cafe'>('none');
+  const [ambientVolume, setAmbientVolume] = useState<number>(0.3);
+  const ambientAudioCtxRef = useRef<AudioContext | null>(null);
+  const ambientSourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const ambientGainNodeRef = useRef<GainNode | null>(null);
+  const clinkTimerRef = useRef<any>(null);
+
+  const stopAmbientSound = () => {
+    if (clinkTimerRef.current) {
+      clearTimeout(clinkTimerRef.current);
+      clinkTimerRef.current = null;
+    }
+    if (ambientSourceRef.current) {
+      try {
+        ambientSourceRef.current.stop();
+      } catch (e) {}
+      ambientSourceRef.current = null;
+    }
+    if (ambientAudioCtxRef.current) {
+      try {
+        ambientAudioCtxRef.current.close().catch(() => {});
+      } catch (e) {}
+      ambientAudioCtxRef.current = null;
+    }
+    ambientGainNodeRef.current = null;
+  };
+
+  const startAmbientSound = (mode: 'white' | 'cafe', vol: number) => {
+    stopAmbientSound();
+
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      
+      const ctx = new AudioCtx();
+      ambientAudioCtxRef.current = ctx;
+
+      const masterGain = ctx.createGain();
+      // Keep it extremely gentle so speech remains perfectly audible and distinct
+      masterGain.gain.setValueAtTime(vol * 0.15, ctx.currentTime);
+      masterGain.connect(ctx.destination);
+      ambientGainNodeRef.current = masterGain;
+
+      if (mode === 'white') {
+        const bufferSize = ctx.sampleRate * 2;
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.random() * 2 - 1;
+        }
+
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.loop = true;
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(450, ctx.currentTime); // Lowpass to transform white to soothing pink/brown noise
+
+        source.connect(filter);
+        filter.connect(masterGain);
+        source.start(0);
+        ambientSourceRef.current = source;
+      } else if (mode === 'cafe') {
+        const bufferSize = ctx.sampleRate * 4;
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        
+        // Generate a smooth continuous low-end rumble representing restaurant hum
+        let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+        for (let i = 0; i < bufferSize; i++) {
+          const white = Math.random() * 2 - 1;
+          b0 = 0.99886 * b0 + white * 0.0555179;
+          b1 = 0.99332 * b1 + white * 0.0750759;
+          b2 = 0.96900 * b2 + white * 0.1538520;
+          b3 = 0.86650 * b3 + white * 0.3104856;
+          b4 = 0.55000 * b4 + white * 0.5329522;
+          b5 = -0.7616 * b5 - white * 0.0168980;
+          data[i] = b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362;
+          data[i] *= 0.11;
+          b6 = white * 0.115926;
+        }
+
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.loop = true;
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(250, ctx.currentTime); // Deep warm environment hum
+
+        source.connect(filter);
+        filter.connect(masterGain);
+        source.start(0);
+        ambientSourceRef.current = source;
+
+        // Periodic coffee cup clinks synthesized programmatically
+        const playClink = () => {
+          if (!ambientAudioCtxRef.current || ambientAudioCtxRef.current.state === 'closed') return;
+          try {
+            const currentCtx = ambientAudioCtxRef.current;
+            const osc = currentCtx.createOscillator();
+            const clinkGain = currentCtx.createGain();
+            
+            const freq = 1800 + Math.random() * 1000;
+            osc.frequency.setValueAtTime(freq, currentCtx.currentTime);
+            osc.type = Math.random() > 0.45 ? 'sine' : 'triangle';
+
+            // Very subtle bell-like click
+            clinkGain.gain.setValueAtTime(0.003 + Math.random() * 0.005, currentCtx.currentTime);
+            clinkGain.gain.exponentialRampToValueAtTime(0.0001, currentCtx.currentTime + 0.12);
+
+            const bp = currentCtx.createBiquadFilter();
+            bp.type = 'bandpass';
+            bp.frequency.setValueAtTime(freq, currentCtx.currentTime);
+            bp.Q.setValueAtTime(12, currentCtx.currentTime);
+
+            osc.connect(bp);
+            bp.connect(clinkGain);
+            clinkGain.connect(masterGain);
+
+            osc.start();
+            osc.stop(currentCtx.currentTime + 0.35);
+          } catch (e) {
+            console.warn("Cafe ambient sound synthesis error:", e);
+          }
+
+          // Next random cup clink interval
+          const nextTime = 3000 + Math.random() * 7000;
+          clinkTimerRef.current = setTimeout(playClink, nextTime);
+        };
+
+        // Delay the first clink slightly
+        clinkTimerRef.current = setTimeout(playClink, 2000);
+      }
+    } catch (err) {
+      console.error("Error setting up ambient audio:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (ambientMode !== 'none') {
+      startAmbientSound(ambientMode, ambientVolume);
+    } else {
+      stopAmbientSound();
+    }
+  }, [ambientMode]);
+
+  useEffect(() => {
+    if (ambientGainNodeRef.current && ambientAudioCtxRef.current) {
+      const now = ambientAudioCtxRef.current.currentTime;
+      ambientGainNodeRef.current.gain.setTargetAtTime(ambientVolume * 0.15, now, 0.1);
+    }
+  }, [ambientVolume]);
+
+  useEffect(() => {
+    return () => {
+      stopAmbientSound();
+    };
+  }, []);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -319,6 +597,7 @@ export default function PracticeRoom({
   
   // Refs for mute/state updates in callbacks (to avoid stale closures)
   const isMutedRef = useRef(false);
+  const speakOutModeRef = useRef<"tts-only" | "voice-input">("voice-input");
   const isOnlineRef = useRef(navigator.onLine);
   const offlineAudioBuffer = useRef<string[]>([]);
   const transcriptRef = useRef<TranscriptItem[]>([]);
@@ -331,6 +610,15 @@ export default function PracticeRoom({
   useEffect(() => {
     isMutedRef.current = isMuted;
   }, [isMuted]);
+
+  useEffect(() => {
+    speakOutModeRef.current = speakOutMode;
+    if (speakOutMode === "tts-only") {
+      setIsMuted(true);
+    } else {
+      setIsMuted(false);
+    }
+  }, [speakOutMode]);
 
   useEffect(() => {
     isOnlineRef.current = isOnline;
@@ -395,11 +683,21 @@ export default function PracticeRoom({
 
         // Determine protocol based on current window location
         const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        
+        let token = "";
+        if (auth.currentUser) {
+          try {
+            token = await auth.currentUser.getIdToken();
+          } catch (e) {
+            console.warn("Failed to get ID token, continuing with empty", e);
+          }
+        }
+
         const wsUrl = `${protocol}//${window.location.host}/live?language=${encodeURIComponent(
           language.name
         )}&proficiency=${encodeURIComponent(proficiency)}&ageGroup=${encodeURIComponent(ageGroup)}&scenario=${encodeURIComponent(
           scenario.promptContext
-        )}&voice=${encodeURIComponent(voice.name)}`;
+        )}&voice=${encodeURIComponent(voice.name)}&token=${encodeURIComponent(token)}`;
 
         const ws = new WebSocket(wsUrl);
         wsRef.current = ws;
@@ -635,8 +933,8 @@ export default function PracticeRoom({
       processor.connect(inputAudioCtx.destination);
 
       processor.onaudioprocess = (e) => {
-        // Skip sending audio if user is muted, or session is not fully ready
-        if (isMutedRef.current) {
+        // Skip sending audio if user is muted, or session is not fully ready, or in tts-only mode
+        if (isMutedRef.current || speakOutModeRef.current === "tts-only") {
           return;
         }
 
@@ -850,10 +1148,19 @@ export default function PracticeRoom({
     setExplanationSaved(false);
 
     try {
+      const idToken = await auth.currentUser?.getIdToken();
       const response = await fetch("/api/explain-phrase", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phrase: cleaned, language: language.name }),
+        headers: { 
+          "Content-Type": "application/json",
+          ...(idToken ? { "Authorization": `Bearer ${idToken}` } : {})
+        },
+        body: JSON.stringify({ 
+          phrase: cleaned, 
+          language: language.name,
+          age: userAge,
+          ageGroup: ageGroup
+        }),
       });
 
       if (!response.ok) throw new Error("Failed to translate phrase");
@@ -885,6 +1192,8 @@ export default function PracticeRoom({
       exampleOriginal: phraseExplanation.exampleOriginal,
       exampleTranslation: phraseExplanation.exampleTranslation,
       savedAt: new Date().toLocaleDateString(),
+      maturityLevel: phraseExplanation.maturityLevel || "Adulto",
+      category: phraseExplanation.category || "Geral",
     };
 
     onSaveWord(newWord);
@@ -928,26 +1237,26 @@ export default function PracticeRoom({
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6 flex flex-col h-[calc(100vh-100px)] min-h-[550px]" id="practice-session-room">
+    <div className="max-w-6xl mx-auto px-4 py-6 flex flex-col h-[calc(100vh-100px)] min-h-[550px] gap-4" id="practice-session-room">
       {/* Session Title Bar */}
-      <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-4 gap-3" id="session-header">
         <div className="flex items-center gap-3">
           <div className="text-3xl" role="img">{language.flag}</div>
           <div>
             <h2 className="font-semibold text-slate-800 text-lg flex items-center gap-2">
-              <span>Practicing {language.name}</span>
+              <span>A praticar {language.name}</span>
               <span className="text-xs bg-indigo-100 text-indigo-700 font-medium px-2 py-0.5 rounded-full">
                 {proficiency}
               </span>
             </h2>
             <p className="text-xs text-slate-500 mt-0.5 line-clamp-1 max-w-md">
-              Scenario: <strong className="text-slate-700">{scenario.title}</strong> — Companion: {voice.name}
+              Cenário: <strong className="text-slate-700">{scenario.title}</strong> — Tutor: {voice.name}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-sm font-mono font-medium">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-sm font-mono font-medium" id="session-timer">
             <Clock className="w-4 h-4 text-slate-400 animate-pulse" />
             <span>{formatTimer(duration)}</span>
           </div>
@@ -955,7 +1264,7 @@ export default function PracticeRoom({
           <button
             onClick={() => setIsFocusMode(!isFocusMode)}
             className={`p-2 rounded-lg transition-all ${isFocusMode ? "bg-indigo-100 text-indigo-700" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"}`}
-            title="Toggle Focus Mode"
+            title="Alternar Modo Foco"
           >
             <Focus className="w-5 h-5" />
           </button>
@@ -963,11 +1272,92 @@ export default function PracticeRoom({
           <button
             onClick={onExit}
             className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-all"
-            title="Leave Session"
+            title="Sair da Sessão"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
+      </div>
+
+      {/* Card "Adaptado ao teu perfil" */}
+      <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 shadow-xs space-y-2.5" id="profile-adaptation-card">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/60 pb-2">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-900 text-sm">Adaptado ao teu perfil</h3>
+              <p className="text-[11px] text-slate-500">
+                Personalização pedagógica e geolinguística em tempo real
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200/60">
+              Nível de personalização: {effectiveSessionContext.personalizationLevel === "high" ? "Alto" : effectiveSessionContext.personalizationLevel === "medium" ? "Médio" : effectiveSessionContext.personalizationLevel === "basic" ? "Básico" : "Padrão"}
+            </span>
+          </div>
+        </div>
+
+        {/* Highlight Chips / Badges */}
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          {/* Regional Variant or Language */}
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-slate-200 font-medium text-slate-700">
+            <Compass className="w-3.5 h-3.5 text-indigo-500" />
+            <span>
+              {effectiveSessionContext.regionalVariant === "pt-AO"
+                ? "Português (Angola) / pt-AO"
+                : effectiveSessionContext.regionalVariant
+                ? `Variante: ${effectiveSessionContext.regionalVariant}`
+                : `Idioma: ${effectiveSessionContext.targetLanguage}`}
+            </span>
+          </span>
+
+          {/* CEFR Level */}
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-slate-200 font-medium text-slate-700">
+            <Award className="w-3.5 h-3.5 text-amber-500" />
+            <span>Nível {effectiveSessionContext.cefrLevel}</span>
+          </span>
+
+          {/* Pedagogical Tone / Correction Style */}
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-slate-200 font-medium text-slate-700">
+            <Smile className="w-3.5 h-3.5 text-emerald-500" />
+            <span>
+              {effectiveSessionContext.preferences?.preferredCorrectionStyle === "gentle"
+                ? "Correcções suaves"
+                : effectiveSessionContext.preferences?.preferredCorrectionStyle === "direct"
+                ? "Correcções directas"
+                : effectiveSessionContext.pedagogicalTone === "warm"
+                ? "Tom Acolhedor"
+                : `Tom: ${effectiveSessionContext.pedagogicalTone}`}
+            </span>
+          </span>
+
+          {/* Support Language */}
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-slate-200 font-medium text-slate-700">
+            <MessageSquare className="w-3.5 h-3.5 text-sky-500" />
+            <span>
+              Apoio em {effectiveSessionContext.primaryLanguage === "pt" ? "português" : effectiveSessionContext.primaryLanguage}
+            </span>
+          </span>
+
+          {/* Regional Examples guidance */}
+          {effectiveSessionContext.culturalContext?.teachingGuidance?.useRegionalExamples && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 font-semibold text-emerald-800">
+              <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Exemplos regionais activos</span>
+            </span>
+          )}
+        </div>
+
+        {/* Fallback Warning Notice */}
+        {effectiveSessionContext.fallbackApplied && (
+          <p className="text-xs text-amber-800 bg-amber-50/90 border border-amber-200 px-3 py-1.5 rounded-xl font-medium" id="fallback-notice">
+            Personalização básica baseada nas preferências disponíveis.
+          </p>
+        )}
       </div>
 
       {/* Main Panel split in two */}
@@ -1013,33 +1403,41 @@ export default function PracticeRoom({
               }`} />
               <span className={`text-xs font-semibold uppercase tracking-wider ${
                 ageGroup === "Kids" || ageGroup === "PreTeens" || ageGroup === "Teens" ? "text-slate-300" : "text-slate-500"
-              }`}>
+              }`} id="voice-tutor-status">
                 {sessionStatus === "ready" 
                   ? isSpeaking 
-                    ? "AI Speaking..." 
+                    ? "A falar..." 
                     : isListening 
-                    ? "Listening..." 
-                    : "Live Connection Ready" 
+                    ? "A ouvir..." 
+                    : "Ligação pronta" 
                   : sessionStatus === "connecting" 
-                  ? "Initializing Tutor..." 
-                  : "Offline"}
+                  ? "A conectar..." 
+                  : "Fora de linha"}
               </span>
             </div>
 
             <div className="flex items-center gap-2">
               {sessionStatus === "ready" && (
                 <button
-                  onClick={() => setIsMuted(!isMuted)}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  id="main-voice-control-btn"
+                  aria-label={isMuted ? "Activar microfone" : "Desactivar microfone"}
+                  onClick={() => {
+                    if (isMuted && speakOutMode === "tts-only") {
+                      setSpeakOutMode("voice-input");
+                    } else {
+                      setIsMuted(!isMuted);
+                    }
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     isMuted 
-                      ? "bg-red-100 text-red-700" 
+                      ? "bg-red-100 text-red-700 hover:bg-red-200" 
                       : ageGroup === "Kids" 
                       ? "bg-indigo-900 text-indigo-200 hover:bg-indigo-800" 
-                      : "bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
+                      : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-xs"
                   }`}
                 >
                   {isMuted ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-                  <span>{isMuted ? "Muted" : "Active"}</span>
+                  <span>{isMuted ? "Microfone Desactivado" : "Microfone Activo"}</span>
                 </button>
               )}
 
@@ -1069,6 +1467,84 @@ export default function PracticeRoom({
               <p className="text-[10px] text-center text-indigo-400 mt-1 font-medium tracking-wide">
                 Visualizador de Espectro de Voz em Tempo Real
               </p>
+            </div>
+          )}
+
+          {/* Ambient Sound Selection Widget */}
+          {sessionStatus === "ready" && (
+            <div className="mt-3 mb-3 p-3 bg-slate-950/40 border border-slate-800/60 rounded-2xl space-y-2.5 z-10" id="ambient-noise-settings">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                  <Sliders className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
+                  Ambiente de Foco & Concentração
+                </span>
+                {ambientMode !== 'none' && (
+                  <span className="text-[9px] bg-emerald-500/10 text-emerald-400 font-bold px-2 py-0.5 rounded-full border border-emerald-500/20 animate-pulse">
+                    Ativo
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-3 gap-1.5">
+                <button
+                  onClick={() => setAmbientMode('none')}
+                  className={`py-2 px-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+                    ambientMode === 'none'
+                      ? "bg-slate-850 border-slate-750 text-white shadow-md"
+                      : "bg-slate-900/50 border-slate-800/30 text-slate-400 hover:text-slate-200"
+                  }`}
+                  title="Desativar som de fundo"
+                >
+                  <VolumeX className="w-3.5 h-3.5" />
+                  <span>Nenhum</span>
+                </button>
+
+                <button
+                  onClick={() => setAmbientMode('white')}
+                  className={`py-2 px-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+                    ambientMode === 'white'
+                      ? "bg-indigo-600 border-indigo-500 text-white shadow-md shadow-indigo-600/30"
+                      : "bg-slate-900/50 border-slate-800/30 text-slate-400 hover:text-slate-200"
+                  }`}
+                  title="Ruído Branco Suave (Rumble de Foco)"
+                >
+                  <Wind className="w-3.5 h-3.5 text-sky-300 animate-pulse" />
+                  <span>Ruído Br.</span>
+                </button>
+
+                <button
+                  onClick={() => setAmbientMode('cafe')}
+                  className={`py-2 px-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+                    ambientMode === 'cafe'
+                      ? "bg-amber-600 border-amber-500 text-white shadow-md shadow-amber-600/30"
+                      : "bg-slate-900/50 border-slate-800/30 text-slate-400 hover:text-slate-200"
+                  }`}
+                  title="Ambiente de Café (Ruído de Fundo + Cliques de Xícara)"
+                >
+                  <Coffee className="w-3.5 h-3.5 text-amber-300" />
+                  <span>Café</span>
+                </button>
+              </div>
+
+              {ambientMode !== 'none' && (
+                <div className="flex items-center gap-3 bg-slate-950/60 p-2 rounded-xl border border-slate-900/80">
+                  <span className="text-[10px] text-slate-400 font-bold select-none shrink-0 uppercase tracking-wide">
+                    Volume:
+                  </span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={ambientVolume}
+                    onChange={(e) => setAmbientVolume(parseFloat(e.target.value))}
+                    className="w-full accent-indigo-500 bg-slate-800 rounded-lg appearance-none h-1 cursor-pointer"
+                  />
+                  <span className="text-[10px] text-slate-300 font-mono font-bold select-none shrink-0 w-8 text-right">
+                    {Math.round(ambientVolume * 100)}%
+                  </span>
+                </div>
+              )}
             </div>
           )}
 
@@ -1386,6 +1862,74 @@ export default function PracticeRoom({
             </div>
           )}
 
+          {/* Speak Out Mode Selection Widget */}
+          {sessionStatus === "ready" && (
+            <div 
+              className={`mb-4 p-4 border rounded-2xl space-y-2.5 z-10 text-left transition-all ${
+                ageGroup === "Infancy"
+                  ? "bg-white/70 border-sky-200 text-sky-950 shadow-sm"
+                  : "bg-slate-950/40 border-slate-800/60 text-slate-300"
+              }`} 
+              id="speak-out-mode-settings"
+            >
+              <div className="flex items-center justify-between">
+                <span className={`text-xs font-semibold flex items-center gap-1.5 ${
+                  ageGroup === "Infancy" ? "text-sky-900" : "text-slate-300"
+                }`}>
+                  <Volume2 className="w-3.5 h-3.5 text-indigo-500" />
+                  🗣️ Speak Out: Modo de Conversação
+                </span>
+                <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wide ${
+                  speakOutMode === "voice-input"
+                    ? 'bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border border-emerald-500/20 animate-pulse'
+                    : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                }`}>
+                  {speakOutMode === "voice-input" ? "Voz Ativa 🎙️" : "Silencioso 🤫"}
+                </span>
+              </div>
+
+              <p className={`text-[11px] leading-normal ${
+                ageGroup === "Infancy" ? "text-sky-800" : "text-slate-400"
+              }`}>
+                {speakOutMode === "voice-input" 
+                  ? "Modo de conversa fluida por voz. Fale diretamente no microfone para conversar em tempo real."
+                  : "Ideal para ambientes silenciosos. Digite sua resposta no teclado e ouça a pronúncia do tutor por áudio."}
+              </p>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setSpeakOutMode('voice-input')}
+                  className={`py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+                    speakOutMode === 'voice-input'
+                      ? "bg-indigo-600 border-indigo-500 text-white shadow-md shadow-indigo-600/30"
+                      : ageGroup === "Infancy"
+                        ? "bg-white/80 border-sky-200/50 text-sky-900 hover:bg-sky-100/50"
+                        : "bg-slate-900/50 border-slate-800/30 text-slate-400 hover:text-slate-200"
+                  }`}
+                  title="Voice-input Conversation: Fale e ouça"
+                >
+                  <Mic className="w-3.5 h-3.5" />
+                  <span>Conversa por Voz</span>
+                </button>
+
+                <button
+                  onClick={() => setSpeakOutMode('tts-only')}
+                  className={`py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+                    speakOutMode === 'tts-only'
+                      ? "bg-amber-600 border-amber-500 text-white shadow-md shadow-amber-600/30"
+                      : ageGroup === "Infancy"
+                        ? "bg-white/80 border-sky-200/50 text-sky-900 hover:bg-sky-100/50"
+                        : "bg-slate-900/50 border-slate-800/30 text-slate-400 hover:text-slate-200"
+                  }`}
+                  title="Text-to-Speech only: Digite e ouça"
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span>Apenas Texto-para-Voz</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Subtitles Display card - Beautifully styled and formatted based on Age Group */}
           <div className={`p-5 rounded-2xl min-h-[110px] shadow-sm flex flex-col justify-center transition-all duration-300 border ${
             ageGroup === "Infancy"
@@ -1457,9 +2001,9 @@ export default function PracticeRoom({
             {transcript.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-2 py-12">
                 <Sparkles className="w-10 h-10 text-slate-300 stroke-[1.5]" />
-                <p className="text-sm font-medium">Say something in {language.name} to begin!</p>
-                <p className="text-xs max-w-xs text-center leading-relaxed">
-                  Your conversation transcript will appear here. Tap on words you don't know to see translations and save them.
+                <p className="text-sm font-medium text-slate-700" id="empty-transcript-message">Inicia a conversa para ver a transcrição em tempo real.</p>
+                <p className="text-xs max-w-xs text-center leading-relaxed text-slate-500">
+                  A tua transcrição de conversa aparecerá aqui. Clica nas palavras para ver traduções e guardá-las no teu baralho.
                 </p>
               </div>
             ) : (
@@ -1511,14 +2055,38 @@ export default function PracticeRoom({
               value={textInput}
               onChange={(e) => setTextInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSendText()}
-              placeholder={`Type a reply in ${language.name}...`}
+              placeholder={isWhisperTranscribing ? "Transcribing with Whisper..." : `Type a reply in ${language.name}...`}
               className="flex-1 bg-white border border-slate-200 hover:border-slate-300 focus:border-indigo-500 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-hidden transition-all"
-              disabled={sessionStatus !== "ready"}
+              disabled={sessionStatus !== "ready" || isWhisperTranscribing}
             />
+            
+            {/* Whisper Speech-to-Text Button */}
+            <button
+              onClick={toggleWhisperRecording}
+              className={`p-3 rounded-xl transition-all cursor-pointer flex items-center justify-center relative border ${
+                isWhisperRecording
+                  ? "bg-red-500 hover:bg-red-600 text-white animate-pulse border-red-500 shadow-md shadow-red-500/20"
+                  : "bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-800 border-slate-200"
+              } disabled:opacity-50 disabled:pointer-events-none`}
+              disabled={sessionStatus !== "ready" || isWhisperTranscribing}
+              title={isWhisperRecording ? "Click to stop recording" : "Speak with Whisper Speech-to-Text"}
+            >
+              {isWhisperTranscribing ? (
+                <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
+              ) : isWhisperRecording ? (
+                <Mic className="w-4 h-4 animate-bounce" />
+              ) : (
+                <Mic className="w-4 h-4" />
+              )}
+              {isWhisperRecording && (
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-600 rounded-full border-2 border-white animate-ping" />
+              )}
+            </button>
+
             <button
               onClick={handleSendText}
               className="p-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-all cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
-              disabled={!textInput.trim() || sessionStatus !== "ready"}
+              disabled={!textInput.trim() || sessionStatus !== "ready" || isWhisperTranscribing || isWhisperRecording}
             >
               <Send className="w-4 h-4" />
             </button>
@@ -1629,17 +2197,19 @@ export default function PracticeRoom({
       )}
 
       {/* Active Room Session Ending footer */}
-      <div className="mt-4 pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
-        <p className="text-xs text-slate-400 text-center sm:text-left">
-          Practicing is saved dynamically. Click "Get Feedback" to end your session and let the AI grade your grammar.
+      <div className="mt-4 pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3" id="session-actions-footer">
+        <p className="text-xs text-slate-500 text-center sm:text-left">
+          No fim da sessão, o Tutor analisará fluência, vocabulário e pontos de melhoria.
         </p>
         
         <button
           onClick={handleEndSessionWithAudio}
-          className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-5 py-3 bg-rose-600 hover:bg-rose-700 text-white font-medium rounded-xl text-sm transition-all shadow-md cursor-pointer"
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-6 py-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-sm transition-all shadow-md cursor-pointer"
+          id="end-session-btn"
+          aria-label="Terminar sessão e receber feedback"
         >
           <Award className="w-4 h-4" />
-          <span>End Session & Get Feedback</span>
+          <span>Terminar sessão e receber feedback</span>
         </button>
       </div>
 

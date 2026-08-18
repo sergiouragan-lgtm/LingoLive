@@ -26,12 +26,133 @@ import {
 } from "lucide-react";
 import { COMMON_PHRASES } from "../biblioteca/commonPhrases";
 
-interface LanguageQuizProps {
+export type TargetAgeGroup = 'CHILD' | 'TEEN' | 'ADULT';
+
+export interface AssessmentProfileExperience {
+  readonly heading: string;
+  readonly description: string;
+  readonly badge: string;
+  readonly preparationMessage: string;
+  readonly encouragement: string;
+  readonly startActionLabel: string;
+  readonly pageClassName: string;
+  readonly accentClassName: string;
+}
+
+const CHILD_EXPERIENCE: AssessmentProfileExperience = Object.freeze({
+  heading: "Vamos mostrar o que já aprendeste",
+  description: "Responde com calma. Cada pergunta ajuda-nos a preparar actividades melhores para ti.",
+  badge: "Desafio de aprendizagem",
+  preparationMessage: "Lê cada pergunta e escolhe a resposta que te parecer melhor.",
+  encouragement: "Não faz mal errar — estamos aqui para aprender.",
+  startActionLabel: "Começar desafio",
+  pageClassName: "bg-amber-50/30 border-amber-100",
+  accentClassName: "bg-amber-500 hover:bg-amber-600 text-white shadow-amber-200"
+});
+
+const TEEN_EXPERIENCE: AssessmentProfileExperience = Object.freeze({
+  heading: "Pronto para testar o teu progresso?",
+  description: "Completa este desafio para perceberes onde estás forte e o que podes melhorar.",
+  badge: "Desafio de progresso",
+  preparationMessage: "Responde ao teu ritmo e mantém o foco até ao fim.",
+  encouragement: "Cada resposta ajuda a construir o teu próximo objectivo.",
+  startActionLabel: "Aceitar desafio",
+  pageClassName: "bg-indigo-50/30 border-indigo-100",
+  accentClassName: "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200"
+});
+
+const ADULT_EXPERIENCE: AssessmentProfileExperience = Object.freeze({
+  heading: "Avaliação dos teus conhecimentos",
+  description: "Esta avaliação ajuda a identificar competências consolidadas e áreas prioritárias para desenvolvimento.",
+  badge: "Avaliação de progresso",
+  preparationMessage: "Reserve alguns minutos e responda com base no que sabe actualmente.",
+  encouragement: "O resultado será utilizado para orientar os próximos passos da aprendizagem.",
+  startActionLabel: "Iniciar avaliação",
+  pageClassName: "bg-slate-50/50 border-slate-200",
+  accentClassName: "bg-slate-900 hover:bg-slate-800 text-white shadow-slate-200"
+});
+
+const NEUTRAL_EXPERIENCE: AssessmentProfileExperience = Object.freeze({
+  heading: "Desafio Quiz Escolar",
+  description: "Testa a tua cultura geral, conhecimentos escolares e habilidades de língua num divertido jogo adaptado ao teu ano de escolaridade!",
+  badge: "LingoQuiz Escolar",
+  preparationMessage: "Escolha as opções e responda ao teste.",
+  encouragement: "Boa sorte na sua avaliação!",
+  startActionLabel: "Começar Jogo!",
+  pageClassName: "bg-white border-slate-100",
+  accentClassName: "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200"
+});
+
+export function getAssessmentProfileExperience(
+  profile: TargetAgeGroup | null
+): AssessmentProfileExperience {
+  if (profile === 'CHILD') return CHILD_EXPERIENCE;
+  if (profile === 'TEEN') return TEEN_EXPERIENCE;
+  if (profile === 'ADULT') return ADULT_EXPERIENCE;
+  return NEUTRAL_EXPERIENCE;
+}
+
+export function normalizeAssessmentProfile(
+  selectedAgeGroup?: TargetAgeGroup | string | null,
+  userAge?: number
+): TargetAgeGroup | null {
+  if (selectedAgeGroup) {
+    const upper = String(selectedAgeGroup).trim().toUpperCase();
+    if (
+      upper === 'CHILD' ||
+      upper === 'CRIANÇA' ||
+      upper === 'CRIANCA' ||
+      upper === 'CRIANÇAS' ||
+      upper === 'CRIANCAS' ||
+      upper === 'INFÂNCIA' ||
+      upper === 'INFANCIA' ||
+      upper === 'KIDS' ||
+      upper === 'INFANCY'
+    ) {
+      return 'CHILD';
+    }
+    if (
+      upper === 'TEEN' ||
+      upper === 'ADOLESCENTE' ||
+      upper === 'ADOLESCENTES' ||
+      upper === 'PRÉ-ADOLESCENTE' ||
+      upper === 'PRÉ-ADOLESCENTES' ||
+      upper === 'PRE-ADOLESCENTE' ||
+      upper === 'PRE-ADOLESCENTES' ||
+      upper === 'TEENS' ||
+      upper === 'PRETEENS' ||
+      upper === 'PRÉ-TEENS' ||
+      upper === 'PRE-TEENS'
+    ) {
+      return 'TEEN';
+    }
+    if (
+      upper === 'ADULT' ||
+      upper === 'ADULTO' ||
+      upper === 'ADULTOS' ||
+      upper === 'ADULTS'
+    ) {
+      return 'ADULT';
+    }
+  }
+
+  if (typeof userAge === 'number' && Number.isFinite(userAge) && userAge >= 0) {
+    if (userAge < 12) return 'CHILD';
+    if (userAge < 18) return 'TEEN';
+    return 'ADULT';
+  }
+
+  return null;
+}
+
+export interface LanguageQuizProps {
   currentLanguage: Language;
   savedWords?: SavedWord[];
   onAddWords?: (words: SavedWord[]) => void;
   onBack: () => void;
   onCompleteQuiz?: () => void;
+  selectedAgeGroup?: TargetAgeGroup | string | null;
+  userAge?: number;
 }
 
 const GRADES = [
@@ -51,8 +172,13 @@ export default function LanguageQuiz({
   savedWords = [], 
   onAddWords, 
   onBack, 
-  onCompleteQuiz 
+  onCompleteQuiz,
+  selectedAgeGroup,
+  userAge
 }: LanguageQuizProps) {
+  const activeProfile = normalizeAssessmentProfile(selectedAgeGroup, userAge);
+  const profileExp = getAssessmentProfileExperience(activeProfile);
+
   // State for configuration
   const [quizMode, setQuizMode] = useState<"school" | "flashcard">("school");
   const [selectedGrade, setSelectedGrade] = useState<typeof GRADES[number]["id"]>("1º Ano");
@@ -411,13 +537,13 @@ export default function LanguageQuiz({
         </button>
         <div className="flex items-center gap-1 bg-amber-50 text-amber-700 px-3 py-1 rounded-full text-xs font-bold border border-amber-100">
           <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500 animate-spin" style={{ animationDuration: "6s" }} />
-          <span>{quizMode === "school" ? "LingoQuiz Escolar" : "LingoQuiz Vocabulário"}</span>
+          <span>{quizMode === "school" ? profileExp.badge : "LingoQuiz Vocabulário"}</span>
         </div>
       </div>
 
       {!isPlaying ? (
         /* ==================== CONFIGURATION SCREEN ==================== */
-        <div className="bg-white border border-slate-100 rounded-3xl p-6 md:p-8 shadow-sm space-y-8 animate-fade-in">
+        <div className={`border rounded-3xl p-6 md:p-8 shadow-sm space-y-8 animate-fade-in ${profileExp.pageClassName}`}>
           {/* Mode Tabs Selection */}
           <div className="flex bg-slate-100 p-1.5 rounded-2xl w-full max-w-md mx-auto" id="quiz-mode-tabs">
             <button
@@ -453,12 +579,28 @@ export default function LanguageQuiz({
                 <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm border border-indigo-100/50">
                   <Compass className="w-9 h-9 animate-bounce" />
                 </div>
-                <h2 className="text-2xl md:text-3xl font-display font-bold text-slate-900 tracking-tight">
-                  Desafio Quiz Escolar
+                {activeProfile && (
+                  <span className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800 mb-1" id="assessment-profile-badge">
+                    {profileExp.badge}
+                  </span>
+                )}
+                <h2 className="text-2xl md:text-3xl font-display font-bold text-slate-900 tracking-tight" id="assessment-profile-heading">
+                  {profileExp.heading}
                 </h2>
-                <p className="text-sm text-slate-500 max-w-md mx-auto">
-                  Testa a tua cultura geral, conhecimentos escolares e habilidades de língua num divertido jogo adaptado ao teu ano de escolaridade!
+                <p className="text-sm text-slate-500 max-w-md mx-auto" id="assessment-profile-description">
+                  {profileExp.description}
                 </p>
+
+                {activeProfile && (
+                  <div className="mt-4 p-4 rounded-2xl bg-white/80 border border-slate-200/60 text-left max-w-xl mx-auto space-y-1 shadow-sm">
+                    <p className="text-xs font-semibold text-slate-800" id="assessment-prep-msg">
+                      💡 {profileExp.preparationMessage}
+                    </p>
+                    <p className="text-xs text-slate-600" id="assessment-encouragement-msg">
+                      ✨ {profileExp.encouragement}
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-slate-100">
@@ -712,15 +854,15 @@ export default function LanguageQuiz({
                 <button
                   onClick={startQuiz}
                   disabled={disabled}
-                  className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 text-white font-bold rounded-2xl text-base shadow-lg transition-all cursor-pointer ${
+                  className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 font-bold rounded-2xl text-base shadow-lg transition-all cursor-pointer ${
                     disabled 
                       ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none" 
-                      : "bg-indigo-600 hover:bg-indigo-700 hover:shadow-indigo-100 hover:-translate-y-0.5"
+                      : `${profileExp.accentClassName} hover:-translate-y-0.5`
                   }`}
                   id="btn-start-dynamic-quiz"
                 >
                   <Flame className={`w-5 h-5 ${disabled ? "text-slate-400" : "text-amber-300 fill-amber-300 animate-pulse"}`} />
-                  <span>Começar Jogo!</span>
+                  <span>{profileExp.startActionLabel}</span>
                 </button>
               );
             })()}

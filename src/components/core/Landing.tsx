@@ -33,5 +33,28 @@ export const Landing: React.FC<{ setView: (view: AppView) => void }> = ({ setVie
                 ))}
             </div>
         </div>
+
+        {/* Footer with Compliance Links */}
+        <footer className="w-full bg-slate-50 border-t border-slate-200 py-12 mt-auto">
+            <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="flex flex-col items-center md:items-start gap-1">
+                    <p className="text-sm font-semibold text-slate-900">© 2026 LingoLIVE IA</p>
+                    <p className="text-xs text-slate-500">Aprenda inglês de forma acelerada com o poder da Inteligência Artificial.</p>
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-6">
+                    <button
+                        onClick={() => setView('privacy-policy')}
+                        className="text-xs font-bold text-slate-600 hover:text-primary transition-all flex items-center gap-1.5 cursor-pointer bg-transparent border-none"
+                        id="footer-privacy-btn"
+                    >
+                        <span>Política de Privacidade (GDPR & LGPD)</span>
+                    </button>
+                    <span className="text-slate-300 hidden md:inline">|</span>
+                    <span className="text-[10px] uppercase font-bold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
+                        ISO 27001 Compliant
+                    </span>
+                </div>
+            </div>
+        </footer>
     </div>
 );

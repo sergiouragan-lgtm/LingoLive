@@ -16,10 +16,11 @@ import {
 import { SavedWord, Language } from "../../types";
 
 interface GlobalSearchProps {
-  savedWords: SavedWord[];
-  streakHistory: string[];
-  selectedLanguage: Language;
+  savedWords?: SavedWord[];
+  streakHistory?: string[];
+  selectedLanguage?: Language;
   setView: (view: any) => void;
+  variant?: "topbar" | "sidebar";
 }
 
 interface SearchResult {
@@ -31,10 +32,11 @@ interface SearchResult {
 }
 
 export const GlobalSearch: React.FC<GlobalSearchProps> = ({
-  savedWords,
-  streakHistory,
-  selectedLanguage,
-  setView
+  savedWords = [],
+  streakHistory = [],
+  selectedLanguage = { code: "en", name: "Inglês", flag: "🇺🇸" },
+  setView,
+  variant = "topbar"
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -67,13 +69,24 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
 
   // Static list of navigation targets in Portuguese
   const navigations = [
-    { title: "Meu Perfil", subtitle: "Ver estatísticas, aproveitamento e conquistas", view: "profile" },
-    { title: "Conversação IA", subtitle: "Iniciar ou continuar prática de conversação falada", view: "dashboard" },
-    { title: "Cursos e Trilha de Prática", subtitle: "Estudo estruturado por temas e lições", view: "learning-path" },
-    { title: "Planos & Faturamento", subtitle: "Gerenciar assinatura e planos de estudo", view: "subscription" },
-    { title: "Configurações", subtitle: "Ajustar preferências de voz e perfil", view: "settings" },
-    { title: "Quiz de Idioma", subtitle: "Desafios rápidos de vocabulário e gramática", view: "quiz" },
-    { title: "Vocabulário Salvo (Vocab Deck)", subtitle: "Ver palavras salvas de conversas passadas", view: "vocab" }
+    { title: "Início", subtitle: "Ir para o painel principal e resumo de aprendizagem", view: "dashboard" },
+    { title: "Tutor IA", subtitle: "Iniciar ou continuar prática de conversação falada", view: "practice" },
+    { title: "Estudo Adaptativo", subtitle: "Trilha de estudo inteligente personalizada", view: "adaptive-learning" },
+    { title: "Avaliar Pronúncia", subtitle: "Análise avançada e feedback de pronúncia de fala", view: "pronunciation" },
+    { title: "Aulas ao Vivo", subtitle: "Ver e participar em aulas interativas ao vivo (LCP)", view: "live-classes" },
+    { title: "Agenda de Aulas", subtitle: "Calendário e agendamentos de aulas e sessões", view: "live-calendar" },
+    { title: "Professores", subtitle: "Ver lista e perfil de professores nativos qualificados", view: "live-teachers" },
+    { title: "Gravações", subtitle: "Ver gravações passadas e resumos de aulas", view: "live-recordings" },
+    { title: "Provas & Avaliações", subtitle: "Testes de nível e avaliações de fluência", view: "assessment-platform" },
+    { title: "Certificados", subtitle: "Ver e emitir certificados de conclusão obtidos", view: "certificados" },
+    { title: "Jogos Pedagógicos", subtitle: "Jogos interativos de vocabulário e gramática", view: "jogos" },
+    { title: "Ranking & Tabela de Líderes", subtitle: "Acompanhar posição global e conquistas", view: "ranking" },
+    { title: "Desempenho & Estatísticas", subtitle: "Evolução de aprendizagem e métricas de estudo", view: "analytics" },
+    { title: "Biblioteca", subtitle: "Recursos educativos, materiais e documentos de apoio", view: "biblioteca" },
+    { title: "Marketplace", subtitle: "Explorar catálogo de cursos, serviços e mentores", view: "marketplace" },
+    { title: "Perfil de Utilizador", subtitle: "Ver dados pessoais, biografia e definições", view: "perfil" },
+    { title: "Plano & Assinatura", subtitle: "Gerir plano de subscrição e benefícios", view: "subscription" },
+    { title: "Pagamentos & Faturação", subtitle: "Histórico de compras e métodos de pagamento", view: "pagamentos" }
   ];
 
   // Map streak history dates to simulated/realistic practice sessions
@@ -172,18 +185,24 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
     inputRef.current?.focus();
   };
 
+  const isSidebar = variant === "sidebar";
+
   return (
-    <div className="relative flex-1 max-w-sm md:max-w-md mx-4" ref={dropdownRef} id="global-search-container">
+    <div className={`relative ${isSidebar ? 'w-full mx-0' : 'flex-1 max-w-sm md:max-w-md mx-4'}`} ref={dropdownRef} id="global-search-container">
       {/* Search Bar Input */}
       <div className="relative">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <Search className="h-4.5 w-4.5 text-slate-400" />
+          <Search className="h-4 w-4 text-slate-400" />
         </div>
         <input
           ref={inputRef}
           type="text"
-          className="block w-full pl-10 pr-10 py-2 border border-slate-200 rounded-xl bg-slate-50/50 hover:bg-slate-50/80 focus:bg-white text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
-          placeholder="Buscar vocabulário, sessões ou áreas... (Ctrl+K)"
+          className={`block w-full pl-9 pr-8 py-2 rounded-xl text-xs transition-all shadow-xs ${
+            isSidebar
+              ? 'bg-slate-800/90 border border-slate-700/60 text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 focus:bg-slate-800'
+              : 'border border-slate-200 bg-slate-50/50 hover:bg-slate-50/80 focus:bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500'
+          }`}
+          placeholder={isSidebar ? "Pesquisar páginas, aulas, professores..." : "Buscar vocabulário, sessões ou áreas... (Ctrl+K)"}
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -194,16 +213,16 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
         {query && (
           <button
             onClick={handleClear}
-            className="absolute inset-y-0 right-0 pr-3 flex items-center hover:text-slate-600 text-slate-400 transition"
+            className={`absolute inset-y-0 right-0 pr-2.5 flex items-center transition ${isSidebar ? 'text-slate-400 hover:text-slate-200' : 'hover:text-slate-600 text-slate-400'}`}
           >
-            <X className="h-4 w-4" />
+            <X className="h-3.5 w-3.5" />
           </button>
         )}
       </div>
 
       {/* Floating Results Panel */}
       {isOpen && query.trim() !== "" && (
-        <div className="absolute right-0 left-0 mt-2 bg-white rounded-2xl shadow-xl border border-slate-100 max-h-96 overflow-y-auto z-50 divide-y divide-slate-50 animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className={`absolute left-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 max-h-96 overflow-y-auto z-50 divide-y divide-slate-50 animate-in fade-in slide-in-from-top-2 duration-200 ${isSidebar ? 'w-72 md:w-80 left-0' : 'right-0'}`}>
           
           <div className="px-4 py-2 bg-slate-50 text-[10px] font-black text-slate-400 tracking-wider flex items-center justify-between">
             <span>RESULTADOS DA BUSCA</span>

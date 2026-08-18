@@ -1,0 +1,4 @@
+sed -i 's/{(\["professores", "alunos", "salas", "horarios", "disciplinas", "frequencia", "financeiro", "configuracoes-escola", "ia-escolar", "turmas", "avaliacoes", "presencas", "trabalhos", "ia-professor", "calendario", "comunicacao", "minhas-turmas", "meus-alunos", "mensagens"].includes(view)) && (/{(\["avaliacoes", "presencas", "trabalhos", "ia-professor", "calendario", "comunicacao", "minhas-turmas", "meus-alunos", "mensagens"].includes(view)) \&\& (/g' src/App.tsx
+
+sed -i '/{(\["avaliacoes", "presencas", "trabalhos", "ia-professor", "calendario", "comunicacao", "minhas-turmas", "meus-alunos", "mensagens"\].includes(view)) && (/i \
+        {(["professores", "alunos", "salas", "horarios", "disciplinas", "frequencia", "financeiro", "configuracoes-escola", "ia-escolar", "turmas", "certificados", "biblioteca"].includes(view)) \&\& (\n          <SchoolEnterprisePlatform activeView={view} setView={setView} />\n        )}\n' src/App.tsx

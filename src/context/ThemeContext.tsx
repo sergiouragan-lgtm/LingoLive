@@ -3,11 +3,14 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../firebase';
 
 export type ThemeType = 'corporate' | 'kiditorial';
+export type ColorScheme = 'light' | 'dark' | 'system';
 
 interface ThemeContextType {
   theme: ThemeType;
   age: number | null;
   setAge: (newAge: number) => Promise<void>;
+  colorScheme: ColorScheme;
+  setColorScheme: (scheme: ColorScheme) => void;
   loading: boolean;
 }
 
@@ -18,7 +21,29 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const cached = localStorage.getItem('lingolive_student_age');
     return cached ? Number(cached) : null;
   });
+  const [colorScheme, setColorSchemeState] = useState<ColorScheme>(() => {
+    return (localStorage.getItem('lingolive_color_scheme') as ColorScheme) || 'system';
+  });
   const [loading, setLoading] = useState(true);
+
+  // Apply dark mode class
+  useEffect(() => {
+    const root = window.document.documentElement;
+    const isDark =
+      colorScheme === 'dark' ||
+      (colorScheme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+    if (isDark) {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+  }, [colorScheme]);
+
+  const setColorScheme = (scheme: ColorScheme) => {
+    setColorSchemeState(scheme);
+    localStorage.setItem('lingolive_color_scheme', scheme);
+  };
 
   // Derive theme from age
   const theme: ThemeType = age !== null && age < 12 ? 'kiditorial' : 'corporate';
@@ -79,7 +104,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   return (
-    <ThemeContext.Provider value={{ theme, age, setAge, loading }}>
+    <ThemeContext.Provider value={{ theme, age, setAge, colorScheme, setColorScheme, loading }}>
       {children}
     </ThemeContext.Provider>
   );
@@ -88,7 +113,14 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 export const useAppTheme = () => {
   const context = useContext(ThemeContext);
   if (!context) {
-    throw new Error('useAppTheme must be used within a ThemeProvider');
+    return {
+      theme: 'neutral' as any,
+      age: 18,
+      setAge: () => {},
+      colorScheme: 'light' as any,
+      setColorScheme: () => {},
+      loading: false
+    };
   }
   return context;
 };

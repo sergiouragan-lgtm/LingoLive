@@ -1,0 +1,558 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Deny-All Catch-all Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ==========================================
+    // SECTION 1: HARDENED GLOBAL REUSABLE HELPERS
+    // ==========================================
+    
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Role Lookup Helper: Direct, secure role assessment bypassing client claims
+    function getUserRole(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data.role;
+    }
+
+    function getUserTenant(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data.tenantId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        getUserRole(request.auth.uid) == 'SUPER_ADMIN' ||
+        getUserRole(request.auth.uid) == 'PLATFORM_ADMIN'
+      );
+    }
+
+    // Common structural validation helpers
+    function hasValidMetadata(data) {
+      return data.createdAt is string && data.createdAt.size() <= 50
+          && data.updatedAt is string && data.updatedAt.size() <= 50
+          && data.createdBy is string && data.createdBy.size() <= 128
+          && data.updatedBy is string && data.updatedBy.size() <= 128
+          && data.tenantId is string && data.tenantId.size() <= 128
+          && data.status is string && data.status.size() <= 50
+          && data.version is int
+          && data.softDelete is bool;
+    }
+
+    // Child protection helper: Evaluates parent-child link in student profile
+    function isParentOfStudent(parentId, studentId) {
+      return get(/databases/$(database)/documents/students/$(studentId)).data.parentId == parentId;
+    }
+
+    // ==========================================
+    // SECTION 2: INDIVIDUAL COLLECTION SCHEMAS
+    // ==========================================
+
+    // 1. Users Collection
+    match /users/{userId} {
+      allow get: if isSignedIn() && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+      
+      function isValidUserSchema(data) {
+        return hasValidMetadata(data)
+            && data.email is string && data.email.size() <= 256
+            && data.role is string && data.role.size() <= 100
+            && data.emailVerified is bool
+            && data.mfaEnabled is bool;
+      }
+
+      allow create: if isEmailVerified() && isOwner(userId) && isValidUserSchema(incoming()) && (
+        // Prevent users from escalating roles on register
+        incoming().role == 'STUDENT' || incoming().role == 'GUEST'
+      );
+      
+      allow update: if isEmailVerified() && (isOwner(userId) || isAdmin()) && isValidUserSchema(incoming()) && (
+        // Prevent self-assigned roles and email spoofing
+        incoming().role == existing().role &&
+        incoming().email == existing().email &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().tenantId == existing().tenantId &&
+        // Strict field change limiters on update action
+        incoming().diff(existing()).affectedKeys().hasOnly(['updatedAt', 'updatedBy', 'displayName', 'mfaEnabled', 'lastLoginAt', 'softDelete', 'status', 'version'])
+      );
+    }
+
+    // 2. Profiles Collection
+    match /profiles/{profileId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+
+      function isValidProfile(data) {
+        return hasValidMetadata(data)
+            && data.userId is string && data.userId.size() <= 128
+            && data.firstName is string && data.firstName.size() <= 100
+            && data.lastName is string && data.lastName.size() <= 100
+            && data.displayName is string && data.displayName.size() <= 150
+            && data.avatarUrl is string && data.avatarUrl.size() <= 2048;
+      }
+
+      allow create: if isEmailVerified() && isOwner(incoming().userId) && isValidProfile(incoming());
+      allow update: if isEmailVerified() && (isOwner(existing().userId) || isAdmin()) && isValidProfile(incoming()) && (
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['updatedAt', 'updatedBy', 'firstName', 'lastName', 'displayName', 'avatarUrl', 'selectedLanguage', 'biography', 'status', 'version', 'softDelete'])
+      );
+    }
+
+    // 3. Schools Collection
+    match /schools/{schoolId} {
+      allow get, list: if isSignedIn();
+      
+      function isValidSchool(data) {
+        return hasValidMetadata(data)
+            && data.name is string && data.name.size() <= 200
+            && data.ownerUid is string && data.ownerUid.size() <= 128;
+      }
+
+      allow create: if isAdmin() && isValidSchool(incoming());
+      allow update: if isEmailVerified() && (isOwner(existing().ownerUid) || isAdmin()) && isValidSchool(incoming()) && (
+        incoming().ownerUid == existing().ownerUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['updatedAt', 'updatedBy', 'name', 'address', 'contactEmail', 'maxStudents', 'currentStudentsCount', 'status', 'version'])
+      );
+    }
+
+    // 4. Teachers Collection
+    match /teachers/{teacherId} {
+      allow get, list: if isSignedIn();
+      
+      function isValidTeacher(data) {
+        return hasValidMetadata(data)
+            && data.userId is string && data.userId.size() <= 128
+            && data.schoolId is string && data.schoolId.size() <= 128;
+      }
+
+      allow create: if isEmailVerified() && (isOwner(incoming().userId) || isAdmin()) && isValidTeacher(incoming());
+      allow update: if isEmailVerified() && (isOwner(existing().userId) || isAdmin()) && isValidTeacher(incoming()) && (
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['updatedAt', 'updatedBy', 'certifications', 'hourlyRate', 'rating', 'teachingLanguages', 'isNativeTeacher', 'status', 'version'])
+      );
+    }
+
+    // 5. Students Collection
+    match /students/{studentId} {
+      allow get: if isSignedIn() && (
+        isOwner(studentId) || 
+        isParentOfStudent(request.auth.uid, studentId) ||
+        getUserRole(request.auth.uid) == 'TEACHER' ||
+        isAdmin()
+      );
+      allow list: if isSignedIn() && (getUserRole(request.auth.uid) == 'TEACHER' || isAdmin());
+
+      function isValidStudent(data) {
+        return hasValidMetadata(data)
+            && data.userId is string && data.userId.size() <= 128;
+      }
+
+      allow create: if isEmailVerified() && (isOwner(incoming().userId) || isAdmin()) && isValidStudent(incoming());
+      allow update: if isEmailVerified() && (isOwner(existing().userId) || isParentOfStudent(request.auth.uid, studentId) || isAdmin()) && isValidStudent(incoming()) && (
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['updatedAt', 'updatedBy', 'currentLevel', 'streakDays', 'points', 'learningLanguages', 'status', 'version'])
+      );
+    }
+
+    // 6. Companies Collection
+    match /companies/{companyId} {
+      allow get: if isSignedIn() && (getUserTenant(request.auth.uid) == companyId || isAdmin());
+      allow list: if isAdmin();
+
+      function isValidCompany(data) {
+        return hasValidMetadata(data)
+            && data.name is string && data.name.size() <= 150;
+      }
+
+      allow create: if isAdmin() && isValidCompany(incoming());
+      allow update: if isAdmin() && isValidCompany(incoming()) && (
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['updatedAt', 'updatedBy', 'name', 'industry', 'corporateDomain', 'billingEmail', 'totalSeats', 'assignedSeats', 'status', 'version'])
+      );
+    }
+
+    // 7. Subscriptions Collection
+    match /subscriptions/{subId} {
+      allow get: if isSignedIn() && (isOwner(existing().ownerId) || isAdmin());
+      allow list: if isAdmin();
+
+      function isValidSubscription(data) {
+        return hasValidMetadata(data)
+            && data.ownerId is string && data.ownerId.size() <= 128
+            && data.planId is string && data.planId.size() <= 100;
+      }
+
+      allow create: if isAdmin() && isValidSubscription(incoming());
+      allow update: if isAdmin() && isValidSubscription(incoming()) && (
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['updatedAt', 'updatedBy', 'planId', 'stripeSubscriptionId', 'periodStart', 'periodEnd', 'cancelAtPeriodEnd', 'status', 'version'])
+      );
+    }
+
+    // 8. Payments Collection
+    match /payments/{paymentId} {
+      allow get: if isSignedIn() && (getUserTenant(request.auth.uid) == existing().tenantId || isAdmin());
+      allow list: if isAdmin();
+
+      function isValidPayment(data) {
+        return hasValidMetadata(data)
+            && data.amount is number
+            && data.currency is string && data.currency.size() <= 10;
+      }
+
+      allow create: if isAdmin() && isValidPayment(incoming());
+      allow update: if false; // Payments are immutable!
+    }
+
+    // 9. Courses Collection
+    match /courses/{courseId} {
+      allow read: if isSignedIn();
+
+      function isValidCourse(data) {
+        return hasValidMetadata(data)
+            && data.title is string && data.title.size() <= 200
+            && data.sourceLanguage is string && data.sourceLanguage.size() <= 10
+            && data.targetLanguage is string && data.targetLanguage.size() <= 10;
+      }
+
+      allow create: if isAdmin() && isValidCourse(incoming());
+      allow update: if isAdmin() && isValidCourse(incoming()) && (
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['updatedAt', 'updatedBy', 'title', 'description', 'cefrLevel', 'totalLessons', 'status', 'version'])
+      );
+    }
+
+    // 10. Lessons Collection
+    match /lessons/{lessonId} {
+      allow read: if isSignedIn();
+
+      function isValidLesson(data) {
+        return hasValidMetadata(data)
+            && data.title is string && data.title.size() <= 200
+            && data.courseId is string && data.courseId.size() <= 128;
+      }
+
+      allow create: if isAdmin() && isValidLesson(incoming());
+      allow update: if isAdmin() && isValidLesson(incoming()) && (
+        incoming().courseId == existing().courseId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['updatedAt', 'updatedBy', 'title', 'content', 'order', 'estimatedMinutes', 'difficultyRating', 'status', 'version'])
+      );
+    }
+
+    // 11. Assessments Collection
+    match /assessments/{assessmentId} {
+      allow read: if isSignedIn();
+
+      function isValidAssessment(data) {
+        return hasValidMetadata(data)
+            && data.title is string && data.title.size() <= 200;
+      }
+
+      allow create: if isAdmin() && isValidAssessment(incoming());
+      allow update: if isAdmin() && isValidAssessment(incoming()) && (
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['updatedAt', 'updatedBy', 'title', 'passingScore', 'totalQuestions', 'durationMinutes', 'status', 'version'])
+      );
+    }
+
+    // 12. QuestionBank Collection
+    match /questionBank/{qId} {
+      allow read: if isSignedIn();
+
+      function isValidQuestion(data) {
+        return hasValidMetadata(data)
+            && data.questionText is string && data.questionText.size() <= 1000;
+      }
+
+      allow create: if isAdmin() && isValidQuestion(incoming());
+      allow update: if isAdmin() && isValidQuestion(incoming()) && (
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['updatedAt', 'updatedBy', 'questionText', 'options', 'correctOptionIndex', 'points', 'questionType', 'status', 'version'])
+      );
+    }
+
+    // 13. Certificates Collection
+    match /certificates/{certId} {
+      allow get: if isSignedIn() && (isOwner(existing().userId) || isAdmin());
+      allow list: if isSignedIn();
+
+      function isValidCertificate(data) {
+        return hasValidMetadata(data)
+            && data.userId is string && data.userId.size() <= 128
+            && data.courseId is string && data.courseId.size() <= 128;
+      }
+
+      allow create: if isAdmin() && isValidCertificate(incoming());
+      allow update: if false; // Certificates are read-only immutable assets!
+    }
+
+    // 14. Marketplace Collection
+    match /marketplace/{itemId} {
+      allow read: if isSignedIn();
+
+      function isValidMarketplaceItem(data) {
+        return hasValidMetadata(data)
+            && data.title is string && data.title.size() <= 200
+            && data.priceCoins is int;
+      }
+
+      allow create: if isAdmin() && isValidMarketplaceItem(incoming());
+      allow update: if isAdmin() && isValidMarketplaceItem(incoming()) && (
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['updatedAt', 'updatedBy', 'title', 'description', 'priceCoins', 'itemCategory', 'stockQuantity', 'status', 'version'])
+      );
+    }
+
+    // 15. Avatars Collection
+    match /avatars/{avatarId} {
+      allow read: if isSignedIn();
+
+      function isValidAvatar(data) {
+        return hasValidMetadata(data)
+            && data.name is string && data.name.size() <= 100
+            && data.imageUrl is string && data.imageUrl.size() <= 2048;
+      }
+
+      allow create: if isAdmin() && isValidAvatar(incoming());
+      allow update: if isAdmin() && isValidAvatar(incoming()) && (
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['updatedAt', 'updatedBy', 'name', 'imageUrl', 'associatedVoiceId', 'rarity', 'unlockedByCoins', 'status', 'version'])
+      );
+    }
+
+    // 16. Gamification Collection
+    match /gamification/{gamId} {
+      allow read: if isSignedIn();
+
+      function isValidGamification(data) {
+        return hasValidMetadata(data)
+            && data.userId is string && data.userId.size() <= 128;
+      }
+
+      allow create: if isAdmin() && isValidGamification(incoming());
+      allow update: if isAdmin() && isValidGamification(incoming()) && (
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['updatedAt', 'updatedBy', 'currentLeague', 'weeklyXp', 'totalXp', 'achievementsUnlocked', 'leaguePosition', 'status', 'version'])
+      );
+    }
+
+    // 17. Notifications Collection
+    match /notifications/{notifId} {
+      allow get: if isSignedIn() && (isOwner(existing().recipientId) || isAdmin());
+      allow list: if isSignedIn() && (resource.data.recipientId == request.auth.uid || resource.data.recipientId == 'ALL_STUDENTS');
+
+      function isValidNotification(data) {
+        return hasValidMetadata(data)
+            && data.recipientId is string && data.recipientId.size() <= 128
+            && data.title is string && data.title.size() <= 200;
+      }
+
+      allow create: if isAdmin() && isValidNotification(incoming());
+      allow update: if isEmailVerified() && (isOwner(existing().recipientId) || isAdmin()) && isValidNotification(incoming()) && (
+        incoming().recipientId == existing().recipientId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['updatedAt', 'updatedBy', 'read', 'status', 'version'])
+      );
+    }
+
+    // 18. Ambassadors Collection
+    match /ambassadors/{ambId} {
+      allow get: if isSignedIn() && (isOwner(existing().userId) || isAdmin());
+      allow list: if isAdmin();
+
+      function isValidAmbassador(data) {
+        return hasValidMetadata(data)
+            && data.userId is string && data.userId.size() <= 128
+            && data.referralCode is string && data.referralCode.size() <= 50;
+      }
+
+      allow create: if isAdmin() && isValidAmbassador(incoming());
+      allow update: if isAdmin() && isValidAmbassador(incoming()) && (
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['updatedAt', 'updatedBy', 'commissionRate', 'totalReferrals', 'totalEarnings', 'status', 'version'])
+      );
+    }
+
+    // 19. AuditLogs Collection - Write-Only secure ledger
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn(); // Any authenticated system process can write audit logs
+      allow update, delete: if false; // Immorality: audits cannot be tampered with or deleted!
+    }
+
+    // 20. AISessions Collection
+    match /aiSessions/{sessId} {
+      allow get: if isSignedIn() && (isOwner(existing().userId) || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+
+      function isValidAISession(data) {
+        return hasValidMetadata(data)
+            && data.userId is string && data.userId.size() <= 128;
+      }
+
+      allow create: if isEmailVerified() && isOwner(incoming().userId) && isValidAISession(incoming());
+      allow update: if isEmailVerified() && (isOwner(existing().userId) || isAdmin()) && isValidAISession(incoming()) && (
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['updatedAt', 'updatedBy', 'endedAt', 'totalExchangeTokens', 'status', 'version'])
+      );
+    }
+
+    // 21. AIMemory Collection
+    match /aiMemory/{memId} {
+      allow get: if isSignedIn() && (isOwner(existing().userId) || isAdmin());
+      allow list: if isAdmin();
+
+      function isValidAIMemory(data) {
+        return hasValidMetadata(data)
+            && data.userId is string && data.userId.size() <= 128;
+      }
+
+      allow create: if isEmailVerified() && isOwner(incoming().userId) && isValidAIMemory(incoming());
+      allow update: if isEmailVerified() && (isOwner(existing().userId) || isAdmin()) && isValidAIMemory(incoming()) && (
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['updatedAt', 'updatedBy', 'vocabularyMastered', 'weakGrammarPoints', 'pronunciationErrors', 'interests', 'status', 'version'])
+      );
+    }
+
+    // 22. LanguageProfiles Collection
+    match /languageProfiles/{langProfileId} {
+      allow get: if isSignedIn() && (isOwner(existing().userId) || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+
+      function isValidLanguageProfile(data) {
+        return hasValidMetadata(data)
+            && data.userId is string && data.userId.size() <= 128;
+      }
+
+      allow create: if isEmailVerified() && isOwner(incoming().userId) && isValidLanguageProfile(incoming());
+      allow update: if isEmailVerified() && (isOwner(existing().userId) || isAdmin()) && isValidLanguageProfile(incoming()) && (
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['updatedAt', 'updatedBy', 'nativeLanguage', 'learningLanguage', 'preferredRegionalVariant', 'preferredDialect', 'formalityLevel', 'slangAcademicPreference', 'usageContext', 'status', 'version'])
+      );
+    }
+
+    // 23. Dialects Collection
+    match /dialects/{dId} {
+      allow read: if isSignedIn();
+
+      function isValidDialect(data) {
+        return hasValidMetadata(data)
+            && data.name is string && data.name.size() <= 100;
+      }
+
+      allow create: if isAdmin() && isValidDialect(incoming());
+      allow update: if isAdmin() && isValidDialect(incoming()) && (
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['updatedAt', 'updatedBy', 'name', 'pronunciationTip', 'vocabularyOverrides', 'status', 'version'])
+      );
+    }
+
+    // 24. Countries Collection
+    match /countries/{cId} {
+      allow read: if isSignedIn();
+
+      function isValidCountry(data) {
+        return hasValidMetadata(data)
+            && data.countryName is string && data.countryName.size() <= 100;
+      }
+
+      allow create: if isAdmin() && isValidCountry(incoming());
+      allow update: if isAdmin() && isValidCountry(incoming()) && (
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['updatedAt', 'updatedBy', 'countryName', 'officialLanguages', 'regionalLanguages', 'status', 'version'])
+      );
+    }
+
+    // 25. Translations Collection
+    match /translations/{tId} {
+      allow read: if isSignedIn();
+
+      function isValidTranslation(data) {
+        return hasValidMetadata(data)
+            && data.languageCode is string && data.languageCode.size() <= 10;
+      }
+
+      allow create: if isAdmin() && isValidTranslation(incoming());
+      allow update: if isAdmin() && isValidTranslation(incoming()) && (
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['updatedAt', 'updatedBy', 'translationKeys', 'status', 'version'])
+      );
+    }
+
+    // 26. FeatureFlags Collection
+    match /featureFlags/{flagId} {
+      allow read: if isSignedIn();
+
+      function isValidFeature(data) {
+        return hasValidMetadata(data)
+            && data.key is string && data.key.size() <= 100;
+      }
+
+      allow create: if isAdmin() && isValidFeature(incoming());
+      allow update: if isAdmin() && isValidFeature(incoming()) && (
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['updatedAt', 'updatedBy', 'value', 'targetingRules', 'status', 'version'])
+      );
+    }
+
+    // 29. Settings Collection
+    match /settings/{settingsId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 30. UserAchievements Collection
+    match /user_achievements/{userId} {
+      allow read, write: if true;
+    }
+
+    // 27. AnalyticsEvents Collection - Secure stream, no client updates
+    match /analyticsEvents/{evtId} {
+      allow create: if isSignedIn();
+      allow read, update, delete: if isAdmin();
+    }
+
+    // 28. SystemLogs Collection - Admin read only
+    match /systemLogs/{logId} {
+      allow create: if isSignedIn();
+      allow read: if isAdmin();
+      allow update, delete: if false;
+    }
+  }
+}

@@ -14,10 +14,10 @@ function getElevenLabs(): any {
   return elevenlabsClient;
 }
 
-export async function textoParaVoz(texto: string): Promise<Buffer> {
+export async function textoParaVoz(texto: string, voiceId?: string): Promise<Buffer> {
   const elevenlabs = getElevenLabs();
   const audioStream = await elevenlabs.generate({
-    voice: "21m00Tcm4TlvDq8ikWAM", // Substitua pelo seu Voice ID de preferência
+    voice: voiceId || "21m00Tcm4TlvDq8ikWAM", // Substitua pelo seu Voice ID de preferência
     text: texto,
     model_id: "eleven_multilingual_v2", // Suporta Português, Inglês, Chinês e Francês
   });

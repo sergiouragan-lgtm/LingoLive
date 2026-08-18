@@ -1,54 +1,67 @@
-import React from 'react';
-import { LayoutDashboard, BookOpenText, Mic, Users, User, Settings, LogOut, Compass, Activity, Database, Sparkles, ShieldCheck, X, School, BookOpen, GraduationCap, CreditCard, Gamepad2, BarChart3 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { LayoutDashboard, LogOut, Activity, Database, Sparkles, X, ChevronDown } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../firebase';
 import { ServiceHealthStatus } from '../../types';
+import { sidebarConfig, SidebarItem } from './SidebarConfig';
+import { useUserRole } from '../../context/UserRoleContext';
+import { GlobalSearch } from './GlobalSearch';
 
 interface SidebarProps {
   view: string;
   setView: (view: any) => void;
   healthStatus?: ServiceHealthStatus | null;
-  role?: string;
   isOpen?: boolean;
   onClose?: () => void;
+  savedWords?: any[];
+  streakHistory?: string[];
+  selectedLanguage?: any;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ view, setView, healthStatus, role, isOpen = false, onClose }) => {
-  const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'learning-path', label: 'Aprender', icon: Compass },
-    { id: 'practice', label: 'IA Tutor', icon: Mic },
-    { id: 'quiz', label: 'Jogos', icon: Gamepad2 },
-    { id: 'area-escolar', label: 'Escola', icon: School },
-    { id: 'educator-dashboard', label: 'Relatórios', icon: BarChart3 },
-    { id: 'settings', label: 'Configurações', icon: Settings },
-  ];
+export const Sidebar: React.FC<SidebarProps> = ({ 
+  view, 
+  setView, 
+  healthStatus, 
+  isOpen = false, 
+  onClose,
+  savedWords = [],
+  streakHistory = [],
+  selectedLanguage
+}) => {
+  const { role } = useUserRole();
+  const roleKey = (role as keyof typeof sidebarConfig) || 'student';
+  const menuItems = (sidebarConfig[roleKey] || sidebarConfig.student) as SidebarItem[];
 
-  if (role === 'Admin' || role === 'Educator') {
-    menuItems.push({ id: 'area-escolar-b2b', label: 'Área Escolar (B2B)', icon: School });
-  }
-  
-  if (role === 'Educator') {
-    menuItems.push({ id: 'area-professor', label: 'Área do Professor', icon: BookOpen });
-  }
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
-  if (role === 'Student') {
-    menuItems.push({ id: 'area-aluno', label: 'Área do Aluno', icon: GraduationCap });
-  }
-
-  if (role === 'Parent') {
-    menuItems.push({ id: 'area-pais', label: 'Área dos Pais', icon: Users });
-  }
-
-  if (role === 'Admin') {
-    menuItems.push({ id: 'admin-dashboard', label: 'Painel Admin', icon: ShieldCheck });
-  }
+  // Auto-expand group if current view matches any child item
+  useEffect(() => {
+    menuItems.forEach((item) => {
+      if (item.children && item.children.length > 0) {
+        const hasActiveChild = item.children.some(
+          (child) =>
+            view === child.id ||
+            (child.id === 'perfil' && view === 'profile') ||
+            (child.id === 'profile' && view === 'perfil') ||
+            (child.id === 'practice' && view === 'ia-tutor')
+        );
+        if (hasActiveChild) {
+          setOpenGroups((prev) => ({ ...prev, [item.id]: true }));
+        }
+      }
+    });
+  }, [view, menuItems]);
 
   const handleItemClick = (id: any) => {
     setView(id);
     if (onClose) {
       onClose();
     }
+  };
+
+  const toggleGroup = (groupId: string) => {
+    setOpenGroups((prev) => ({ ...prev, [groupId]: !prev[groupId] }));
   };
 
   return (
@@ -71,12 +84,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, healthStatus, r
       `} id="sidebar-container">
         
         {/* Header inside Sidebar with Close button on mobile */}
-        <div className="flex items-center justify-between mb-10">
+        <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center shadow-md shadow-indigo-500/20">
                 <span className="font-bold text-white">L+</span>
             </div>
-            <span className="font-bold text-lg">LingoLive AI</span>
+            <span className="font-bold text-lg tracking-tight">LingoLive AI</span>
           </div>
 
           {onClose && (
@@ -89,23 +102,156 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, healthStatus, r
             </button>
           )}
         </div>
+
+        {/* Global Search Bar Fixed at Top of Navigation */}
+        <div className="mb-4">
+          <GlobalSearch
+            savedWords={savedWords}
+            streakHistory={streakHistory}
+            selectedLanguage={selectedLanguage}
+            setView={(newView) => {
+              setView(newView);
+              if (onClose) onClose();
+            }}
+            variant="sidebar"
+          />
+        </div>
         
         {/* Navigation Items */}
-        <div className="flex flex-col gap-2 overflow-y-auto max-h-[calc(100vh-250px)] pr-1">
+        <div className="flex-1 min-h-0 flex flex-col gap-1 overflow-y-auto [scrollbar-width:thin] pr-1 text-slate-300 custom-scrollbar">
           {menuItems.map((item) => {
             const Icon = item.icon;
-            const isActive = view === item.id;
+
+            // Handle Group Items (Submenus)
+            if (item.children && item.children.length > 0) {
+              const isChildActive = item.children.some(
+                (child) =>
+                  view === child.id ||
+                  (child.id === 'perfil' && view === 'profile') ||
+                  (child.id === 'profile' && view === 'perfil') ||
+                  (child.id === 'practice' && view === 'ia-tutor')
+              );
+              const isGroupOpen = openGroups[item.id] ?? isChildActive;
+
+              return (
+                <React.Fragment key={item.id}>
+                  {item.sectionHeader && (
+                    <div className="pt-4 pb-1.5 px-3 text-[10px] font-extrabold uppercase tracking-widest text-indigo-300/60 select-none">
+                      {item.sectionHeader}
+                    </div>
+                  )}
+
+                  <div className="flex flex-col gap-1">
+                    <button
+                      type="button"
+                      onClick={() => toggleGroup(item.id)}
+                      className={`relative flex items-center justify-between w-full px-3.5 py-2.5 rounded-xl transition-all duration-200 text-left cursor-pointer overflow-hidden ${
+                        isChildActive
+                          ? 'bg-slate-800/80 text-indigo-200 font-semibold border border-indigo-900/40 shadow-xs'
+                          : 'hover:bg-slate-800/60 text-slate-400 hover:text-slate-100 font-medium'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 truncate">
+                        <Icon className={`w-4 h-4 shrink-0 transition-colors duration-200 ${isChildActive ? 'text-indigo-400' : 'text-slate-400'}`} />
+                        <span className="text-sm truncate">{item.label}</span>
+                      </div>
+                      <ChevronDown
+                        className={`w-4 h-4 shrink-0 text-slate-400 transition-transform duration-200 ${
+                          isGroupOpen ? 'rotate-180 text-indigo-400' : ''
+                        }`}
+                      />
+                    </button>
+
+                    <AnimatePresence initial={false}>
+                      {isGroupOpen && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.2, ease: 'easeInOut' }}
+                          className="overflow-hidden"
+                        >
+                          <div className="flex flex-col gap-1 pl-3.5 ml-3 border-l border-slate-800/80 my-1">
+                            {item.children.map((child) => {
+                              const ChildIcon = child.icon;
+                              const isSubActive =
+                                view === child.id ||
+                                (child.id === 'perfil' && view === 'profile') ||
+                                (child.id === 'profile' && view === 'perfil') ||
+                                (child.id === 'practice' && view === 'ia-tutor');
+
+                              return (
+                                <React.Fragment key={child.id}>
+                                  {child.dividerAbove && (
+                                    <div className="my-1 border-t border-slate-800/80" />
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleItemClick(child.id)}
+                                    className={`relative flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all duration-200 text-left cursor-pointer overflow-hidden ${
+                                      isSubActive
+                                        ? 'bg-indigo-600 text-white font-semibold shadow-xs'
+                                        : 'hover:bg-slate-800/70 text-slate-400 hover:text-slate-100 font-medium'
+                                    }`}
+                                  >
+                                    {isSubActive && (
+                                      <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 bg-white/90 rounded-r-full" />
+                                    )}
+                                    {ChildIcon ? (
+                                      <ChildIcon className={`w-3.5 h-3.5 shrink-0 transition-colors ${isSubActive ? 'text-white' : 'text-slate-400'}`} />
+                                    ) : (
+                                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 transition-colors ${isSubActive ? 'bg-white' : 'bg-slate-500'}`} />
+                                    )}
+                                    <span className="text-xs truncate">{child.label}</span>
+                                  </button>
+                                </React.Fragment>
+                              );
+                            })}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </React.Fragment>
+              );
+            }
+
+            // Handle Regular Flat Items
+            const isActive =
+              view === item.id ||
+              (item.id === 'perfil' && view === 'profile') ||
+              (item.id === 'profile' && view === 'perfil');
+
             return (
-              <button
-                key={item.id}
-                onClick={() => handleItemClick(item.id)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-left cursor-pointer ${
-                  isActive ? 'bg-indigo-600 font-bold' : 'hover:bg-slate-800 text-slate-400 font-medium'
-                }`}
-              >
-                <Icon className="w-5 h-5 shrink-0" />
-                <span className="text-sm truncate">{item.label}</span>
-              </button>
+              <React.Fragment key={item.id}>
+                {item.sectionHeader && (
+                  <div className="pt-4 pb-1.5 px-3 text-[10px] font-extrabold uppercase tracking-widest text-indigo-300/60 select-none">
+                    {item.sectionHeader}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => handleItemClick(item.id)}
+                  className={`relative flex items-center justify-between w-full px-3.5 py-2.5 rounded-xl transition-all duration-200 text-left cursor-pointer overflow-hidden ${
+                    isActive
+                      ? 'bg-indigo-600/20 text-white font-semibold border border-indigo-500/30 shadow-xs'
+                      : 'hover:bg-slate-800/60 text-slate-400 hover:text-slate-100 font-medium'
+                  }`}
+                >
+                  {isActive && (
+                    <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-indigo-500 rounded-r-full" />
+                  )}
+                  <div className="flex items-center gap-3 truncate">
+                    <Icon className={`w-4 h-4 shrink-0 transition-colors duration-200 ${isActive ? 'text-indigo-400' : 'text-slate-400'}`} />
+                    <span className="text-sm truncate">{item.label}</span>
+                  </div>
+                  {item.badge && (
+                    <span className="ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                      {item.badge}
+                    </span>
+                  )}
+                </button>
+              </React.Fragment>
             );
           })}
         </div>
@@ -168,4 +314,5 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, healthStatus, r
     </>
   );
 };
+
 

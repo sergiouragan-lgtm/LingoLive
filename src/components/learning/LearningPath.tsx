@@ -16,10 +16,14 @@ import {
   ThumbsUp,
   BrainCircuit,
   MessageSquare,
-  BookOpen
+  BookOpen,
+  Lock,
+  Unlock,
+  ShieldAlert
 } from "lucide-react";
 import { Language, Proficiency, Scenario, SavedWord, FeedbackReport } from "../../types";
 import { SCENARIOS } from "../../data";
+import { auth } from "../../firebase";
 
 interface LearningPathProps {
   selectedLanguage: Language;
@@ -42,6 +46,47 @@ export const LearningPath: React.FC<LearningPathProps> = ({
   const [latestFeedback, setLatestFeedback] = useState<FeedbackReport | null>(null);
   const [activeQuest, setActiveQuest] = useState<string | null>(null);
   
+  // Regional slang unlocking system states
+  const [profile, setProfile] = useState<any>(null);
+  const [currentXp, setCurrentXp] = useState<number>(500);
+
+  useEffect(() => {
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      const stored = localStorage.getItem(`lingolive_user_sub_${currentUser.uid}`);
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          setProfile(parsed);
+        } catch (e) {}
+      }
+
+      const storedAch = localStorage.getItem(`lingolive_achievements_${currentUser.uid}`);
+      let quizzesCount = 0;
+      let languagesCount = 0;
+      let streakCount = 0;
+      if (storedAch) {
+        try {
+          const parsedAch = JSON.parse(storedAch);
+          quizzesCount = parsedAch.quizzesCompleted || 0;
+          languagesCount = parsedAch.languagesExplored?.length || 0;
+        } catch (e) {}
+      }
+      
+      const wordsCount = savedWords?.length || 0;
+      const streakStored = localStorage.getItem("lingolive_streak");
+      if (streakStored) {
+        try {
+          const parsedStreak = JSON.parse(streakStored);
+          streakCount = parsedStreak.count || 0;
+        } catch (e) {}
+      }
+
+      const calculatedXp = 500 + (quizzesCount * 150) + (languagesCount * 250) + (wordsCount * 45) + (streakCount * 120);
+      setCurrentXp(calculatedXp);
+    }
+  }, [savedWords]);
+
   // Game 1: Sentence Builder State
   const [game1Active, setGame1Active] = useState(false);
   const [scrambledWords, setScrambledWords] = useState<string[]>([]);
@@ -663,6 +708,123 @@ export const LearningPath: React.FC<LearningPathProps> = ({
               </div>
             </div>
           )}
+
+          {/* Progressive Slang & Regionalism Unlocking System */}
+          <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xs space-y-4">
+            <div className="flex items-center gap-2 text-slate-800">
+              <Compass className="w-5 h-5 text-indigo-600 animate-pulse" />
+              <div className="text-left">
+                <span className="font-bold text-sm block">Progressão de Sotaques & Gírias</span>
+                <span className="text-[10px] text-slate-400 font-medium">Liberação por Idade e XP</span>
+              </div>
+            </div>
+            
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Expanda sua naturalidade integrando expressões e sotaques regionais conforme evolui seus pontos.
+            </p>
+
+            <div className="space-y-3 pt-2">
+              {[
+                {
+                  level: 1,
+                  name: "Standard",
+                  title: "Nível 1: Idioma Padrão",
+                  desc: "Linguagem formal e gramática acadêmica estruturada.",
+                  xpRequired: 0,
+                  badge: "🌐"
+                },
+                {
+                  level: 2,
+                  name: "Common",
+                  title: "Nível 2: Expressões Comuns",
+                  desc: "Termos populares polidos cotidianos (ex: 'Cool', 'Awesome').",
+                  xpRequired: 100,
+                  badge: "💬",
+                  minAge: 9
+                },
+                {
+                  level: 3,
+                  name: "Daily",
+                  title: "Nível 3: Diálogos de Rua",
+                  desc: "Contrações idiomáticas e fala informal (ex: 'What's up?', 'My bad').",
+                  xpRequired: 250,
+                  badge: "🔥",
+                  minAge: 13
+                },
+                {
+                  level: 4,
+                  name: "Regional",
+                  title: "Nível 4: Sotaques Locais",
+                  desc: "Variações regionais do país de destino (ex: US, UK, BR, PT).",
+                  xpRequired: 500,
+                  badge: "🗺️",
+                  minAge: 13
+                },
+                {
+                  level: 5,
+                  name: "Modern slang",
+                  title: "Nível 5: Gírias Modernas",
+                  desc: "Gírias coloquiais contemporâneas das redes e rua (ex: 'Hit me up').",
+                  xpRequired: 800,
+                  badge: "⚡",
+                  minAge: 17
+                }
+              ].map((item) => {
+                const isAgeLocked = profile?.age !== undefined && item.minAge !== undefined && Number(profile.age) < item.minAge;
+                const isXpUnlocked = currentXp >= item.xpRequired;
+                const isUnlocked = isXpUnlocked && !isAgeLocked;
+
+                return (
+                  <div 
+                    key={item.level}
+                    className={`p-3 rounded-2xl border transition-all flex items-start gap-3 ${
+                      isUnlocked
+                        ? "bg-emerald-50/20 border-emerald-100/80 text-slate-700"
+                        : isAgeLocked
+                          ? "bg-rose-50/10 border-rose-100/40 text-slate-400 opacity-75"
+                          : "bg-slate-50/50 border-slate-100 text-slate-400"
+                    }`}
+                  >
+                    <div className="text-xl shrink-0 mt-0.5">{item.badge}</div>
+                    
+                    <div className="flex-1 min-w-0 text-left">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className={`font-bold text-xs ${isUnlocked ? "text-slate-800" : "text-slate-500"}`}>
+                          {item.title}
+                        </span>
+                        {isUnlocked ? (
+                          <span className="text-[8px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full font-bold uppercase">
+                            Ativo
+                          </span>
+                        ) : isAgeLocked ? (
+                          <span className="text-[8px] bg-rose-100 text-rose-800 px-1.5 py-0.5 rounded-full font-bold uppercase flex items-center gap-0.5">
+                            <ShieldAlert size={8} /> Restrito
+                          </span>
+                        ) : (
+                          <span className="text-[8px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded-full font-semibold">
+                            Bloqueado
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-0.5 leading-tight">{item.desc}</p>
+                      
+                      {!isUnlocked && !isAgeLocked && (
+                        <div className="text-[9px] text-indigo-500 font-bold font-mono mt-1 flex items-center gap-1">
+                          <Lock size={8} /> Requer {item.xpRequired} XP (Falta {item.xpRequired - currentXp} XP)
+                        </div>
+                      )}
+
+                      {isAgeLocked && (
+                        <div className="text-[9px] text-rose-500 font-semibold mt-1">
+                          🔒 Exige idade mínima de {item.minAge} anos (Usuário tem {profile.age} anos)
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
 
           {/* Gamified Milestone Cards */}
           <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xs space-y-4">

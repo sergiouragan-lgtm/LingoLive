@@ -1,0 +1,1 @@
+sed -i -e '/<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">/,/Gerir Chaves Criptográficas/!b' -e '/Gerir Chaves Criptográficas/!d' -e '/Gerir Chaves Criptográficas/r /tmp/iace_content.tsx' -e 'd' src/components/learning/AssessmentModule.tsx

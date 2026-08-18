@@ -2,8 +2,6 @@ const CACHE_NAME = 'lingolive-cache-v1';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
-  '/src/main.tsx',
-  '/src/index.css',
   '/favicon.ico'
 ];
 
@@ -111,3 +109,94 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
+// Helper to get pending vocabulary syncs from IndexedDB (Version 2 contains vocab_sync_outbox)
+function getPendingSyncsFromIDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('LingoLiveOfflineDB', 2);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains('vocab_sync_outbox')) {
+        resolve([]);
+        return;
+      }
+      try {
+        const transaction = db.transaction('vocab_sync_outbox', 'readonly');
+        const store = transaction.objectStore('vocab_sync_outbox');
+        const getRequest = store.getAll();
+        getRequest.onsuccess = () => resolve(getRequest.result || []);
+        getRequest.onerror = () => reject(getRequest.error);
+      } catch (err) {
+        resolve([]);
+      }
+    };
+  });
+}
+
+// Helper to remove processed vocabulary syncs from IndexedDB
+function deletePendingSyncFromIDB(id) {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('LingoLiveOfflineDB', 2);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const db = request.result;
+      try {
+        const transaction = db.transaction('vocab_sync_outbox', 'readwrite');
+        const store = transaction.objectStore('vocab_sync_outbox');
+        const deleteRequest = store.delete(id);
+        deleteRequest.onsuccess = () => resolve();
+        deleteRequest.onerror = () => reject(deleteRequest.error);
+      } catch (err) {
+        reject(err);
+      }
+    };
+  });
+}
+
+// Background Sync Handler
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'lingolive-vocabulary-sync' || event.tag === 'sync-vocabulary') {
+    console.log(`[Service Worker] Background sync event triggered: ${event.tag}`);
+    event.waitUntil(performVocabSync());
+  }
+});
+
+async function performVocabSync() {
+  try {
+    const pendingSyncs = await getPendingSyncsFromIDB();
+    if (pendingSyncs.length === 0) {
+      console.log('[Service Worker] No pending vocabulary sync jobs found.');
+      return;
+    }
+
+    console.log(`[Service Worker] Syncing ${pendingSyncs.length} pending vocabulary update jobs.`);
+    for (const syncJob of pendingSyncs) {
+      const { id, userId, words } = syncJob;
+      try {
+        const response = await fetch('/api/sync-vocabulary', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ userId, words }),
+        });
+
+        if (response.ok) {
+          console.log('[Service Worker] Vocabulary sync completed.');
+          await deletePendingSyncFromIDB(id);
+        } else {
+          console.error(`[Service Worker] Background sync endpoint returned non-OK status: ${response.status}`);
+          throw new Error('Server returned error status'); // Throwing triggers retry later by the browser
+        }
+      } catch (err) {
+        console.error('[Service Worker] Network error while syncing:', err instanceof Error ? err.message : err);
+        throw err; // Throwing triggers retry later by the browser
+      }
+    }
+  } catch (error) {
+    console.error('[Service Worker] performVocabSync failed:', error);
+    throw error;
+  }
+}
+

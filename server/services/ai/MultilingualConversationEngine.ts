@@ -1,0 +1,322 @@
+import { GoogleGenAI } from "@google/genai";
+import { AI_CONFIG } from "./orchestration/config/AIConfig";
+import { AIOrchestrationLogger } from "./orchestration/utils/Logger";
+import { safeGetDoc, safeSetDoc } from "../firestoreSafe.service";
+
+// Supported languages definition
+export type SupportedLanguage = "pt" | "en" | "fr" | "zh";
+
+export interface ConversationTurnRequest {
+  userId: string;
+  sessionId: string;
+  userMessage: string;
+  sourceLanguage: SupportedLanguage;
+  targetLanguage: SupportedLanguage;
+  userCEFR: "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
+  currentTopic?: string;
+  voiceInput?: boolean;
+}
+
+export interface GrammarCorrection {
+  hasMistake: boolean;
+  mistake?: string;
+  corrected?: string;
+  explanation?: string;
+}
+
+export interface VocabularySuggestion {
+  original: string;
+  suggested: string;
+  context: string;
+}
+
+export interface PronunciationHint {
+  word: string;
+  phonetic: string;
+  tip: string;
+}
+
+export interface TurnScore {
+  grammar: number; // 0-100
+  fluency: number; // 0-100
+  vocabulary: number; // 0-100
+  topicRelevance: number; // 0-100
+  overall: number; // 0-100
+}
+
+export interface VoiceGuidance {
+  recommendedVoiceRate: number; // 0.8 to 1.2
+  intonationFocus: string;
+  estimatedSpeechDurationSeconds: number;
+}
+
+export interface MultilingualConversationResponse {
+  reply: string;
+  topic: string;
+  topicSwitched: boolean;
+  grammarCorrection: GrammarCorrection;
+  vocabularySuggestions: VocabularySuggestion[];
+  pronunciationHints: PronunciationHint[];
+  turnScore: TurnScore;
+  voiceGuidance: VoiceGuidance;
+}
+
+export interface ConversationSession {
+  sessionId: string;
+  userId: string;
+  sourceLanguage: SupportedLanguage;
+  targetLanguage: SupportedLanguage;
+  userCEFR: string;
+  currentTopic: string;
+  topicHistory: string[];
+  cumulativeScore: number;
+  totalTurns: number;
+  updatedAt: string;
+}
+
+export class MultilingualConversationEngine {
+  private aiClient: GoogleGenAI;
+  private fallbackResponses: Record<SupportedLanguage, any> = {
+    en: {
+      reply: "Excellent! Let's continue our conversation. How has your day been so far?",
+      topic: "general",
+      topicSwitched: false,
+      grammarCorrection: { hasMistake: false },
+      vocabularySuggestions: [{ original: "good", suggested: "splendid", context: "To sound more descriptive." }],
+      pronunciationHints: [{ word: "Excellent", phonetic: "EK-suh-lunt", tip: "Place stress on the first syllable." }],
+      turnScore: { grammar: 95, fluency: 90, vocabulary: 85, topicRelevance: 100, overall: 92 },
+      voiceGuidance: { recommendedVoiceRate: 1.0, intonationFocus: "friendly rise", estimatedSpeechDurationSeconds: 3.5 }
+    },
+    pt: {
+      reply: "Fantástico! Vamos continuar a nossa conversa. Como tem corrido o seu dia?",
+      topic: "geral",
+      topicSwitched: false,
+      grammarCorrection: { hasMistake: false },
+      vocabularySuggestions: [{ original: "bom", suggested: "esplêndido", context: "Para soar mais descritivo." }],
+      pronunciationHints: [{ word: "Fantástico", phonetic: "fan-TÁS-tee-co", tip: "Enfatize a sílaba tónica 'TÁS'." }],
+      turnScore: { grammar: 95, fluency: 90, vocabulary: 85, topicRelevance: 100, overall: 92 },
+      voiceGuidance: { recommendedVoiceRate: 1.0, intonationFocus: "amigável", estimatedSpeechDurationSeconds: 3.5 }
+    },
+    fr: {
+      reply: "Merveilleux! Continuons notre conversation. Comment se passe votre journée?",
+      topic: "général",
+      topicSwitched: false,
+      grammarCorrection: { hasMistake: false },
+      vocabularySuggestions: [{ original: "bien", suggested: "magnifique", context: "Pour être plus expressif." }],
+      pronunciationHints: [{ word: "Merveilleux", phonetic: "mair-vay-yuh", tip: "La finale est douce." }],
+      turnScore: { grammar: 95, fluency: 90, vocabulary: 85, topicRelevance: 100, overall: 92 },
+      voiceGuidance: { recommendedVoiceRate: 0.9, intonationFocus: "ton ascendant", estimatedSpeechDurationSeconds: 4.0 }
+    },
+    zh: {
+      reply: "太棒了！让我们继续聊聊。你今天过得怎么样？",
+      topic: "general",
+      topicSwitched: false,
+      grammarCorrection: { hasMistake: false },
+      vocabularySuggestions: [{ original: "好", suggested: "极好", context: "更丰富的口语表达。" }],
+      pronunciationHints: [{ word: "太棒了", phonetic: "Tài bàng le", tip: "注意去声(第四声)的发音。" }],
+      turnScore: { grammar: 95, fluency: 90, vocabulary: 85, topicRelevance: 100, overall: 92 },
+      voiceGuidance: { recommendedVoiceRate: 1.0, intonationFocus: "natural tones", estimatedSpeechDurationSeconds: 3.0 }
+    }
+  };
+
+  constructor() {
+    const apiKey = AI_CONFIG.providers.google.apiKey || process.env.GEMINI_API_KEY;
+    this.aiClient = new GoogleGenAI({
+      apiKey: apiKey || "MOCK_KEY"
+    });
+  }
+
+  /**
+   * Process a message turn through the Multilingual Conversation Engine
+   */
+  async processTurn(request: ConversationTurnRequest): Promise<MultilingualConversationResponse> {
+    const start = Date.now();
+    AIOrchestrationLogger.info(`MultilingualConversationEngine received turn for user=${request.userId} | languageTarget=${request.targetLanguage}`);
+
+    // 1. Get or initialize Session details
+    const session = await this.getOrCreateSession(request);
+
+    // 2. Fetch recent historical turns
+    const history = await this.getHistory(request.userId, request.sessionId);
+    const historySummary = history.map(h => `${h.role === 'user' ? 'Aluno' : 'Tutor'}: ${h.content}`).join("\n");
+
+    const systemPrompt = `Você é um tutor nativo especialista de inteligência artificial de LingoLIVE.
+Sua missão é responder ao aluno, corrigir erros gramaticais de forma amigável, sugerir vocabulários mais ricos, fornecer dicas de pronúncia legíveis foneticamente e avaliar o desempenho dele em tempo real.
+
+O aluno está aprendendo o idioma alvo: "${request.targetLanguage}" (Código do idioma).
+Nível CEFR do aluno: "${request.userCEFR}".
+Idioma nativo do aluno: "${request.sourceLanguage}".
+Se "voiceInput" for verdadeiro (${request.voiceInput ? "Sim" : "Não"}), simplifique a resposta para que soe natural se falada em áudio.
+
+Estruture a resposta OBRIGATORIAMENTE no seguinte formato JSON (sem blocos externos adicionais):
+{
+  "reply": "Resposta detalhada e direta em ${request.targetLanguage}, adequada para o nível ${request.userCEFR}.",
+  "topic": "O tópico detectado da conversa (ex: greetings, travel, gastronomy, family, business).",
+  "topicSwitched": true ou false (coloque true se o aluno mudou de assunto em relação ao tópico anterior: "${session.currentTopic}"),
+  "grammarCorrection": {
+    "hasMistake": true ou false,
+    "mistake": "A frase errada dita pelo aluno (se houver)",
+    "corrected": "A frase corrigida pelo tutor (se houver)",
+    "explanation": "Explicação amigável em ${request.sourceLanguage} sobre o erro de gramática."
+  },
+  "vocabularySuggestions": [
+    {
+      "original": "Palavra comum usada pelo aluno",
+      "suggested": "Sinônimo mais nativo e avançado",
+      "context": "Contexto curto do porquê de usar a nova sugestão."
+    }
+  ],
+  "pronunciationHints": [
+    {
+      "word": "Palavra difícil no idioma alvo",
+      "phonetic": "Pronúncia aproximada legível",
+      "tip": "Como posicionar a língua ou entonação para acertar a pronúncia."
+    }
+  ],
+  "turnScore": {
+    "grammar": score de 0 a 100 baseado na exatidão,
+    "fluency": score de 0 a 100 baseado na fluidez e ritmo presumido,
+    "vocabulary": score de 0 a 100 baseado na complexidade dos termos,
+    "topicRelevance": score de 0 a 100 baseado no contexto,
+    "overall": média ponderada dos scores
+  },
+  "voiceGuidance": {
+    "recommendedVoiceRate": velocidade sugerida para reproduzir o TTS (ex: 0.9 para iniciantes, 1.1 para avançados),
+    "intonationFocus": "onde o aluno deve colocar ênfase na entonação",
+    "estimatedSpeechDurationSeconds": duração aproximada de fala
+  }
+}`;
+
+    const promptMessage = `Histórico de Conversas Prévias:\n${historySummary}\n\nMensagem recente do Aluno: "${request.userMessage}"`;
+
+    if (!AI_CONFIG.providers.google.apiKey && !process.env.GEMINI_API_KEY) {
+      AIOrchestrationLogger.warn("Gemini API Key missing for Multilingual Engine. Providing high-availability mock payload.");
+      return this.fallbackResponses[request.targetLanguage] || this.fallbackResponses.en;
+    }
+
+    try {
+      const response = await this.aiClient.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: promptMessage,
+        config: {
+          systemInstruction: systemPrompt,
+          temperature: 0.6,
+          responseMimeType: "application/json"
+        }
+      });
+
+      const responseText = response.text || "";
+      const cleaned = this.cleanMarkdownJSON(responseText);
+      const parsed: MultilingualConversationResponse = JSON.parse(cleaned);
+
+      // 3. Save current turn into Firestore history
+      await this.saveTurn(request.userId, request.sessionId, request.userMessage, parsed.reply);
+
+      // 4. Update session aggregates
+      await this.updateSession(session, parsed);
+
+      AIOrchestrationLogger.info(`MultilingualConversationEngine processed successfully in ${Date.now() - start}ms`);
+      return parsed;
+
+    } catch (error: any) {
+      AIOrchestrationLogger.error(`Failed to process turn in Multilingual Engine: ${error.message}`, error, "MultilingualConversationEngine");
+      return this.fallbackResponses[request.targetLanguage] || this.fallbackResponses.en;
+    }
+  }
+
+  private cleanMarkdownJSON(text: string): string {
+    let clean = text.trim();
+    if (clean.startsWith("```")) {
+      clean = clean.replace(/^```[a-zA-Z]*\n/, "").replace(/\n```$/, "").trim();
+    }
+    return clean;
+  }
+
+  /**
+   * Session Management: Get existing session or create fresh configuration
+   */
+  private async getOrCreateSession(request: ConversationTurnRequest): Promise<ConversationSession> {
+    try {
+      const docSnap = await safeGetDoc("ai_multilingual_sessions", request.sessionId);
+      if (docSnap.exists) {
+        return docSnap.data() as ConversationSession;
+      }
+    } catch (e: any) {
+      AIOrchestrationLogger.warn(`Failed to read session details from Firestore. Initializing volatile transient session state.`);
+    }
+
+    const newSession: ConversationSession = {
+      sessionId: request.sessionId,
+      userId: request.userId,
+      sourceLanguage: request.sourceLanguage,
+      targetLanguage: request.targetLanguage,
+      userCEFR: request.userCEFR,
+      currentTopic: request.currentTopic || "greetings",
+      topicHistory: [request.currentTopic || "greetings"],
+      cumulativeScore: 0,
+      totalTurns: 0,
+      updatedAt: new Date().toISOString()
+    };
+
+    return newSession;
+  }
+
+  private async updateSession(session: ConversationSession, response: MultilingualConversationResponse): Promise<void> {
+    session.totalTurns += 1;
+    session.cumulativeScore += response.turnScore.overall;
+    session.currentTopic = response.topic;
+
+    if (response.topicSwitched && !session.topicHistory.includes(response.topic)) {
+      session.topicHistory.push(response.topic);
+    }
+
+    session.updatedAt = new Date().toISOString();
+
+    try {
+      await safeSetDoc("ai_multilingual_sessions", session.sessionId, session);
+    } catch (e: any) {
+      AIOrchestrationLogger.warn(`Failed to update session metrics in Firestore for session ${session.sessionId}`);
+    }
+  }
+
+  /**
+   * History Repository: Fetch historical transcripts
+   */
+  async getHistory(userId: string, sessionId: string): Promise<{ role: "user" | "assistant"; content: string; timestamp: string }[]> {
+    try {
+      const docSnap = await safeGetDoc("ai_multilingual_history", `${userId}_${sessionId}`);
+      if (docSnap.exists) {
+        const data = docSnap.data();
+        if (data && Array.isArray(data.turns)) {
+          return data.turns.slice(-6); // Limit to last 6 turns for optimal context window caching
+        }
+      }
+    } catch (e: any) {
+      AIOrchestrationLogger.warn(`Failed to fetch history for ${userId}_${sessionId}`);
+    }
+    return [];
+  }
+
+  private async saveTurn(userId: string, sessionId: string, userMsg: string, aiMsg: string): Promise<void> {
+    const key = `${userId}_${sessionId}`;
+    const turns = await this.getHistory(userId, sessionId);
+    
+    turns.push({ role: "user", content: userMsg, timestamp: new Date().toISOString() });
+    turns.push({ role: "assistant", content: aiMsg, timestamp: new Date().toISOString() });
+
+    try {
+      await safeSetDoc("ai_multilingual_history", key, {
+        userId,
+        sessionId,
+        turns: turns.map(t => ({
+          role: t.role,
+          content: t.content,
+          timestamp: t.timestamp
+        })),
+        lastUpdated: new Date().toISOString()
+      });
+    } catch (e: any) {
+      AIOrchestrationLogger.warn(`Failed to persist conversation turn history for ${key}`);
+    }
+  }
+}

@@ -20,7 +20,7 @@ export const UserRoleProvider = ({ children }: { children: React.ReactNode }) =>
 export const useUserRole = () => {
   const context = useContext(UserRoleContext);
   if (!context) {
-    throw new Error('useUserRole must be used within UserRoleProvider');
+    return { role: 'Student' as UserRole, setRole: () => {} };
   }
   return context;
 };

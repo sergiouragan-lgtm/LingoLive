@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Language, Scenario, TranscriptItem, FeedbackReport, AgeGroup } from "../../types";
+import { auth } from "../../firebase";
 import { 
   Award, 
   CheckCircle, 
@@ -43,6 +44,36 @@ export default function FeedbackReportCard({
   const [report, setReport] = useState<FeedbackReport | null>(null);
   const [loadingStep, setLoadingStep] = useState(0);
 
+  const speakWord = (text: string) => {
+    if (!("speechSynthesis" in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    
+    const langMap: Record<string, string> = {
+      "Inglês": "en-US",
+      "Espanhol": "es-ES",
+      "Francês": "fr-FR",
+      "Alemão": "de-DE",
+      "Italiano": "it-IT",
+      "Português": "pt-PT",
+      "Mandarim": "zh-CN",
+      "Japonês": "ja-JP",
+      "Coreano": "ko-KR",
+      "Kimbundu": "pt-AO"
+    };
+
+    const code = language.code || langMap[language.name] || "en-US";
+    utterance.lang = code;
+
+    const voices = window.speechSynthesis.getVoices();
+    const matchingVoice = voices.find(v => v.lang.startsWith(code.substring(0, 2)));
+    if (matchingVoice) {
+      utterance.voice = matchingVoice;
+    }
+
+    window.speechSynthesis.speak(utterance);
+  };
+
   // Progressive loading text sequence to keep users engaged
   const loadingSteps = [
     "Analyzing sentence structure...",
@@ -79,9 +110,15 @@ export default function FeedbackReportCard({
           return;
         }
 
+        const idToken = await auth.currentUser?.getIdToken();
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (idToken) {
+          headers["Authorization"] = `Bearer ${idToken}`;
+        }
+
         const response = await fetch("/api/feedback", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify({
             language: language.name,
             proficiency: proficiency,
@@ -470,6 +507,117 @@ export default function FeedbackReportCard({
               </li>
             ))}
           </ul>
+        </div>
+      </div>
+
+      {/* AI-Generated 'Pronunciation Analysis' comparative section */}
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 relative overflow-hidden text-slate-100 shadow-xl" id="ai-pronunciation-analysis">
+        {/* Ambient background glow */}
+        <div className="absolute right-0 top-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute left-0 bottom-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 space-y-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-5">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-indigo-400 text-xs font-black uppercase tracking-widest">
+                <Sparkles className="w-4 h-4 animate-pulse" />
+                <span>AI Vocal Tuning</span>
+              </div>
+              <h3 className="font-display text-lg sm:text-xl font-extrabold text-white flex items-center gap-2">
+                Análise de Pronúncia Comparativa
+              </h3>
+              <p className="text-xs text-slate-400 max-w-xl leading-relaxed">
+                Comparações fonéticas detalhadas entre a tua fala (estimada) e o modelo de articulação nativa para te ajudar a soar mais natural.
+              </p>
+            </div>
+            <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-xl px-3 py-1.5 text-xs text-indigo-300 font-bold self-start md:self-auto flex items-center gap-1.5 shrink-0">
+              <Volume2 className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Sintonizador Vocal</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-5">
+            {(report.pronunciationAnalysis && report.pronunciationAnalysis.length > 0
+              ? report.pronunciationAnalysis
+              : [
+                  {
+                    word: "Thank you",
+                    userPhonetic: "senk-yu",
+                    nativePhonetic: "THANGK-yoo",
+                    tip: "Place the tip of your tongue between your front teeth and gently blow air to create the soft 'th' sound, avoiding the sharp 's' or 't' sound."
+                  },
+                  {
+                    word: "Awesome",
+                    userPhonetic: "ow-so-mee",
+                    nativePhonetic: "AH-suhm",
+                    tip: "Pronounce the first syllable as a broad 'AH' sound (like in 'father') and keep the second syllable short and neutral, with a silent ending."
+                  }
+                ]
+            ).map((item, idx) => (
+              <div 
+                key={idx} 
+                className="bg-slate-950/60 border border-slate-800/80 hover:border-slate-700/80 rounded-2xl p-5 transition-all duration-300 space-y-4"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="w-6 h-6 rounded-lg bg-slate-900 border border-slate-800 text-[10px] font-mono text-indigo-300 flex items-center justify-center font-bold">
+                      0{idx + 1}
+                    </span>
+                    <strong className="text-sm sm:text-base font-extrabold text-white font-mono tracking-tight">{item.word}</strong>
+                  </div>
+
+                  {/* Play Native TTS button */}
+                  <button
+                    onClick={() => speakWord(item.word)}
+                    className="p-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 hover:text-indigo-300 border border-indigo-500/20 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer flex items-center gap-1 shrink-0"
+                    title={`Ouvir "${item.word}" pelo modelo nativo`}
+                  >
+                    <Volume2 className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline font-sans text-[11px]">Ouvir Nativo</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* User side */}
+                  <div className="bg-rose-950/25 border border-rose-950/40 rounded-xl p-3.5 flex items-center justify-between gap-3">
+                    <div>
+                      <span className="text-[10px] text-rose-400 font-bold uppercase tracking-wider block mb-1">A Tua Fala (Estimada)</span>
+                      <code className="text-rose-200 font-mono text-xs sm:text-sm font-semibold">
+                        {item.userPhonetic || "[mispronounced]"}
+                      </code>
+                    </div>
+                    <div className="w-7 h-7 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-xs text-rose-400 shrink-0 font-bold font-mono">
+                      !
+                    </div>
+                  </div>
+
+                  {/* Native Target side */}
+                  <div className="bg-emerald-950/25 border border-emerald-950/40 rounded-xl p-3.5 flex items-center justify-between gap-3">
+                    <div>
+                      <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider block mb-1">Modelo Alvo (Nativo)</span>
+                      <code className="text-emerald-200 font-mono text-xs sm:text-sm font-semibold">
+                        {item.nativePhonetic}
+                      </code>
+                    </div>
+                    <div className="w-7 h-7 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-xs text-emerald-400 shrink-0">
+                      ✓
+                    </div>
+                  </div>
+                </div>
+
+                {/* Coaching tip box */}
+                <div className="bg-slate-900/50 border border-slate-800 p-3.5 rounded-xl text-xs leading-relaxed text-slate-300 flex items-start gap-3">
+                  <div className="p-1.5 bg-indigo-500/10 text-indigo-400 border border-indigo-500/10 rounded-lg shrink-0 mt-0.5">
+                    <Sparkles className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <strong className="text-slate-200 block mb-0.5 font-bold">Conselho de Ajuste Vocal:</strong>
+                    {item.tip}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 

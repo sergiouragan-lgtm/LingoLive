@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { MessageSquare, Sparkles, Send, Minus, Maximize2 } from 'lucide-react';
 import { useLocalization } from '../../context/LocalizationContext';
+import { auth } from '../../firebase';
 
 export const AIAssistant: React.FC<{ userId?: string }> = ({ userId }) => {
   const { localization } = useLocalization();
@@ -10,6 +11,18 @@ export const AIAssistant: React.FC<{ userId?: string }> = ({ userId }) => {
   const [input, setInput] = useState('');
   const [isMinimized, setIsMinimized] = useState(true);
   const [loading, setLoading] = useState(false);
+
+  // Dynamic user profile loading
+  const profile = (() => {
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      const stored = localStorage.getItem(`lingolive_user_sub_${currentUser.uid}`);
+      if (stored) {
+        try { return JSON.parse(stored); } catch (e) {}
+      }
+    }
+    return null;
+  })();
 
   const handleSend = async (task: 'explain' | 'translate' | 'correct' | 'example' | 'chat' | 'roleplay' | 'lesson' = 'chat') => {
     if (!input.trim() && task === 'chat') return;
@@ -21,18 +34,29 @@ export const AIAssistant: React.FC<{ userId?: string }> = ({ userId }) => {
     setLoading(true);
 
     try {
+      const idToken = await auth.currentUser?.getIdToken();
       const response = await fetch('/api/ai-chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(idToken ? { 'Authorization': `Bearer ${idToken}` } : {})
+        },
         body: JSON.stringify({ 
           userId,
           messages: newMessages, 
           task: task,
           userContext: { 
-            level: 'A1', 
-            languageLearning: ['English'], 
-            languageNative: 'Portuguese',
-            localization: localization
+            level: profile?.level || 'A1', 
+            languageLearning: [profile?.learningLanguage || 'English'], 
+            languageNative: profile?.nativeLanguage || 'Portuguese',
+            localization: localization,
+            age: profile?.age || 25,
+            learningGoal: profile?.learningGoal || 'Geral',
+            targetRegion: profile?.targetRegion || 'US',
+            languageMode: profile?.languageMode || 'Standard',
+            allowRegionalExpressions: profile?.allowRegionalExpressions !== false,
+            allowSlang: profile?.allowSlang !== false,
+            preferredAIModel: localStorage.getItem("lingolive_conversational_ai_model") || "gpt-4o"
           }
         })
       });

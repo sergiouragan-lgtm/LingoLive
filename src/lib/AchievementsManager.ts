@@ -47,6 +47,33 @@ const DEFAULT_BADGES = {
     progress: 0,
     totalRequired: 5,
     unlockedAt: null
+  },
+  'streak-5-days': {
+    id: 'streak-5-days',
+    title: '5 Day Warrior',
+    description: 'Mantenha uma sequência de 5 dias de prática!',
+    iconName: 'Flame',
+    progress: 0,
+    totalRequired: 5,
+    unlockedAt: null
+  },
+  'streak-10-days': {
+    id: 'streak-10-days',
+    title: '10 Day Hero',
+    description: 'Mantenha uma sequência de 10 dias de prática!',
+    iconName: 'Flame',
+    progress: 0,
+    totalRequired: 10,
+    unlockedAt: null
+  },
+  'streak-30-days': {
+    id: 'streak-30-days',
+    title: '30 Day Legend',
+    description: 'Mantenha uma sequência de 30 dias de prática!',
+    iconName: 'Flame',
+    progress: 0,
+    totalRequired: 30,
+    unlockedAt: null
   }
 };
 
@@ -70,7 +97,7 @@ async function withRetry<T>(fn: () => Promise<T>, retries = 5, delay = 1000): Pr
  * Ensures that an achievements document exists for the user in Firestore.
  */
 export async function initializeAchievements(userId: string, retries = 3): Promise<UserAchievements> {
-  console.log('[AchievementsManager] initializeAchievements called for userId:', userId, 'currentUser:', auth.currentUser?.uid);
+  console.log('[AchievementsManager] Achievements initialization started.');
   const docRef = doc(db, 'user_achievements', userId);
   
   return withRetry(async () => {
@@ -112,8 +139,8 @@ export function subscribeToAchievements(
   const docRef = doc(db, 'user_achievements', userId);
   
   // First ensure document exists
-  initializeAchievements(userId).catch(err => {
-    console.error('[AchievementsManager] Failed to initialize achievements document on subscribe:', err);
+  initializeAchievements(userId).catch(() => {
+    console.error('[AchievementsManager] Operation failed.');
   });
 
   let previousUnlockedIds: string[] = [];
@@ -154,12 +181,11 @@ export function subscribeToAchievements(
  * Tracks and records a language being explored by the student.
  */
 export async function recordLanguageExplored(userId: string, languageName: string): Promise<void> {
-  console.log('[AchievementsManager] recordLanguageExplored:', { userId, languageName, currentAuthUser: auth.currentUser?.uid });
+  console.log('[AchievementsManager] Language exploration recorded.');
   try {
     await withRetry(async () => {
       const docRef = doc(db, 'user_achievements', userId);
       const snap = await getDoc(docRef);
-      console.log('[DEBUG] recordLanguageExplored: userId:', userId, 'auth.currentUser.uid:', auth.currentUser?.uid);
       
       let currentData = snap.exists() 
         ? (snap.data() as UserAchievements) 
@@ -188,7 +214,7 @@ export async function recordLanguageExplored(userId: string, languageName: strin
     if (error.message?.includes('offline')) {
       console.warn('[AchievementsManager] Offline, skipping recording language explored achievement');
     } else {
-      console.error('[AchievementsManager] Error recording language explored achievement:', error);
+      console.error('[AchievementsManager] Operation failed.');
     }
   }
 }
@@ -197,7 +223,7 @@ export async function recordLanguageExplored(userId: string, languageName: strin
  * Tracks and records a completed quiz by the student.
  */
 export async function recordQuizCompleted(userId: string): Promise<void> {
-  console.log('[AchievementsManager] recordQuizCompleted:', { userId, currentAuthUser: auth.currentUser?.uid });
+  console.log('[AchievementsManager] Quiz completion recorded.');
   try {
     await withRetry(async () => {
       const docRef = doc(db, 'user_achievements', userId);
@@ -227,7 +253,7 @@ export async function recordQuizCompleted(userId: string): Promise<void> {
     if (error.message?.includes('offline')) {
       console.warn('[AchievementsManager] Offline, skipping recording quiz completed achievement');
     } else {
-      console.error('[AchievementsManager] Error recording quiz completed achievement:', error);
+      console.error('[AchievementsManager] Operation failed.');
     }
   }
 }
@@ -236,7 +262,7 @@ export async function recordQuizCompleted(userId: string): Promise<void> {
  * Tracks and records saved words progress.
  */
 export async function recordSavedWordsCount(userId: string, count: number): Promise<void> {
-  console.log('[AchievementsManager] recordSavedWordsCount:', { userId, count, currentAuthUser: auth.currentUser?.uid });
+  console.log('[AchievementsManager] Saved words count updated.');
   try {
     await withRetry(async () => {
       const docRef = doc(db, 'user_achievements', userId);
@@ -263,14 +289,54 @@ export async function recordSavedWordsCount(userId: string, count: number): Prom
     if (error.message?.includes('offline')) {
       console.warn('[AchievementsManager] Offline, skipping recording saved words count');
     } else {
-      console.error('[AchievementsManager] Error recording saved words count:', error);
+      console.error('[AchievementsManager] Operation failed.');
     }
   }
 }
-
 /**
- * Backs up the actual saved words array to the user's achievements document in Firestore.
+ * Tracks and records streak progress.
  */
+export async function recordStreakProgress(userId: string, count: number): Promise<{title: string, description: string} | null> {
+  console.log('[AchievementsManager] Streak progress updated.');
+  try {
+    return await withRetry(async () => {
+      const docRef = doc(db, 'user_achievements', userId);
+      const snap = await getDoc(docRef);
+      
+      let currentData = snap.exists() 
+        ? (snap.data() as UserAchievements) 
+        : await initializeAchievements(userId);
+
+      const nextBadges = { ...currentData.badges };
+      const streakBadges = ['streak-5-days', 'streak-10-days', 'streak-30-days'];
+      
+      let unlockedBadge = null;
+
+      streakBadges.forEach(badgeId => {
+        const badge = { ...nextBadges[badgeId] };
+        badge.progress = count;
+        if (badge.progress >= badge.totalRequired && !badge.unlockedAt) {
+          badge.unlockedAt = new Date().toISOString();
+          unlockedBadge = badge;
+        }
+        nextBadges[badgeId] = badge;
+      });
+
+      await setDoc(docRef, {
+        badges: nextBadges
+      }, { merge: true });
+      
+      return unlockedBadge ? { title: unlockedBadge.title, description: unlockedBadge.description } : null;
+    });
+  } catch (error: any) {
+    if (error.message?.includes('offline')) {
+      console.warn('[AchievementsManager] Offline, skipping recording streak progress');
+    } else {
+      console.error('[AchievementsManager] Operation failed.');
+    }
+    return null;
+  }
+}
 export async function backupSavedWordsToFirestore(userId: string, words: any[]): Promise<void> {
   try {
     await withRetry(async () => {
@@ -280,7 +346,7 @@ export async function backupSavedWordsToFirestore(userId: string, words: any[]):
       }, { merge: true });
     });
   } catch (error) {
-    console.error('[AchievementsManager] Error backing up saved words:', error);
+    console.error('[AchievementsManager] Operation failed.');
     throw error;
   }
 }
@@ -298,7 +364,7 @@ export async function fetchSavedWordsFromFirestore(userId: string): Promise<any[
     }
     return null;
   } catch (error) {
-    console.error('[AchievementsManager] Error fetching saved words from Firestore:', error);
+    console.error('[AchievementsManager] Operation failed.');
     throw error;
   }
 }

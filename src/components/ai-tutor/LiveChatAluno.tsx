@@ -46,13 +46,18 @@ export default function LiveChatAluno() {
     setStatus('A IA está a pensar...');
 
     try {
+      const idToken = await auth.currentUser?.getIdToken();
       const response = await fetch('/api/ia-live', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(idToken ? { 'Authorization': `Bearer ${idToken}` } : {})
+        },
         body: JSON.stringify({
           alunoId: '1', // ID simulado (Mariana, 15 anos) - deve vir do contexto do usuário
           mensagemUsuario: mensagem,
-          localization: localization
+          localization: localization,
+          preferredVoiceId: localStorage.getItem("lingolive_tts_voice_id") || "21m00Tcm4TlvDq8ikWAM"
         }),
       });
 

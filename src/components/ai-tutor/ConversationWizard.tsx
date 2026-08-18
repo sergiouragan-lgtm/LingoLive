@@ -1,28 +1,30 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { 
   Sparkles, 
   Play, 
   Volume2, 
   Briefcase, 
   Coffee, 
-  Map, 
+  Map as MapIcon, 
   MessageCircle, 
   Activity, 
   Hotel,
-  User, 
   Check, 
   Loader2,
-  Mic
+  Mic,
+  AlertTriangle
 } from "lucide-react";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "../../firebase";
 import { useToast } from "../../context/ToastContext";
 import { Language, Proficiency, AgeGroup, Scenario, Voice } from "../../types";
-import { LANGUAGES, SCENARIOS, VOICES } from "../../data";
+import { SCENARIOS, VOICES } from "../../data";
+import { SmartProfile } from "../../profile/types";
 
-interface ConversationWizardProps {
+export interface ConversationWizardProps {
   userId: string;
   userEmail?: string;
+  smartProfile?: SmartProfile | Partial<SmartProfile> | null;
   onStartSession: (config: {
     language: Language;
     proficiency: Proficiency;
@@ -32,26 +34,159 @@ interface ConversationWizardProps {
   }) => void;
 }
 
+/**
+ * Helper to extract target languages strictly from SmartProfile.learning.targetLanguages.
+ * No fallback sources (like targetLanguage, languageProfile, learningLanguage, nativeLanguage, etc.)
+ * are permitted to add new target language options.
+ */
+export function extractTargetLanguagesFromSmartProfile(
+  smartProfile?: SmartProfile | Partial<SmartProfile> | null
+): string[] {
+  if (!smartProfile || !smartProfile.learning) return [];
+
+  const rawTargetLangs = smartProfile.learning.targetLanguages;
+  if (!rawTargetLangs) return [];
+
+  let list: string[] = [];
+  if (Array.isArray(rawTargetLangs)) {
+    list = rawTargetLangs;
+  } else if (
+    typeof rawTargetLangs === "object" &&
+    rawTargetLangs !== null &&
+    "value" in rawTargetLangs &&
+    Array.isArray((rawTargetLangs as { value: unknown }).value)
+  ) {
+    list = (rawTargetLangs as { value: string[] }).value;
+  }
+
+  return list.filter((l): l is string => typeof l === "string" && l.trim().length > 0);
+}
+
+const KNOWN_LANGUAGE_MAP: Record<string, Language> = {
+  en: { code: "en", name: "English", flag: "🇺🇸", defaultVoice: "Charon" },
+  english: { code: "en", name: "English", flag: "🇺🇸", defaultVoice: "Charon" },
+  inglês: { code: "en", name: "English", flag: "🇺🇸", defaultVoice: "Charon" },
+  ingles: { code: "en", name: "English", flag: "🇺🇸", defaultVoice: "Charon" },
+
+  fr: { code: "fr", name: "French", flag: "🇫🇷", defaultVoice: "Kore" },
+  french: { code: "fr", name: "French", flag: "🇫🇷", defaultVoice: "Kore" },
+  francês: { code: "fr", name: "French", flag: "🇫🇷", defaultVoice: "Kore" },
+  frances: { code: "fr", name: "French", flag: "🇫🇷", defaultVoice: "Kore" },
+  français: { code: "fr", name: "French", flag: "🇫🇷", defaultVoice: "Kore" },
+
+  pt: { code: "pt", name: "Portuguese (Angola)", flag: "🇦🇴", defaultVoice: "Zephyr" },
+  "pt-ao": { code: "pt", name: "Portuguese (Angola)", flag: "🇦🇴", defaultVoice: "Zephyr" },
+  "pt-pt": { code: "pt", name: "Portuguese", flag: "🇵🇹", defaultVoice: "Zephyr" },
+  "pt-br": { code: "pt", name: "Portuguese (Brasil)", flag: "🇧🇷", defaultVoice: "Zephyr" },
+  portuguese: { code: "pt", name: "Portuguese (Angola)", flag: "🇦🇴", defaultVoice: "Zephyr" },
+  português: { code: "pt", name: "Portuguese (Angola)", flag: "🇦🇴", defaultVoice: "Zephyr" },
+  portugues: { code: "pt", name: "Portuguese (Angola)", flag: "🇦🇴", defaultVoice: "Zephyr" },
+
+  de: { code: "de", name: "German", flag: "🇩🇪", defaultVoice: "Kore" },
+  german: { code: "de", name: "German", flag: "🇩🇪", defaultVoice: "Kore" },
+  alemão: { code: "de", name: "German", flag: "🇩🇪", defaultVoice: "Kore" },
+  alemao: { code: "de", name: "German", flag: "🇩🇪", defaultVoice: "Kore" },
+  deutsch: { code: "de", name: "German", flag: "🇩🇪", defaultVoice: "Kore" },
+
+  es: { code: "es", name: "Spanish", flag: "🇪🇸", defaultVoice: "Charon" },
+  spanish: { code: "es", name: "Spanish", flag: "🇪🇸", defaultVoice: "Charon" },
+  espanhol: { code: "es", name: "Spanish", flag: "🇪🇸", defaultVoice: "Charon" },
+  espanol: { code: "es", name: "Spanish", flag: "🇪🇸", defaultVoice: "Charon" },
+  español: { code: "es", name: "Spanish", flag: "🇪🇸", defaultVoice: "Charon" },
+
+  it: { code: "it", name: "Italian", flag: "🇮🇹", defaultVoice: "Kore" },
+  italian: { code: "it", name: "Italian", flag: "🇮🇹", defaultVoice: "Kore" },
+  italiano: { code: "it", name: "Italian", flag: "🇮🇹", defaultVoice: "Kore" },
+
+  zh: { code: "zh", name: "Chinese", flag: "🇨🇳", defaultVoice: "Aoede" },
+  chinese: { code: "zh", name: "Chinese", flag: "🇨🇳", defaultVoice: "Aoede" },
+  chinês: { code: "zh", name: "Chinese", flag: "🇨🇳", defaultVoice: "Aoede" },
+  chines: { code: "zh", name: "Chinese", flag: "🇨🇳", defaultVoice: "Aoede" },
+  mandarin: { code: "zh", name: "Chinese", flag: "🇨🇳", defaultVoice: "Aoede" },
+
+  ja: { code: "ja", name: "Japanese", flag: "🇯🇵", defaultVoice: "Aoede" },
+  japanese: { code: "ja", name: "Japanese", flag: "🇯🇵", defaultVoice: "Aoede" },
+  japonês: { code: "ja", name: "Japanese", flag: "🇯🇵", defaultVoice: "Aoede" },
+  japones: { code: "ja", name: "Japanese", flag: "🇯🇵", defaultVoice: "Aoede" },
+
+  ru: { code: "ru", name: "Russian", flag: "🇷🇺", defaultVoice: "Zephyr" },
+  russian: { code: "ru", name: "Russian", flag: "🇷🇺", defaultVoice: "Zephyr" },
+  russo: { code: "ru", name: "Russian", flag: "🇷🇺", defaultVoice: "Zephyr" },
+
+  ar: { code: "ar", name: "Arabic", flag: "🇸🇦", defaultVoice: "Charon" },
+  arabic: { code: "ar", name: "Arabic", flag: "🇸🇦", defaultVoice: "Charon" },
+  árabe: { code: "ar", name: "Arabic", flag: "🇸🇦", defaultVoice: "Charon" },
+  arabe: { code: "ar", name: "Arabic", flag: "🇸🇦", defaultVoice: "Charon" },
+};
+
+/**
+ * Resolves a language string into a canonical Language object.
+ * If the language is unknown, returns null (Option A: Ignore unknown value)
+ * rather than inventing default English or Portuguese options.
+ */
+export function resolveLanguageObject(langStr: string): Language | null {
+  if (typeof langStr !== "string") return null;
+  const trimmed = langStr.trim();
+  if (!trimmed) return null;
+
+  const normalized = trimmed.toLowerCase();
+  if (KNOWN_LANGUAGE_MAP[normalized]) {
+    return KNOWN_LANGUAGE_MAP[normalized];
+  }
+
+  for (const langKey of Object.keys(KNOWN_LANGUAGE_MAP)) {
+    const lang = KNOWN_LANGUAGE_MAP[langKey];
+    if (lang.code.toLowerCase() === normalized || lang.name.toLowerCase() === normalized) {
+      return lang;
+    }
+  }
+
+  return null;
+}
+
 export const ConversationWizard: React.FC<ConversationWizardProps> = ({
   userId,
   userEmail,
+  smartProfile: propSmartProfile,
   onStartSession
 }) => {
   const { addToast } = useToast();
-  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [loadingProfile, setLoadingProfile] = useState<boolean>(!propSmartProfile && Boolean(userId));
   const [studentAge, setStudentAge] = useState<number | null>(null);
+  const [fetchedProfile, setFetchedProfile] = useState<SmartProfile | Partial<SmartProfile> | null>(null);
+
+  // Active SmartProfile context
+  const activeProfile = propSmartProfile || fetchedProfile;
+
+  // Derive authorized target languages strictly from SmartProfile
+  const availableLanguages: Language[] = useMemo(() => {
+    const rawTargetLangs = extractTargetLanguagesFromSmartProfile(activeProfile);
+    const uniqueLangsMap = new Map<string, Language>();
+
+    for (const str of rawTargetLangs) {
+      const resolved = resolveLanguageObject(str);
+      if (resolved && !uniqueLangsMap.has(resolved.code)) {
+        uniqueLangsMap.set(resolved.code, resolved);
+      }
+    }
+
+    return Array.from(uniqueLangsMap.values());
+  }, [activeProfile]);
 
   // Wizard state configuration
-  const [language, setLanguage] = useState<Language>(LANGUAGES[2]); // English default
+  const [language, setLanguage] = useState<Language | null>(null);
   const [proficiency, setProficiency] = useState<Proficiency>("Intermediate");
   const [scenario, setScenario] = useState<Scenario>(SCENARIOS[0]);
   const [voice, setVoice] = useState<Voice>(VOICES[0]);
   const [isPlayingPreview, setIsPlayingPreview] = useState<string | null>(null);
 
-  // Load profile from Firestore: /students/{studentId}
+  // Load profile from Firestore if not supplied or missing fields
   useEffect(() => {
     const fetchStudentProfile = async () => {
-      if (!userId) return;
+      if (!userId || propSmartProfile) {
+        setLoadingProfile(false);
+        return;
+      }
       try {
         setLoadingProfile(true);
         const docRef = doc(db, "students", userId);
@@ -59,51 +194,21 @@ export const ConversationWizard: React.FC<ConversationWizardProps> = ({
         let docSnap;
         try {
           docSnap = await getDoc(docRef);
-        } catch (dbErr: any) {
+        } catch (dbErr: unknown) {
           handleFirestoreError(dbErr, OperationType.GET, `students/${userId}`);
           return;
         }
 
         if (docSnap.exists()) {
-          const data = docSnap.data();
+          const data = docSnap.data() as Partial<SmartProfile> & { age?: number };
+          setFetchedProfile(data);
           const ageVal = data.age ? Number(data.age) : 20;
           setStudentAge(ageVal);
-
-          // Find target language based on targetLanguage string (e.g. 'English', 'en', 'Francês', 'fr')
-          const targetLangStr = (data.targetLanguage || "").toLowerCase();
-          const matchedLang = LANGUAGES.find(
-            l => 
-              l.name.toLowerCase().includes(targetLangStr) || 
-              l.code.toLowerCase() === targetLangStr ||
-              targetLangStr.includes(l.code.toLowerCase())
-          );
-          if (matchedLang) {
-            setLanguage(matchedLang);
-          }
         } else {
-          // Document does not exist, let's provision a default to have real persistence
-          const fallbackAge = 18;
-          const fallbackLang = "en"; // English default
-          setStudentAge(fallbackAge);
-
-          try {
-            await setDoc(docRef, {
-              name: userEmail ? userEmail.split("@")[0] : "Estudante",
-              age: fallbackAge,
-              targetLanguage: fallbackLang,
-              createdAt: new Date().toISOString()
-            });
-          } catch (dbErr: any) {
-            handleFirestoreError(dbErr, OperationType.CREATE, `students/${userId}`);
-            return;
-          }
-
-          const matchedLang = LANGUAGES.find(l => l.code === fallbackLang);
-          if (matchedLang) setLanguage(matchedLang);
+          setStudentAge(18);
         }
       } catch (error) {
         console.error("Erro ao obter perfil do estudante no Firestore:", error);
-        // Fallback to local defaults gracefully
         setStudentAge(22);
       } finally {
         setLoadingProfile(false);
@@ -111,41 +216,101 @@ export const ConversationWizard: React.FC<ConversationWizardProps> = ({
     };
 
     fetchStudentProfile();
-  }, [userId, userEmail]);
+  }, [userId, propSmartProfile]);
 
-  // Determine ageGroup implicitly based on Firestore loaded age (omit visual selection)
+  // Determine language initially according to priority rules:
+  // 1. Last used language in session (localStorage) if available in authorized list
+  // 2. Primary targetLanguage of SmartProfile, if available in authorized list
+  // 3. First available language in targetLanguages
+  // 4. Fallback safe null if targetLanguages is empty
+  useEffect(() => {
+    if (availableLanguages.length === 0) {
+      setLanguage(null);
+      return;
+    }
+
+    // If currently selected language is valid and present in availableLanguages, keep it
+    if (language && availableLanguages.some(l => l.code === language.code)) {
+      return;
+    }
+
+    // Priority 1: Last used language in session (from localStorage) IF authorized in availableLanguages
+    const lastUsedCode = typeof window !== "undefined" ? localStorage.getItem("lingolive_last_tutor_language") : null;
+    if (lastUsedCode) {
+      const matchedLast = availableLanguages.find(
+        l => l.code.toLowerCase() === lastUsedCode.toLowerCase() || l.name.toLowerCase() === lastUsedCode.toLowerCase()
+      );
+      if (matchedLast) {
+        setLanguage(matchedLast);
+        return;
+      }
+    }
+
+    // Priority 2: Singular targetLanguage from SmartProfile ONLY IF authorized in availableLanguages
+    let targetLangVal: string | null = null;
+    const rawTargetLang = activeProfile?.learning?.targetLanguage;
+    if (typeof rawTargetLang === "string") {
+      targetLangVal = rawTargetLang;
+    } else if (
+      rawTargetLang &&
+      typeof rawTargetLang === "object" &&
+      "value" in rawTargetLang &&
+      typeof (rawTargetLang as { value: unknown }).value === "string"
+    ) {
+      targetLangVal = (rawTargetLang as { value: string }).value;
+    }
+
+    if (targetLangVal && targetLangVal.trim()) {
+      const resolvedTarget = resolveLanguageObject(targetLangVal.trim());
+      if (resolvedTarget) {
+        const matchedTarget = availableLanguages.find(l => l.code === resolvedTarget.code);
+        if (matchedTarget) {
+          setLanguage(matchedTarget);
+          return;
+        }
+      }
+    }
+
+    // Priority 3: First available language in availableLanguages
+    setLanguage(availableLanguages[0]);
+  }, [availableLanguages, activeProfile]);
+
+  const handleSelectLanguage = (selectedLang: Language) => {
+    setLanguage(selectedLang);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("lingolive_last_tutor_language", selectedLang.code);
+    }
+  };
+
+  // Determine ageGroup implicitly based on Firestore loaded age
   const getImplicitAgeGroup = (): AgeGroup => {
     if (!studentAge) return "Teens";
     if (studentAge < 10) return "Infancy";
     if (studentAge < 13) return "Kids";
     if (studentAge < 18) return "PreTeens";
-    return "Teens"; // Standard adult-friendly prompt model
+    return "Teens";
   };
 
   // Scenarios filter: Return maximum of 4 thematic cards based on chosen proficiency
-  const getThematicScenarios = (): { scenario: Scenario; icon: any }[] => {
-    // Map scenario ID or title to dynamic icons
-    const iconMap: Record<string, any> = {
+  const getThematicScenarios = (): { scenario: Scenario; icon: React.ComponentType<{ className?: string }> }[] => {
+    const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
       casual_chat: MessageCircle,
       cafe_order: Coffee,
       hotel_checkin: Hotel,
       job_interview: Briefcase,
-      asking_directions: Map,
+      asking_directions: MapIcon,
       doctors_visit: Activity
     };
 
-    // Return different scenario combinations depending on proficiency to feel tailored
     let filtered: Scenario[] = [];
     if (proficiency === "Beginner") {
       filtered = SCENARIOS.filter(s => ["cafe_order", "asking_directions", "casual_chat", "doctors_visit"].includes(s.id));
     } else if (proficiency === "Intermediate") {
       filtered = SCENARIOS.filter(s => ["casual_chat", "cafe_order", "hotel_checkin", "asking_directions"].includes(s.id));
     } else {
-      // Advanced
       filtered = SCENARIOS.filter(s => ["job_interview", "hotel_checkin", "casual_chat", "doctors_visit"].includes(s.id));
     }
 
-    // Limit to maximum 4 as requested
     return filtered.slice(0, 4).map(scen => ({
       scenario: scen,
       icon: iconMap[scen.id] || MessageCircle
@@ -156,8 +321,7 @@ export const ConversationWizard: React.FC<ConversationWizardProps> = ({
   const playVoicePreview = (voiceToPlay: Voice, e: React.MouseEvent) => {
     e.stopPropagation();
     
-    // Stop any current utterance
-    if (window.speechSynthesis) {
+    if (typeof window !== "undefined" && window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
 
@@ -166,17 +330,15 @@ export const ConversationWizard: React.FC<ConversationWizardProps> = ({
       return;
     }
 
-    // Generate preview speech
     const utteranceText = voiceToPlay.gender === "Female" 
       ? `Hi there! I am ${voiceToPlay.name}, your online assistant. Let's practice speaking today!`
       : `Hello! My name is ${voiceToPlay.name}. Ready to improve your conversation skills? Let's begin!`;
 
     const utterance = new SpeechSynthesisUtterance(utteranceText);
     
-    // Choose appropriate speech synth voice language
-    if (language.code === "fr") utterance.lang = "fr-FR";
-    else if (language.code === "zh") utterance.lang = "zh-CN";
-    else if (language.code === "pt") utterance.lang = "pt-PT";
+    if (language?.code === "fr") utterance.lang = "fr-FR";
+    else if (language?.code === "zh") utterance.lang = "zh-CN";
+    else if (language?.code === "pt") utterance.lang = "pt-PT";
     else utterance.lang = "en-US";
 
     utterance.rate = 0.95;
@@ -191,12 +353,24 @@ export const ConversationWizard: React.FC<ConversationWizardProps> = ({
       setIsPlayingPreview(null);
     };
 
-    window.speechSynthesis.speak(utterance);
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      window.speechSynthesis.speak(utterance);
+    }
   };
 
   const handleStart = () => {
+    if (loadingProfile || !language || availableLanguages.length === 0) return;
+
+    const isAuthorized = availableLanguages.some(l => l.code === language.code);
+    if (!isAuthorized) return;
+
     const ageGroup = getImplicitAgeGroup();
     addToast("Iniciando sua sessão interativa com IA...", "success");
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem("lingolive_last_tutor_language", language.code);
+    }
+
     onStartSession({
       language,
       proficiency,
@@ -257,29 +431,36 @@ export const ConversationWizard: React.FC<ConversationWizardProps> = ({
             <h3 className="font-bold text-base text-slate-200">Idioma e Nível</h3>
           </div>
 
-          {/* Elegant Horizontal Flags Cards */}
-          <div className="grid grid-cols-2 gap-2.5">
-            {LANGUAGES.map((lang) => {
-              const isSelected = language.code === lang.code;
-              return (
-                <button
-                  key={lang.code}
-                  onClick={() => setLanguage(lang)}
-                  className={`flex items-center gap-3 p-3 rounded-2xl border transition-all text-left group ${
-                    isSelected
-                      ? "border-indigo-500 bg-indigo-600/10 shadow-lg shadow-indigo-500/5 text-white"
-                      : "border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700 hover:text-slate-300"
-                  }`}
-                >
-                  <span className="text-2xl group-hover:scale-110 transition-transform">{lang.flag}</span>
-                  <div className="truncate">
-                    <p className="font-bold text-xs truncate leading-none mb-1 text-slate-100">{lang.name.split(" ")[0]}</p>
-                    <p className="text-[10px] text-slate-500 uppercase font-black">{lang.code}</p>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+          {/* Authorized Language Selection or Empty Fallback */}
+          {availableLanguages.length === 0 ? (
+            <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-300 text-xs font-semibold flex items-center gap-2.5">
+              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>Nenhum idioma configurado no Perfil Inteligente.</span>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2.5">
+              {availableLanguages.map((lang) => {
+                const isSelected = language?.code === lang.code;
+                return (
+                  <button
+                    key={lang.code}
+                    onClick={() => handleSelectLanguage(lang)}
+                    className={`flex items-center gap-3 p-3 rounded-2xl border transition-all text-left group cursor-pointer ${
+                      isSelected
+                        ? "border-indigo-500 bg-indigo-600/10 shadow-lg shadow-indigo-500/5 text-white"
+                        : "border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700 hover:text-slate-300"
+                    }`}
+                  >
+                    <span className="text-2xl group-hover:scale-110 transition-transform">{lang.flag}</span>
+                    <div className="truncate">
+                      <p className="font-bold text-xs truncate leading-none mb-1 text-slate-100">{lang.name.split(" ")[0]}</p>
+                      <p className="text-[10px] text-slate-500 uppercase font-black">{lang.code}</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           {/* Level Switcher (SegmentedButton) */}
           <div className="space-y-1.5 pt-2">
@@ -416,7 +597,12 @@ export const ConversationWizard: React.FC<ConversationWizardProps> = ({
           {/* Primary CTA: Começar a falar */}
           <button
             onClick={handleStart}
-            className="w-full py-4 px-6 bg-cyan-400 hover:bg-cyan-300 active:scale-[0.99] text-slate-950 font-black rounded-2xl text-xs uppercase tracking-widest transition-all duration-300 shadow-lg shadow-cyan-400/20 hover:shadow-cyan-400/40 cursor-pointer flex items-center justify-center gap-2 group mt-auto"
+            disabled={loadingProfile || availableLanguages.length === 0 || !language}
+            className={`w-full py-4 px-6 font-black rounded-2xl text-xs uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-2 group mt-auto ${
+              loadingProfile || availableLanguages.length === 0 || !language
+                ? "bg-slate-800 text-slate-500 border border-slate-700/50 cursor-not-allowed pointer-events-none opacity-50"
+                : "bg-cyan-400 hover:bg-cyan-300 active:scale-[0.99] text-slate-950 shadow-lg shadow-cyan-400/20 hover:shadow-cyan-400/40 cursor-pointer"
+            }`}
           >
             <Mic className="w-4 h-4 text-slate-950 group-hover:scale-125 transition-transform" />
             Começar a Falar
@@ -427,3 +613,4 @@ export const ConversationWizard: React.FC<ConversationWizardProps> = ({
     </div>
   );
 };
+

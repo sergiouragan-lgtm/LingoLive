@@ -1,0 +1,3 @@
+# LingoLIVE IA - Regras de Desenvolvimento
+
+IMPORTANTE: Antes de implementar qualquer alteração, analisa toda a arquitetura existente do projeto LingoLIVE IA. Não removas, substituas ou alteres funcionalidades já implementadas, a menos que esta solicitação o indique explicitamente. Todas as novas funcionalidades devem ser adicionadas de forma incremental, preservando integralmente os fluxos de autenticação, boas-vindas, pagamento, onboarding, dashboard, permissões, persistência de dados e navegação já aprovados. Se existir conflito entre a nova funcionalidade e a arquitetura atual, adapta a implementação para manter a compatibilidade, sem regressões.

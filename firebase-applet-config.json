@@ -1,9 +1,11 @@
 {
-  "projectId": "gas-luanda-ai",
-  "appId": "1:712560422621:web:c2d4f6b75bc74c57b97534",
-  "apiKey": "AIzaSyB_iH344_YIdEf35qYJ8McL-f3_JZubjWk",
-  "authDomain": "gas-luanda-ai.firebaseapp.com",
-  "storageBucket": "gas-luanda-ai.firebasestorage.app",
-  "messagingSenderId": "712560422621",
-  "measurementId": ""
+  "projectId": "lingolive-ia-f5778",
+  "appId": "1:995910450073:web:4f34f7f8b3b4afc2be3108",
+  "apiKey": "AIzaSyBbX50RcztVjJfk0RWBE0RwhnqLQlVKlSg",
+  "authDomain": "lingolive-ia-f5778.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-lingoliveai-669e2e6d-3566-4aa0-ba62-227975dc5edd",
+  "storageBucket": "lingolive-ia-f5778.firebasestorage.app",
+  "messagingSenderId": "995910450073",
+  "measurementId": "",
+  "oAuthClientId": "995910450073-s3m761f90ahr15ajnmra3mdh1q9quqgu.apps.googleusercontent.com"
 }

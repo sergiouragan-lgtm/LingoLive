@@ -31,6 +31,17 @@ import { db, handleFirestoreError, OperationType } from '../../firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, setDoc, query, where } from 'firebase/firestore';
 import { UsageLogs } from '../growth/UsageLogs';
 import { ServiceHealthStatus } from '../../types';
+import SecurityDashboard from './SecurityDashboard';
+import BackupDashboard from './BackupDashboard';
+import { DisasterRecovery } from '../admin/DisasterRecovery';
+import { NotificationDiagnostic } from '../admin/NotificationDiagnostic';
+import FeatureFlagDashboard from './FeatureFlagDashboard';
+import TestAutomationDashboard from './TestAutomationDashboard';
+import GlobalDeploymentDashboard from './GlobalDeploymentDashboard';
+import BusinessIntelligenceDashboard from './BusinessIntelligenceDashboard';
+import DataWarehouseDashboard from './DataWarehouseDashboard';
+import AICostOptimizationDashboard from './AICostOptimizationDashboard';
+import { Shield, Sliders, Cpu, Globe, BarChart2, Coins, ShieldAlert, Bell } from 'lucide-react';
 
 interface AdminDashboardProps {
   metrics: SchoolMetrics;
@@ -39,6 +50,7 @@ interface AdminDashboardProps {
   healthStatus: ServiceHealthStatus | null;
   onRefreshHealth: () => Promise<void>;
   isCheckingHealth: boolean;
+  initialTab?: 'professores' | 'turmas' | 'alunos' | 'permissoes' | 'seguranca' | 'backups' | 'features' | 'qa' | 'deploy' | 'bi' | 'dw' | 'ai-cost' | 'disaster-recovery';
 }
 
 export default function AdminDashboard({ 
@@ -47,14 +59,21 @@ export default function AdminDashboard({
   onToggleFeature,
   healthStatus,
   onRefreshHealth,
-  isCheckingHealth
+  isCheckingHealth,
+  initialTab
 }: AdminDashboardProps) {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   
   // Dashboard Tabs
-  const [activeTab, setActiveTab] = useState<'professores' | 'turmas' | 'alunos' | 'permissoes'>('professores');
+  const [activeTab, setActiveTab] = useState<'professores' | 'turmas' | 'alunos' | 'permissoes' | 'seguranca' | 'backups' | 'features' | 'qa' | 'deploy' | 'bi' | 'dw' | 'ai-cost' | 'disaster-recovery'>('professores');
+  
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
   
   // Email Permissions States
   const [emailPermissions, setEmailPermissions] = useState<any[]>([]);
@@ -858,36 +877,118 @@ export default function AdminDashboard({
           )}
         </div>
 
-        {/* Feature toggles */}
-        <div className="bg-slate-50 border border-slate-200 rounded-3xl p-6 shadow-2xs">
-          <div className="flex items-center gap-2 mb-3">
-            <Settings className="w-5 h-5 text-indigo-600" />
-            <h3 className="font-bold text-slate-800 text-sm">Controle de Módulos</h3>
+        {/* Right Sidebar: Feature Toggles & Diagnostics */}
+        <div className="flex flex-col gap-6">
+          {/* Feature toggles */}
+          <div className="bg-slate-50 border border-slate-200 rounded-3xl p-6 shadow-2xs">
+            <div className="flex items-center gap-2 mb-3">
+              <Settings className="w-5 h-5 text-indigo-600" />
+              <h3 className="font-bold text-slate-800 text-sm">Controle de Módulos</h3>
+            </div>
+            <p className="text-xs text-slate-500 mb-5 leading-relaxed">Habilite ou desabilite em tempo real os acessos para os alunos e professores.</p>
+            
+            <div className="space-y-3 max-h-[180px] overflow-y-auto pr-1">
+              {[
+                { id: 'practiceRoom', label: 'Sala de Prática de Fala', val: features.practiceRoom },
+                { id: 'languageQuiz', label: 'Quizzes de Idiomas', val: features.languageQuiz },
+                { id: 'liveChat', label: 'Live Chat (Comunicação)', val: features.liveChat },
+                { id: 'vocabDeck', label: 'Vocab Deck de Palavras', val: features.vocabDeck },
+                { id: 'educatorDashboard', label: 'Painel do Professor', val: features.educatorDashboard }
+              ].map((f) => (
+                <div key={f.id} className="flex items-center justify-between p-2 bg-white rounded-xl border border-slate-100 shadow-3xs">
+                  <span className="text-xs font-semibold text-slate-700">{f.label}</span>
+                  <button
+                    onClick={() => handleToggle(f.id as any, !f.val)}
+                    className={`relative inline-flex h-4 w-8 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      f.val ? 'bg-indigo-600' : 'bg-slate-300'
+                    }`}
+                  >
+                    <span className={`pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
+                      f.val ? 'translate-x-4' : 'translate-x-0'
+                    }`} />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
-          <p className="text-xs text-slate-500 mb-5 leading-relaxed">Habilite ou desabilite em tempo real os acessos para os alunos e professores.</p>
-          
-          <div className="space-y-3 max-h-[220px] overflow-y-auto pr-1">
-            {[
-              { id: 'practiceRoom', label: 'Sala de Prática de Fala', val: features.practiceRoom },
-              { id: 'languageQuiz', label: 'Quizzes de Idiomas', val: features.languageQuiz },
-              { id: 'liveChat', label: 'Live Chat (Comunicação)', val: features.liveChat },
-              { id: 'vocabDeck', label: 'Vocab Deck de Palavras', val: features.vocabDeck },
-              { id: 'educatorDashboard', label: 'Painel do Professor', val: features.educatorDashboard }
-            ].map((f) => (
-              <div key={f.id} className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-100 shadow-3xs">
-                <span className="text-xs font-semibold text-slate-700">{f.label}</span>
+
+          {/* Diagnostic Notification Panel */}
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col justify-between" id="notifications-diagnostic-card">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Bell className="w-5 h-5 text-indigo-600 animate-pulse" />
+                <h3 className="font-bold text-slate-900 text-sm">Diagnóstico de Notificações</h3>
+              </div>
+              <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+                Dispare alertas e notificações simuladas em tempo real para validar o encanamento do Event Bus e do ToastContext.
+              </p>
+              
+              <div className="grid grid-cols-2 gap-2">
                 <button
-                  onClick={() => handleToggle(f.id as any, !f.val)}
-                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                    f.val ? 'bg-indigo-600' : 'bg-slate-300'
-                  }`}
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent('lingolive_new_notification', {
+                      detail: {
+                        title: 'Nova Conquista Desbloqueada!',
+                        message: 'Parabéns! Completou a sua primeira conversa por voz de 5 minutos com o AI Tutor!',
+                        type: 'achievement'
+                      }
+                    }));
+                  }}
+                  className="bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 text-[11px] font-bold py-2.5 px-3 rounded-xl transition-all flex flex-col items-center justify-center gap-1 shadow-3xs cursor-pointer text-center"
                 >
-                  <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
-                    f.val ? 'translate-x-4' : 'translate-x-0'
-                  }`} />
+                  <span className="font-mono text-xs">🏆</span>
+                  <span>Conquista</span>
+                </button>
+                
+                <button
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent('lingolive_new_notification', {
+                      detail: {
+                        title: 'Sincronização com Sucesso!',
+                        message: 'As turmas e alunos foram exportados com segurança para o banco de dados principal.',
+                        type: 'success'
+                      }
+                    }));
+                  }}
+                  className="bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-[11px] font-bold py-2.5 px-3 rounded-xl transition-all flex flex-col items-center justify-center gap-1 shadow-3xs cursor-pointer text-center"
+                >
+                  <span className="font-mono text-xs">🟢</span>
+                  <span>Sucesso</span>
+                </button>
+                
+                <button
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent('lingolive_new_notification', {
+                      detail: {
+                        title: 'Erro de Conexão Detectado',
+                        message: 'Latência na API Gemini excedeu 3000ms. O sistema entrou em modo híbrido local.',
+                        type: 'error'
+                      }
+                    }));
+                  }}
+                  className="bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-800 text-[11px] font-bold py-2.5 px-3 rounded-xl transition-all flex flex-col items-center justify-center gap-1 shadow-3xs cursor-pointer text-center"
+                >
+                  <span className="font-mono text-xs">🔴</span>
+                  <span>Erro Crítico</span>
+                </button>
+                
+                <button
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent('lingolive_new_notification', {
+                      detail: {
+                        title: 'Notificação de Sistema',
+                        message: 'A manutenção programada das salas de conversação ocorrerá às 02:00 UTC.',
+                        type: 'info'
+                      }
+                    }));
+                  }}
+                  className="bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-800 text-[11px] font-bold py-2.5 px-3 rounded-xl transition-all flex flex-col items-center justify-center gap-1 shadow-3xs cursor-pointer text-center"
+                >
+                  <span className="font-mono text-xs">🔵</span>
+                  <span>Informação</span>
                 </button>
               </div>
-            ))}
+            </div>
           </div>
         </div>
 
@@ -902,7 +1003,7 @@ export default function AdminDashboard({
         <p className="text-xs text-slate-500 font-medium">
           Acesse de forma direta os painéis escolares integrados para gerir o ecossistema do LingoLive AI:
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-10 gap-4 pt-2">
           <button 
             onClick={() => setActiveTab('professores')}
             className={`py-3 px-4 rounded-2xl border transition-all text-xs font-extrabold flex items-center justify-center gap-2.5 cursor-pointer ${
@@ -912,7 +1013,7 @@ export default function AdminDashboard({
             }`}
           >
             <UserCheck className="w-4 h-4" />
-            Gerenciar Professores & Alunos
+            Professores & Alunos
           </button>
           <button 
             onClick={() => setActiveTab('turmas')}
@@ -923,7 +1024,95 @@ export default function AdminDashboard({
             }`}
           >
             <BookOpen className="w-4 h-4" />
-            Gerenciar Turmas & Aulas
+            Turmas & Aulas
+          </button>
+          <button 
+            onClick={() => setActiveTab('seguranca')}
+            className={`py-3 px-4 rounded-2xl border transition-all text-xs font-extrabold flex items-center justify-center gap-2.5 cursor-pointer ${
+              activeTab === 'seguranca'
+                ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
+                : 'border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50'
+            }`}
+          >
+            <Shield className="w-4 h-4" />
+            Central de Segurança
+          </button>
+          <button 
+            onClick={() => setActiveTab('features')}
+            className={`py-3 px-4 rounded-2xl border transition-all text-xs font-extrabold flex items-center justify-center gap-2.5 cursor-pointer ${
+              activeTab === 'features'
+                ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
+                : 'border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50'
+            }`}
+          >
+            <Sliders className="w-4 h-4" />
+            Feature Flags Core
+          </button>
+          <button 
+            onClick={() => setActiveTab('qa')}
+            className={`py-3 px-4 rounded-2xl border transition-all text-xs font-extrabold flex items-center justify-center gap-2.5 cursor-pointer ${
+              activeTab === 'qa'
+                ? 'border-emerald-600 bg-emerald-600 text-white shadow-sm'
+                : 'border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50'
+            }`}
+          >
+            <Cpu className="w-4 h-4" />
+            Automação de Testes
+          </button>
+          <button 
+            onClick={() => setActiveTab('deploy')}
+            className={`py-3 px-4 rounded-2xl border transition-all text-xs font-extrabold flex items-center justify-center gap-2.5 cursor-pointer ${
+              activeTab === 'deploy'
+                ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
+                : 'border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50'
+            }`}
+          >
+            <Globe className="w-4 h-4" />
+            Global Deploy Engine
+          </button>
+          <button 
+            onClick={() => setActiveTab('bi')}
+            className={`py-3 px-4 rounded-2xl border transition-all text-xs font-extrabold flex items-center justify-center gap-2.5 cursor-pointer ${
+              activeTab === 'bi'
+                ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
+                : 'border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50'
+            }`}
+          >
+            <BarChart2 className="w-4 h-4" />
+            BI & Analytics
+          </button>
+          <button 
+            onClick={() => setActiveTab('dw')}
+            className={`py-3 px-4 rounded-2xl border transition-all text-xs font-extrabold flex items-center justify-center gap-2.5 cursor-pointer ${
+              activeTab === 'dw'
+                ? 'border-cyan-600 bg-cyan-600 text-white shadow-sm'
+                : 'border-cyan-200 bg-white text-cyan-700 hover:bg-cyan-50'
+            }`}
+          >
+            <Database className="w-4 h-4" />
+            Data Warehouse
+          </button>
+          <button 
+            onClick={() => setActiveTab('ai-cost')}
+            className={`py-3 px-4 rounded-2xl border transition-all text-xs font-extrabold flex items-center justify-center gap-2.5 cursor-pointer ${
+              activeTab === 'ai-cost'
+                ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
+                : 'border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50'
+            }`}
+          >
+            <Coins className="w-4 h-4" />
+            Otimização IA
+          </button>
+          <button 
+            onClick={() => setActiveTab('disaster-recovery')}
+            className={`py-3 px-4 rounded-2xl border transition-all text-xs font-extrabold flex items-center justify-center gap-2.5 cursor-pointer ${
+              activeTab === 'disaster-recovery'
+                ? 'border-rose-600 bg-rose-600 text-white shadow-sm animate-pulse'
+                : 'border-rose-200 bg-white text-rose-700 hover:bg-rose-50'
+            }`}
+          >
+            <ShieldAlert className="w-4 h-4" />
+            Contingência DRP
           </button>
         </div>
       </div>
@@ -976,6 +1165,114 @@ export default function AdminDashboard({
         >
           <ShieldCheck className="w-4 h-4" />
           <span>Acessos & Permissões ({emailPermissions.length})</span>
+        </button>
+
+        <button 
+          onClick={() => { setActiveTab('seguranca'); setSearchQuery(''); }}
+          className={`flex items-center gap-2 px-6 py-3 font-bold text-sm border-b-2 transition-all cursor-pointer ${
+            activeTab === 'seguranca' 
+              ? 'border-rose-600 text-rose-600 bg-rose-50/20' 
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Shield className="w-4 h-4 text-rose-500" />
+          <span>Security Center</span>
+        </button>
+
+        <button 
+          onClick={() => { setActiveTab('backups'); setSearchQuery(''); }}
+          className={`flex items-center gap-2 px-6 py-3 font-bold text-sm border-b-2 transition-all cursor-pointer ${
+            activeTab === 'backups' 
+              ? 'border-indigo-600 text-indigo-600 bg-indigo-50/20' 
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Database className="w-4 h-4 text-indigo-500" />
+          <span>Backups & DR</span>
+        </button>
+
+        <button 
+          onClick={() => { setActiveTab('disaster-recovery'); setSearchQuery(''); }}
+          className={`flex items-center gap-2 px-6 py-3 font-bold text-sm border-b-2 transition-all cursor-pointer ${
+            activeTab === 'disaster-recovery' 
+              ? 'border-rose-600 text-rose-600 bg-rose-50/20' 
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <ShieldAlert className="w-4 h-4 text-rose-500" />
+          <span>Contingência (DRP)</span>
+        </button>
+
+        <button 
+          onClick={() => { setActiveTab('features'); setSearchQuery(''); }}
+          className={`flex items-center gap-2 px-6 py-3 font-bold text-sm border-b-2 transition-all cursor-pointer ${
+            activeTab === 'features' 
+              ? 'border-indigo-600 text-indigo-600 bg-indigo-50/20' 
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Sliders className="w-4 h-4 text-indigo-500" />
+          <span>Feature Flags</span>
+        </button>
+
+        <button 
+          onClick={() => { setActiveTab('qa'); setSearchQuery(''); }}
+          className={`flex items-center gap-2 px-6 py-3 font-bold text-sm border-b-2 transition-all cursor-pointer ${
+            activeTab === 'qa' 
+              ? 'border-emerald-600 text-emerald-600 bg-emerald-50/20' 
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Cpu className="w-4 h-4 text-emerald-500" />
+          <span>Test Automation</span>
+        </button>
+
+        <button 
+          onClick={() => { setActiveTab('deploy'); setSearchQuery(''); }}
+          className={`flex items-center gap-2 px-6 py-3 font-bold text-sm border-b-2 transition-all cursor-pointer ${
+            activeTab === 'deploy' 
+              ? 'border-indigo-600 text-indigo-600 bg-indigo-50/20' 
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Globe className="w-4 h-4 text-indigo-500" />
+          <span>Global Deployment</span>
+        </button>
+
+        <button 
+          onClick={() => { setActiveTab('bi'); setSearchQuery(''); }}
+          className={`flex items-center gap-2 px-6 py-3 font-bold text-sm border-b-2 transition-all cursor-pointer ${
+            activeTab === 'bi' 
+              ? 'border-indigo-600 text-indigo-600 bg-indigo-50/20' 
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <BarChart2 className="w-4 h-4 text-indigo-500" />
+          <span>BI & Analytics</span>
+        </button>
+
+        <button 
+          onClick={() => { setActiveTab('dw'); setSearchQuery(''); }}
+          className={`flex items-center gap-2 px-6 py-3 font-bold text-sm border-b-2 transition-all cursor-pointer ${
+            activeTab === 'dw' 
+              ? 'border-cyan-600 text-cyan-600 bg-cyan-50/20' 
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Database className="w-4 h-4 text-cyan-500" />
+          <span>Data Warehouse</span>
+        </button>
+
+        <button 
+          onClick={() => { setActiveTab('ai-cost'); setSearchQuery(''); }}
+          className={`flex items-center gap-2 px-6 py-3 font-bold text-sm border-b-2 transition-all cursor-pointer ${
+            activeTab === 'ai-cost' 
+              ? 'border-indigo-600 text-indigo-600 bg-indigo-50/20' 
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Coins className="w-4 h-4 text-indigo-500" />
+          <span>Otimização IA</span>
         </button>
       </div>
 
@@ -2027,6 +2324,45 @@ export default function AdminDashboard({
 
           </div>
         </div>
+      )}
+
+      {activeTab === 'seguranca' && (
+        <SecurityDashboard />
+      )}
+
+      {activeTab === 'backups' && (
+        <BackupDashboard />
+      )}
+
+      {activeTab === 'disaster-recovery' && (
+        <DisasterRecovery />
+      )}
+
+      {activeTab === 'features' && (
+        <FeatureFlagDashboard />
+      )}
+
+      {activeTab === 'qa' && (
+        <div className="space-y-8" id="qa-diagnostics-container">
+          <TestAutomationDashboard />
+          <NotificationDiagnostic />
+        </div>
+      )}
+
+      {activeTab === 'deploy' && (
+        <GlobalDeploymentDashboard />
+      )}
+
+      {activeTab === 'bi' && (
+        <BusinessIntelligenceDashboard />
+      )}
+
+      {activeTab === 'dw' && (
+        <DataWarehouseDashboard />
+      )}
+
+      {activeTab === 'ai-cost' && (
+        <AICostOptimizationDashboard />
       )}
 
       {/* Audit Action Log Panel */}

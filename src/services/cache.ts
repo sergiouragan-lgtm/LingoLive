@@ -1,0 +1,3 @@
+
+// Cache initialization (Redis)
+export {};

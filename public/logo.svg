@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4f46e5;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#10b981;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="512" height="512" rx="128" fill="#111827"/>
+  <!-- Speech Bubble Glow -->
+  <circle cx="256" cy="256" r="160" fill="url(#grad)" opacity="0.15" filter="blur(20px)" />
+  <!-- Main Speech Bubble Shape -->
+  <path d="M256,120 C180,120 120,170 120,230 C120,265 140,295 170,315 L150,380 L220,350 C232,352 244,353 256,353 C332,353 392,303 392,243 C392,183 332,120 256,120 Z" fill="url(#grad)" />
+  <!-- Letter 'L' and Speech Accent in center -->
+  <path d="M220,180 L220,280 L280,280" stroke="#ffffff" stroke-width="24" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+  <!-- AI Sparkles -->
+  <path d="M320,170 L325,185 L340,190 L325,195 L320,210 L315,195 L300,190 L315,185 Z" fill="#ffffff" />
+  <path d="M160,190 L162.5,197.5 L170,200 L162.5,202.5 L160,210 L157.5,202.5 L150,200 L157.5,197.5 Z" fill="#ffffff" opacity="0.8" />
+</svg>

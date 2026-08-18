@@ -4,9 +4,18 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const openai = process.env.OPENAI_API_KEY
-  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-  : null;
+let openaiInstance: OpenAI | null = null;
+
+const getOpenAI = (): OpenAI => {
+  if (!openaiInstance) {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error("A chave OPENAI_API_KEY não foi configurada.");
+    }
+    openaiInstance = new OpenAI({ apiKey });
+  }
+  return openaiInstance;
+};
 
 export const orchestrateAI = async (
     data: any
@@ -46,20 +55,21 @@ ${message}
 Responda de forma curta, clara e educativa.
 `;
 
-  // 3. Chamar OpenAI
-  if (!openai) {
-    throw new Error(
-      "OPENAI_API_KEY não está configurada. Defina-a no .env para usar este orquestrador de IA."
-    );
-  }
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [
-      { role: "system", content: "You are an expert language teacher." },
-      { role: "user", content: prompt },
-    ],
-    temperature: 0.7,
-  });
+  try {
+    const openai = getOpenAI();
+    // 3. Chamar OpenAI com ChatGPT 4 (gpt-4o)
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: "You are an expert language teacher." },
+        { role: "user", content: prompt },
+      ],
+      temperature: 0.7,
+    });
 
-  return completion.choices[0].message.content;
+    return completion.choices[0].message.content;
+  } catch (error: any) {
+    console.error("OpenAI Orquestrador Simplificado falhou:", error.message);
+    return `[Modo de Demonstração - ChatGPT 4] Olá! No momento estamos operando em modo de demonstração. Se você configurar a sua OPENAI_API_KEY no painel de administração, poderei responder usando o modelo GPT-4o original da OpenAI. Sua mensagem foi: "${message}"`;
+  }
 };
