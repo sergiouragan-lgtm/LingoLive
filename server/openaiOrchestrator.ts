@@ -4,9 +4,9 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const openai = process.env.OPENAI_API_KEY
+  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  : null;
 
 export const orchestrateAI = async (
     data: any
@@ -47,6 +47,11 @@ Responda de forma curta, clara e educativa.
 `;
 
   // 3. Chamar OpenAI
+  if (!openai) {
+    throw new Error(
+      "OPENAI_API_KEY não está configurada. Defina-a no .env para usar este orquestrador de IA."
+    );
+  }
   const completion = await openai.chat.completions.create({
     model: "gpt-4o-mini",
     messages: [
