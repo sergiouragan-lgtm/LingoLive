@@ -26,6 +26,8 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useLocalization, useLanguageChanged } from "../../context/LocalizationContext";
+import type { Attribute, SmartProfile } from "../../profile/types";
+import { getDefaultInterfaceLanguageForCountry } from "../../data/regionalLanguageCatalog";
 
 interface OnboardingProps {
   user: User | null;
@@ -1945,6 +1947,56 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, onComplete }) => {
         profileVersion: 1
       };
 
+      // CORREÇÃO DE AUDITORIA: além do formato legado acima (mantido por
+      // compatibilidade), gravamos também os domínios oficiais do SmartProfile
+      // (com o invólucro Attribute<T>) — é isto que o resto da app (App.tsx,
+      // LocalizationContext, tutor de IA) realmente lê. Sem isto, o idioma
+      // escolhido aqui nunca chegava a refletir-se na interface nem no tutor.
+      const nowIso = new Date().toISOString();
+      const makeAttribute = <T,>(value: T, source: string = 'user'): Attribute<T> => ({
+        value,
+        confidence: 1,
+        source,
+        lastUpdated: nowIso,
+        validationStatus: 'verified',
+        version: '1.0.0'
+      });
+
+      const resolvedCountry = (countryCode || 'US').toUpperCase();
+      const resolvedInterfaceLanguage =
+        getDefaultInterfaceLanguageForCountry(resolvedCountry) ||
+        (nativeLanguage ? nativeLanguage.toLowerCase() : 'pt');
+
+      const smartProfileDomains: Partial<SmartProfile> = {
+        identity: {
+          userId: makeAttribute(user.uid, 'system'),
+          fullName: makeAttribute(user.displayName || ''),
+          preferredDisplayName: makeAttribute(user.displayName || user.email?.split('@')[0] || ''),
+          birthDate: makeAttribute(''),
+          gender: makeAttribute(gender || ''),
+        } as any,
+        localization: {
+          country: makeAttribute(resolvedCountry),
+          interfaceLanguage: makeAttribute(resolvedInterfaceLanguage),
+          nativeLanguage: makeAttribute(nativeLanguage || 'pt'),
+          timezone: makeAttribute(Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'),
+        } as any,
+        learning: {
+          cefrLevel: makeAttribute(level || 'A1'),
+          vocabularySize: makeAttribute(0),
+          learningStyle: makeAttribute('adaptive'),
+          targetLanguage: makeAttribute(learningLanguage || 'en'),
+          targetLanguages: makeAttribute([learningLanguage || 'en']),
+        } as any,
+        account: {
+          role: makeAttribute(role || 'Student'),
+          status: makeAttribute('ACTIVE'),
+          dailyGoal: makeAttribute(dailyGoal),
+          subscriptionActive: makeAttribute(false),
+          lastLogin: makeAttribute(nowIso),
+        } as any,
+      };
+
       const userData = {
         age: age ? Number(age) : null,
         role: role || "Student",
@@ -1964,6 +2016,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, onComplete }) => {
 
       batch.set(intelligentProfileRef, {
         ...intelligentProfileData,
+        ...smartProfileDomains,
         userId: user.uid,
         createdAt: existingProfile?.createdAt ?? serverTimestamp(),
         updatedAt: serverTimestamp()
@@ -1972,6 +2025,24 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, onComplete }) => {
       batch.set(userRef, userData, { merge: true });
 
       await batch.commit();
+
+      // Sincroniza imediatamente a interface com o país/idioma escolhidos no
+      // wizard, para o utilizador ver a mudança já nesta sessão (não só na
+      // próxima vez que entrar).
+      try {
+        const currencyByCountry: Record<string, string> = {
+          AO: 'AOA', BR: 'BRL', PT: 'EUR', MZ: 'MZN', US: 'USD', ZA: 'ZAR',
+          CV: 'AOA', GW: 'AOA', ST: 'AOA', TL: 'USD', NG: 'USD', GB: 'USD',
+          DE: 'EUR', IT: 'EUR', CN: 'USD', IN: 'USD',
+        };
+        await setLocalization({
+          country: resolvedCountry,
+          language: resolvedInterfaceLanguage,
+          currency: currencyByCountry[resolvedCountry] || localization.currency,
+        });
+      } catch (syncErr) {
+        console.warn('[ONBOARDING] Perfil gravado, mas falhou a sincronização imediata da interface:', syncErr);
+      }
 
       const savedProfileSnapshot = await getDoc(intelligentProfileRef);
       const savedProfile = savedProfileSnapshot.exists() ? savedProfileSnapshot.data() : {};

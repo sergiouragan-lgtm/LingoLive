@@ -3,6 +3,13 @@ import { db } from '../firebase';
 import { Attribute, SmartProfile, IdentityDomain, LearningDomain, LocalizationDomain, EducationalDomain, AIPersonalizationDomain, GamificationDomain, SubscriptionDomain, AccountDomain, ChildProfileDomain, AccessibilityDomain } from '../profile/types';
 import { normalizeTargetLanguages, setPrimaryTargetLanguage, addTargetLanguage, removeTargetLanguage } from './targetLanguagesPolicy';
 
+// NOTA DE AUDITORIA (correção): esta engine lia/escrevia antes na coleção
+// 'profiles', mas o fluxo real de entrada da app (CentralEntryController via
+// IntelligentProfileLoader) lê exclusivamente 'intelligentProfiles/{uid}'.
+// As duas coleções nunca comunicavam entre si — alterações feitas aqui (ex:
+// setPrimaryTargetLanguage) nunca chegavam a refletir-se na app. Unificado
+// para 'intelligentProfiles' como fonte única de verdade.
+
 export class SmartProfileEngine {
   private profileCache = new Map<string, { profile: SmartProfile | null; timestamp: number }>();
   private cacheTtlMs = 30000; // 30-second short-term in-memory cache by default
@@ -74,7 +81,7 @@ export class SmartProfileEngine {
       return cached.profile;
     }
 
-    const docRef = doc(db, 'profiles', userId);
+    const docRef = doc(db, 'intelligentProfiles', userId);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
       const profileData = docSnap.data() as SmartProfile;
@@ -98,7 +105,7 @@ export class SmartProfileEngine {
     domainName: K,
     update: Partial<SmartProfile[K]>
   ): Promise<void> {
-    const docRef = doc(db, 'profiles', userId);
+    const docRef = doc(db, 'intelligentProfiles', userId);
     const processedUpdate = { ...update };
     const updateData: Record<string, any> = {};
 
@@ -229,7 +236,7 @@ export class SmartProfileEngine {
   }
 
   async initializeProfile(userId: string, initialProfile: Omit<SmartProfile, 'userId' | 'updatedAt'>): Promise<void> {
-    const docRef = doc(db, 'profiles', userId);
+    const docRef = doc(db, 'intelligentProfiles', userId);
     const profileToInit = { ...initialProfile };
     if (profileToInit.learning) {
       profileToInit.learning = this.normalizeLearningDomain(profileToInit.learning) as LearningDomain;
