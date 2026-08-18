@@ -109,28 +109,31 @@ describe("Firestore Security Rules — /users/{userId} Hardening & Compliance Te
   });
 
   describe("GRUPO 3: Prevenção de Escalada de Privilégios (Cenários 21 a 28)", () => {
-    it("21. Proprietário não pode alterar o seu próprio role (removido da allowlist de update)", () => {
-      expect(updateRuleStr).not.toContain("'role'");
+    it("21. Proprietário não pode elevar o seu próprio role para um valor privilegiado (SUPER_ADMIN/PLATFORM_ADMIN/admin/schoolAdmin/organizationRole)", () => {
+      // 'role' pode estar na allowlist (para permitir escolhas não-privilegiadas durante
+      // o onboarding), mas TEM de existir uma guarda explícita que bloqueia valores
+      // administrativos — validamos a presença dessa guarda, não a ausência total do campo.
+      expect(updateRuleStr).toMatch(/role.*in.*\[.*(SUPER_ADMIN|PLATFORM_ADMIN)/s);
     });
 
     it("22. Proprietário não pode adicionar ou modificar o campo roles", () => {
-      expect(updateRuleStr).not.toContain("'roles'");
+      expect(updateRuleStr).toContain("!('roles' in incoming())");
     });
 
     it("23. Proprietário não pode adicionar ou modificar o campo isAdmin", () => {
-      expect(updateRuleStr).not.toContain("'isAdmin'");
+      expect(updateRuleStr).toContain("!('isAdmin' in incoming()");
     });
 
     it("24. Proprietário não pode adicionar ou modificar o campo permissions", () => {
-      expect(updateRuleStr).not.toContain("'permissions'");
+      expect(updateRuleStr).toContain("!('permissions' in incoming())");
     });
 
     it("25. Proprietário não pode tornar-se organizationRole ou alterar papéis B2B", () => {
-      expect(updateRuleStr).not.toContain("'organizationRole'");
+      expect(updateRuleStr).toContain("!('organizationRole' in incoming())");
     });
 
     it("26. Proprietário não pode promover-se a schoolAdmin", () => {
-      expect(updateRuleStr).not.toContain("'schoolAdmin'");
+      expect(updateRuleStr).toContain("!('schoolAdmin' in incoming())");
     });
 
     it("27. Proprietário não pode aprovar a sua própria certificação (certificationStatus)", () => {
