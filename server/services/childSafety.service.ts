@@ -45,6 +45,15 @@ export async function resolveServerSideAgeGroup(userUid: string | null | undefin
   realAge: number | null;
   isMinor: boolean;
 }> {
+  // Em ambiente de testes automatizados (Vitest define process.env.VITEST),
+  // nunca tentamos uma chamada real ao Firestore — mesmo padrão aplicado em
+  // firestoreSafe.service.ts, paymentEngine.service.ts e stripe.service.ts,
+  // que evita que cada teste demore perto do limite do Vitest à espera de
+  // uma ligação de rede que nunca vai funcionar em CI/local sem credenciais.
+  if (process.env.VITEST) {
+    return { ageGroup: MOST_PROTECTIVE_DEFAULT, realAge: null, isMinor: true };
+  }
+
   if (!userUid || userUid === "guest-user" || userUid === "sandbox-demo-user" || !dbAdmin) {
     return { ageGroup: MOST_PROTECTIVE_DEFAULT, realAge: null, isMinor: true };
   }
