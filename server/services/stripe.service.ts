@@ -1,4 +1,4 @@
-import { stripe } from "../config/stripe";
+import { getStripeClient } from "../config/stripe";
 import { SERVER_PLANS } from "../config/plans";
 import { dbAdmin } from "../config/firebaseAdmin";
 import { appBaseUrl } from "../config/env";
@@ -11,6 +11,7 @@ const isRunningUnderTests = process.env.VITEST === "true" || process.env.NODE_EN
 
 export class StripeService {
   static async createCheckoutSession(userId: string, planId: string) {
+    const stripe = getStripeClient();
     if (!stripe) {
       throw new Error("Stripe is not configured in this environment.");
     }
@@ -60,6 +61,7 @@ export class StripeService {
     if (!webhookSecret || !signature) {
       return false;
     }
+    const stripe = getStripeClient();
     if (!stripe) {
       throw new Error("Stripe SDK não está inicializado.");
     }

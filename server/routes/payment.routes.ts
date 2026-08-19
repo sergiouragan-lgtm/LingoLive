@@ -1,6 +1,6 @@
 import express, { Router } from "express";
 import { StripeService } from "../services/stripe.service";
-import { stripe } from "../config/stripe";
+import { getStripeClient } from "../config/stripe";
 import { requireAuth } from "../middleware/requireAuth";
 import { paymentsLimiter } from "../middleware/rateLimit";
 import { SERVER_PLANS } from "../config/plans";
@@ -21,6 +21,7 @@ router.post("/stripe-webhook", express.raw({ type: "*/*" }), async (req: any, re
     return res.status(400).json({ error: "Stripe signature missing" });
   }
 
+  const stripe = getStripeClient();
   if (!stripe) {
     return res.status(500).json({ error: "Stripe not configured" });
   }
