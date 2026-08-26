@@ -744,6 +744,31 @@ service cloud.firestore {
       allow create, update: if isEmailVerified() && (isOwner(incoming().userId) || isAdmin());
       allow delete: if isAdmin();
     }
+
+    // Canonical learning content introduced by the learning domain layer.
+    match /learning_lessons/{lessonId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Per-user, per-course progress. Document IDs are opaque; ownership is
+    // always derived from authenticated data rather than the path.
+    match /learning_progress/{progressId} {
+      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isEmailVerified()
+        && incoming().userId == request.auth.uid
+        && incoming().xp == 0
+        && incoming().version == 1;
+      allow update: if isEmailVerified()
+        && existing().userId == request.auth.uid
+        && incoming().userId == existing().userId
+        && incoming().courseId == existing().courseId
+        && incoming().version == existing().version + 1
+        && incoming().xp >= existing().xp
+        && incoming().xp <= existing().xp + 100;
+      allow delete: if isAdmin();
+    }
     // 40. Admins Collection — Backend / Admin SDK controlled
     match /admins/{adminId} {
       allow read: if isAdmin();
