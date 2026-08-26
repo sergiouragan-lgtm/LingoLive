@@ -130,6 +130,12 @@ export const CertificationPlatform: React.FC = () => {
   const isAdmin = role === "SUPER_ADMIN" || role === "PLATFORM_ADMIN" || role === "SCHOOL_ADMIN" || role === "school_admin" || user?.email === "sergio.uragan@gmail.com";
   const isTeacher = role === "TEACHER" || role === "teacher" || role === "COORDINATOR" || isAdmin;
 
+  const sha256Hex = async (value: string): Promise<string> => {
+    const bytes = new TextEncoder().encode(value);
+    const digest = await crypto.subtle.digest('SHA-256', bytes);
+    return Array.from(new Uint8Array(digest)).map(byte => byte.toString(16).padStart(2, '0')).join('');
+  };
+
   // ----------------------------------------------------------------------
   // Pre-populated Fallback Records
   // ----------------------------------------------------------------------
@@ -310,12 +316,12 @@ export const CertificationPlatform: React.FC = () => {
     const loadCertificationData = async () => {
       setSyncingFirestore(true);
 
-      // Load cached or mock data
+      // Load persisted cache first; never present seeded records as real certificates.
       const cached = localStorage.getItem("lingolive_cert_cache");
-      let localCerts = [...defaultCertificates];
+      let localCerts: Certificate[] = [];
       let localTemps = [...defaultTemplates];
-      let localLogs = [...defaultAuditLogs];
-      let localFiles = [...defaultStorageFiles];
+      let localLogs: AuditLog[] = [];
+      let localFiles: StorageFile[] = [];
 
       if (cached) {
         try {
@@ -381,23 +387,26 @@ export const CertificationPlatform: React.FC = () => {
     try {
       await setDoc(doc(db, col, docId), data, { merge: true });
     } catch (e: any) {
-      console.warn("Firestore save failed, caching locally instead:", e.message);
+      console.warn("Firestore save failed; record was not issued:", e.message);
       setUsingCacheFallback(true);
+      return false;
     }
     // Log audit trail
-    addAuditTrailEntry(
+    await addAuditTrailEntry(
       user?.displayName || "Sérgio Uragan",
       role || "Super Admin",
       col === "issued_certificates" ? "CERTIFICATE_ISSUED" : "SYSTEM_LOG",
       logMsg,
       ["ISO27001", col === "issued_certificates" ? "GDPR" : "SYSTEM"]
     );
+    return true;
   };
 
-  const addAuditTrailEntry = (actor: string, actorRole: string, action: string, details: string, tags: string[]) => {
+  const addAuditTrailEntry = async (actor: string, actorRole: string, action: string, details: string, tags: string[]) => {
     const timestamp = new Date().toISOString();
     const id = `audit-${Date.now()}`;
-    const integrityHash = "0x" + Math.random().toString(16).substr(2, 64); // Simulate blockchain ledger block
+    const previousHash = auditLogs[0]?.integrityHash ?? 'GENESIS';
+    const integrityHash = await sha256Hex(`${previousHash}|${timestamp}|${actor}|${action}|${details}`);
     
     const newLog: AuditLog = {
       id,
@@ -406,7 +415,7 @@ export const CertificationPlatform: React.FC = () => {
       role: actorRole,
       action,
       details,
-      ipAddress: "192.168.1.100", // Simulating standard cloud proxy ingress IP
+      ipAddress: "server-managed",
       complianceTags: tags,
       integrityHash
     };
@@ -433,19 +442,18 @@ export const CertificationPlatform: React.FC = () => {
       return;
     }
 
-    const uuid = `cert-${Math.random().toString(16).substr(2, 6)}-${Math.random().toString(16).substr(2, 4)}-432d`;
+    const uuid = `cert-${crypto.randomUUID()}`;
     const timestamp = new Date().toISOString();
 
-    // Digital signature simulation using a simulated secure sha256 private key signature
-    const salt = "lingolive_secure_salt_7781_";
     const signatureInput = `${issueForm.recipientEmail}_${issueForm.type}_${issueForm.cefrLevel || "NA"}_${timestamp}`;
-    const mockHash = "0x" + Math.random().toString(16).substr(2, 64);
+    const integrityDigest = await sha256Hex(signatureInput);
+    const recipientDigest = await sha256Hex(issueForm.recipientEmail.toLowerCase());
 
     const newCertificate: Certificate = {
       id: uuid,
       recipientName: issueForm.recipientName,
       recipientEmail: issueForm.recipientEmail,
-      recipientId: `usr_${issueForm.recipientName.toLowerCase().replace(/\s+/g, '_')}_${Math.floor(Math.random() * 90 + 10)}`,
+      recipientId: `usr_${recipientDigest.substring(0, 16)}`,
       type: issueForm.type,
       title: issueForm.title,
       courseName: issueForm.courseName,
@@ -455,42 +463,24 @@ export const CertificationPlatform: React.FC = () => {
       issuerName: issueForm.issuerName,
       issuerRole: issueForm.issuerRole,
       partnerSchool: issueForm.partnerSchool,
-      digitalSignature: mockHash,
-      publicKeyUsed: "ECDSA-secp256k1:9f2e-b3f8-8a21-7dd2",
+      digitalSignature: integrityDigest,
+      publicKeyUsed: "SHA-256 integrity digest (not an asymmetric signature)",
       qrValidationUrl: `https://lingolive.ai/verify/${uuid}`,
       status: "Issued",
       templateId: issueForm.templateId,
-      fileSize: "1.2 MB",
-      storagePath: `gs://lingolive-certificates/usr_new/${uuid}.pdf`
+      fileSize: "Not generated",
+      storagePath: ""
     };
 
-    // Add corresponding file to Simulated Cloud Storage
-    const newFile: StorageFile = {
-      id: `file_${Date.now()}`,
-      fileName: `${uuid}.pdf`,
-      fileSize: "1.2 MB",
-      mimeType: "application/pdf",
-      sha256: mockHash.substring(2),
-      path: `/usr_new/${uuid}.pdf`,
-      uploadedBy: user?.displayName || "LingoLIVE CloudEngine",
-      createdAt: timestamp
-    };
+    const saved = await handleFirestoreSave("issued_certificates", uuid, newCertificate, `Certificate ${uuid} successfully emitted to ${issueForm.recipientName}.`);
+    if (!saved) {
+      addToast("O certificado não foi emitido porque o Firestore não confirmou a gravação.", "error");
+      return;
+    }
 
     const updatedCerts = [newCertificate, ...certificates];
-    const updatedFiles = [newFile, ...storageFiles];
-
     setCertificates(updatedCerts);
-    setStorageFiles(updatedFiles);
-
-    // Save to Cache & Firestore
-    updateCache({
-      certificates: updatedCerts,
-      templates,
-      auditLogs,
-      storageFiles: updatedFiles
-    });
-
-    await handleFirestoreSave("issued_certificates", uuid, newCertificate, `Certificate ${uuid} successfully emitted to ${issueForm.recipientName}.`);
+    updateCache({ certificates: updatedCerts, templates, auditLogs, storageFiles });
     
     // Upload audit trail block
     addToast(`Certificado gerado com sucesso! Código único: ${uuid}`, "success");
