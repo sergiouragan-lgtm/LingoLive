@@ -17,6 +17,10 @@ import {
   explainPhraseLimiter
 } from "../middleware/rateLimit";
 import { getExplanationPrompt, getFeedbackPrompt } from "../services/aiPrompts.service";
+import {
+  buildContextualTutorSystemInstruction,
+  buildTutorContextFromRequest,
+} from "../services/tutorContext.service";
 
 const router = Router();
 const phraseCache = new LRUCache<string, any>({ max: 500 });
@@ -332,12 +336,15 @@ router.post("/feedback", requireAuth, feedbackLimiter, async (req: any, res) => 
 
 // 3. API endpoint for general AI Tutor Chat with rate limiter
 router.post("/ai-chat", requireAuth, chatLimiter, async (req: any, res) => {
-  const { userId, messages, task, userContext } = req.body;
+  const { messages, task, userContext } = req.body;
   if (!messages || !Array.isArray(messages)) {
     return res.status(400).json({ error: "Messages are required" });
   }
   
   const context = userContext || { level: 'A1', languageLearning: ['English'], languageNative: 'Portuguese' };
+  const userId = req.user.uid;
+  const tutorSessionContext = buildTutorContextFromRequest(context);
+  const systemInstruction = buildContextualTutorSystemInstruction(tutorSessionContext);
   
   try {
     const response = await orchestrateAI({
@@ -355,7 +362,9 @@ router.post("/ai-chat", requireAuth, chatLimiter, async (req: any, res) => {
       languageMode: context.languageMode,
       allowRegionalExpressions: context.allowRegionalExpressions,
       allowSlang: context.allowSlang,
-      preferredAIModel: context.preferredAIModel
+      preferredAIModel: context.preferredAIModel,
+      tutorSessionContext,
+      systemInstruction
     });
     
     if (userId) {

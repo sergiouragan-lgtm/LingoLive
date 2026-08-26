@@ -4,7 +4,7 @@ import { useLocalization } from '../../context/LocalizationContext';
 import { auth } from '../../firebase';
 
 export const AIAssistant: React.FC<{ userId?: string }> = ({ userId }) => {
-  const { localization } = useLocalization();
+  const { localization, linguisticIdentity } = useLocalization();
   const [messages, setMessages] = useState<{ role: 'user' | 'assistant', text: string }[]>([
     { role: 'assistant', text: 'Olá! Sou o seu Professor Virtual. Como posso ajudar você hoje? Posso traduzir frases ou explicar conceitos.' }
   ]);
@@ -47,13 +47,17 @@ export const AIAssistant: React.FC<{ userId?: string }> = ({ userId }) => {
           task: task,
           userContext: { 
             level: profile?.level || 'A1', 
-            languageLearning: [profile?.learningLanguage || 'English'], 
-            languageNative: profile?.nativeLanguage || 'Portuguese',
-            localization: localization,
+            languageLearning: [profile?.learningLanguage || linguisticIdentity.learningLanguage || 'English'],
+            languageNative: profile?.nativeLanguage || linguisticIdentity.nativeLanguage || 'Portuguese',
+            localization: {
+              ...localization,
+              languageVariant: linguisticIdentity.preferredDialect || undefined,
+              interfaceLanguage: linguisticIdentity.interfaceLanguage,
+            },
             age: profile?.age || 25,
             learningGoal: profile?.learningGoal || 'Geral',
-            targetRegion: profile?.targetRegion || 'US',
-            languageMode: profile?.languageMode || 'Standard',
+            targetRegion: profile?.targetRegion || linguisticIdentity.regionalVariant || 'US',
+            languageMode: profile?.languageMode || linguisticIdentity.usageContext || 'Standard',
             allowRegionalExpressions: profile?.allowRegionalExpressions !== false,
             allowSlang: profile?.allowSlang !== false,
             preferredAIModel: localStorage.getItem("lingolive_conversational_ai_model") || "gpt-4o"

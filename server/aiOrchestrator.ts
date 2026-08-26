@@ -37,10 +37,12 @@ export const orchestrateAI = async (
     languageMode,
     allowRegionalExpressions,
     allowSlang,
-    preferredAIModel
+    preferredAIModel,
+    tutorSessionContext,
+    systemInstruction
   } = data;
 
-  const activeCountryCode = localization?.country || "AO";
+  const activeCountryCode = tutorSessionContext?.geoLinguisticProfile?.countryCode || localization?.country || "AO";
   const countryDetail = COUNTRY_DETAILS[activeCountryCode] || COUNTRY_DETAILS.AO;
 
   // Determine age group, constraints, and adjust tone
@@ -172,7 +174,7 @@ Responda de forma curta, clara e altamente educativa, mantendo total sintonia co
         model: "gemini-3.6-flash",
         contents: prompt,
         config: {
-          systemInstruction: "You are an expert language teacher.",
+          systemInstruction: systemInstruction || "You are an expert language teacher.",
           temperature: 0.7,
         }
       });
@@ -187,7 +189,7 @@ Responda de forma curta, clara e altamente educativa, mantendo total sintonia co
       const completion = await openai.chat.completions.create({
         model: "gpt-4o", // ChatGPT 4 (flagship)
         messages: [
-          { role: "system", content: "You are an expert language teacher." },
+          { role: "system", content: systemInstruction || "You are an expert language teacher." },
           { role: "user", content: prompt },
         ],
         temperature: 0.7,
@@ -202,7 +204,7 @@ Responda de forma curta, clara e altamente educativa, mantendo total sintonia co
           model: "gemini-3.6-flash",
           contents: prompt,
           config: {
-            systemInstruction: "You are an expert language teacher.",
+            systemInstruction: systemInstruction || "You are an expert language teacher.",
             temperature: 0.7,
           }
         });

@@ -90,6 +90,16 @@ export function buildTutorCulturalInstructions(
     `Conduza a prática de conversação prioritariamente no idioma-alvo: ${context.targetLanguage}.`,
   ];
 
+  const targetRegionalVariant = context.preferences?.targetRegionalVariant;
+  if (
+    typeof targetRegionalVariant === "string" &&
+    /^(?:[A-Z]{2}|[a-z]{2,3}(?:-[A-Za-z]{2,4})?)$/.test(targetRegionalVariant)
+  ) {
+    languageGuidance.push(
+      `Adapte o idioma-alvo à variante regional escolhida pelo aluno: ${targetRegionalVariant}. Distinga-a da variante nativa ou de interface do aluno.`
+    );
+  }
+
   const learningLanguageGuidance: string[] = [];
   learningLanguageGuidance.push(`IDIOMA ACTIVO DA SESSÃO: ${context.targetLanguage}`);
   if (context.learningLanguages.length > 0) {
