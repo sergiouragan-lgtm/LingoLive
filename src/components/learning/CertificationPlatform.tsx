@@ -130,6 +130,12 @@ export const CertificationPlatform: React.FC = () => {
   const isAdmin = role === "SUPER_ADMIN" || role === "PLATFORM_ADMIN" || role === "SCHOOL_ADMIN" || role === "school_admin" || user?.email === "sergio.uragan@gmail.com";
   const isTeacher = role === "TEACHER" || role === "teacher" || role === "COORDINATOR" || isAdmin;
 
+  const sha256Hex = async (value: string): Promise<string> => {
+    const bytes = new TextEncoder().encode(value);
+    const digest = await crypto.subtle.digest('SHA-256', bytes);
+    return Array.from(new Uint8Array(digest)).map(byte => byte.toString(16).padStart(2, '0')).join('');
+  };
+
   // ----------------------------------------------------------------------
   // Pre-populated Fallback Records
   // ----------------------------------------------------------------------
@@ -176,146 +182,18 @@ export const CertificationPlatform: React.FC = () => {
     }
   ];
 
-  const defaultCertificates: Certificate[] = [
-    {
-      id: "cert-8f92b7-1c4a-4e92",
-      recipientName: "Sérgio Uragan",
-      recipientEmail: "sergio.uragan@gmail.com",
-      recipientId: "usr_sergio_99",
-      type: "CEFR",
-      title: "CEFR Official Level Certification",
-      courseName: "Português Dialetal e Gírias de Luanda (Kimbundu Core)",
-      cefrLevel: "C1",
-      score: 98,
-      issueDate: "2026-07-10T14:30:00Z",
-      expiryDate: "2031-07-10T14:30:00Z",
-      issuerName: "Prof. Dr. Maria Antónia Bento",
-      issuerRole: "Academic Dean & Linguistics Expert",
-      partnerSchool: "Ministério da Educação de Angola (LingoLIVE Partner)",
-      digitalSignature: "0x8f92b7ca10f82bd6ea05b22b1093bc2fcf1168ef902e11a3bd63f27de19307ab",
-      publicKeyUsed: "ECDSA-secp256k1:9f2e-b3f8-8a21-7dd2",
-      qrValidationUrl: "https://lingolive.ai/verify/cert-8f92b7-1c4a-4e92",
-      status: "Issued",
-      templateId: "temp_cefr_modern",
-      fileSize: "1.4 MB",
-      storagePath: "gs://lingolive-certificates/usr_sergio_99/cert-8f92b7-1c4a-4e92.pdf"
-    },
-    {
-      id: "cert-2a4f61-9c8b-4d0f",
-      recipientName: "Sérgio Uragan",
-      recipientEmail: "sergio.uragan@gmail.com",
-      recipientId: "usr_sergio_99",
-      type: "Course",
-      title: "LingoLIVE Specialization Diploma",
-      courseName: "Product Management and Localization Strategies",
-      score: 94,
-      issueDate: "2026-06-20T09:15:00Z",
-      issuerName: "Dr. Alberto Cordeiro",
-      issuerRole: "Head of Teacher Operations",
-      partnerSchool: "LingoLIVE Corporate Academy",
-      digitalSignature: "0x2a4f61abf7d825c0e092131bb425c2826a718c0e12d98a635293cb82a514d79a",
-      publicKeyUsed: "RSA-4096:cc89-ab22-3cd2-990e",
-      qrValidationUrl: "https://lingolive.ai/verify/cert-2a4f61-9c8b-4d0f",
-      status: "Issued",
-      templateId: "temp_classic_academic",
-      fileSize: "1.1 MB",
-      storagePath: "gs://lingolive-certificates/usr_sergio_99/cert-2a4f61-9c8b-4d0f.pdf"
-    },
-    {
-      id: "cert-5c3b99-1a7f-432d",
-      recipientName: "António Manuel Francisco",
-      recipientEmail: "antonio.manuel@gmail.com",
-      recipientId: "usr_antonio_12",
-      type: "Participation",
-      title: "Certificado de Participação de Bootcamp",
-      courseName: "Semana Linguística LingoLIVE e Cultura Cabindense",
-      score: 100,
-      issueDate: "2026-07-01T18:00:00Z",
-      issuerName: "Sérgio Uragan",
-      issuerRole: "Teacher Operations Manager",
-      partnerSchool: "Universidade Privada de Luanda",
-      digitalSignature: "0x5c3b99fd582f0c111082bbca7203cb7efc201e7a5d098e72763bbccca782941b",
-      publicKeyUsed: "ECDSA-secp256k1:9f2e-b3f8-8a21-7dd2",
-      qrValidationUrl: "https://lingolive.ai/verify/cert-5c3b99-1a7f-432d",
-      status: "Issued",
-      templateId: "temp_participation_clean",
-      fileSize: "850 KB",
-      storagePath: "gs://lingolive-certificates/usr_antonio_12/cert-5c3b99-1a7f-432d.pdf"
-    }
-  ];
-
-  const defaultAuditLogs: AuditLog[] = [
-    {
-      id: "audit-12a",
-      timestamp: "2026-07-14T06:22:15.112Z",
-      actor: "Sérgio Uragan",
-      role: "Super Admin",
-      action: "CERTIFICATE_ISSUED",
-      details: "Issued CEFR C1 Certificate to 'Sérgio Uragan'. Signed digitally via LingoLIVE Master Key.",
-      ipAddress: "192.168.10.45",
-      complianceTags: ["ISO27001", "GDPR", "FERPA"],
-      integrityHash: "b6201e82ef45b3cd99ca82fe1aef33bc712fcf9321edae1192ccbc89b8823c91"
-    },
-    {
-      id: "audit-12b",
-      timestamp: "2026-07-14T05:15:30.880Z",
-      actor: "Dr. Alberto Cordeiro",
-      role: "Teacher Operations Manager",
-      action: "TEMPLATE_CREATED",
-      details: "Created 'CEFR Modern Fluent' HTML Canvas template.",
-      ipAddress: "165.22.45.109",
-      complianceTags: ["ISO27001"],
-      integrityHash: "a739cb23b210dc0239cbcf9842bf45ef13cc712fef901eabda231ca89b210872"
-    },
-    {
-      id: "audit-12c",
-      timestamp: "2026-07-14T04:10:22.015Z",
-      actor: "External Auditor Service",
-      role: "Public Guest",
-      action: "VALIDATION_QUERY",
-      details: "Checked certificate ID: cert-8f92b7-1c4a-4e92. Result: VALID.",
-      ipAddress: "200.41.98.3",
-      complianceTags: ["GDPR", "ISO27001"],
-      integrityHash: "c01bc93ef78abef90382910ebda442df192019abfcecf78a9c8bbcc283941b22"
-    }
-  ];
-
-  const defaultStorageFiles: StorageFile[] = [
-    {
-      id: "file-1",
-      fileName: "cert-8f92b7-1c4a-4e92.pdf",
-      fileSize: "1.4 MB",
-      mimeType: "application/pdf",
-      sha256: "ea3b2f10d9cebc45b98218ae3cf556942cbffef912adbc8294ebca982eef6101",
-      path: "/usr_sergio_99/cert-8f92b7-1c4a-4e92.pdf",
-      uploadedBy: "LingoLIVE CloudEngine v2",
-      createdAt: "2026-07-10T14:30:00Z"
-    },
-    {
-      id: "file-2",
-      fileName: "cert-2a4f61-9c8b-4d0f.pdf",
-      fileSize: "1.1 MB",
-      mimeType: "application/pdf",
-      sha256: "df8a10b9cbccaef5406718dca990231dfebbc281cd991aa389bc2763f33cc8a1",
-      path: "/usr_sergio_99/cert-2a4f61-9c8b-4d0f.pdf",
-      uploadedBy: "LingoLIVE CloudEngine v2",
-      createdAt: "2026-06-20T09:15:00Z"
-    }
-  ];
-
-  // ----------------------------------------------------------------------
   // Lifecycle & Initial Load
   // ----------------------------------------------------------------------
   useEffect(() => {
     const loadCertificationData = async () => {
       setSyncingFirestore(true);
 
-      // Load cached or mock data
+      // Load persisted cache first; never present seeded records as real certificates.
       const cached = localStorage.getItem("lingolive_cert_cache");
-      let localCerts = [...defaultCertificates];
+      let localCerts: Certificate[] = [];
       let localTemps = [...defaultTemplates];
-      let localLogs = [...defaultAuditLogs];
-      let localFiles = [...defaultStorageFiles];
+      let localLogs: AuditLog[] = [];
+      let localFiles: StorageFile[] = [];
 
       if (cached) {
         try {
@@ -381,23 +259,26 @@ export const CertificationPlatform: React.FC = () => {
     try {
       await setDoc(doc(db, col, docId), data, { merge: true });
     } catch (e: any) {
-      console.warn("Firestore save failed, caching locally instead:", e.message);
+      console.warn("Firestore save failed; record was not issued:", e.message);
       setUsingCacheFallback(true);
+      return false;
     }
     // Log audit trail
-    addAuditTrailEntry(
+    await addAuditTrailEntry(
       user?.displayName || "Sérgio Uragan",
       role || "Super Admin",
       col === "issued_certificates" ? "CERTIFICATE_ISSUED" : "SYSTEM_LOG",
       logMsg,
       ["ISO27001", col === "issued_certificates" ? "GDPR" : "SYSTEM"]
     );
+    return true;
   };
 
-  const addAuditTrailEntry = (actor: string, actorRole: string, action: string, details: string, tags: string[]) => {
+  const addAuditTrailEntry = async (actor: string, actorRole: string, action: string, details: string, tags: string[]) => {
     const timestamp = new Date().toISOString();
     const id = `audit-${Date.now()}`;
-    const integrityHash = "0x" + Math.random().toString(16).substr(2, 64); // Simulate blockchain ledger block
+    const previousHash = auditLogs[0]?.integrityHash ?? 'GENESIS';
+    const integrityHash = await sha256Hex(`${previousHash}|${timestamp}|${actor}|${action}|${details}`);
     
     const newLog: AuditLog = {
       id,
@@ -406,7 +287,7 @@ export const CertificationPlatform: React.FC = () => {
       role: actorRole,
       action,
       details,
-      ipAddress: "192.168.1.100", // Simulating standard cloud proxy ingress IP
+      ipAddress: "server-managed",
       complianceTags: tags,
       integrityHash
     };
@@ -433,19 +314,18 @@ export const CertificationPlatform: React.FC = () => {
       return;
     }
 
-    const uuid = `cert-${Math.random().toString(16).substr(2, 6)}-${Math.random().toString(16).substr(2, 4)}-432d`;
+    const uuid = `cert-${crypto.randomUUID()}`;
     const timestamp = new Date().toISOString();
 
-    // Digital signature simulation using a simulated secure sha256 private key signature
-    const salt = "lingolive_secure_salt_7781_";
     const signatureInput = `${issueForm.recipientEmail}_${issueForm.type}_${issueForm.cefrLevel || "NA"}_${timestamp}`;
-    const mockHash = "0x" + Math.random().toString(16).substr(2, 64);
+    const integrityDigest = await sha256Hex(signatureInput);
+    const recipientDigest = await sha256Hex(issueForm.recipientEmail.toLowerCase());
 
     const newCertificate: Certificate = {
       id: uuid,
       recipientName: issueForm.recipientName,
       recipientEmail: issueForm.recipientEmail,
-      recipientId: `usr_${issueForm.recipientName.toLowerCase().replace(/\s+/g, '_')}_${Math.floor(Math.random() * 90 + 10)}`,
+      recipientId: `usr_${recipientDigest.substring(0, 16)}`,
       type: issueForm.type,
       title: issueForm.title,
       courseName: issueForm.courseName,
@@ -455,42 +335,24 @@ export const CertificationPlatform: React.FC = () => {
       issuerName: issueForm.issuerName,
       issuerRole: issueForm.issuerRole,
       partnerSchool: issueForm.partnerSchool,
-      digitalSignature: mockHash,
-      publicKeyUsed: "ECDSA-secp256k1:9f2e-b3f8-8a21-7dd2",
+      digitalSignature: integrityDigest,
+      publicKeyUsed: "SHA-256 integrity digest (not an asymmetric signature)",
       qrValidationUrl: `https://lingolive.ai/verify/${uuid}`,
       status: "Issued",
       templateId: issueForm.templateId,
-      fileSize: "1.2 MB",
-      storagePath: `gs://lingolive-certificates/usr_new/${uuid}.pdf`
+      fileSize: "Not generated",
+      storagePath: ""
     };
 
-    // Add corresponding file to Simulated Cloud Storage
-    const newFile: StorageFile = {
-      id: `file_${Date.now()}`,
-      fileName: `${uuid}.pdf`,
-      fileSize: "1.2 MB",
-      mimeType: "application/pdf",
-      sha256: mockHash.substring(2),
-      path: `/usr_new/${uuid}.pdf`,
-      uploadedBy: user?.displayName || "LingoLIVE CloudEngine",
-      createdAt: timestamp
-    };
+    const saved = await handleFirestoreSave("issued_certificates", uuid, newCertificate, `Certificate ${uuid} successfully emitted to ${issueForm.recipientName}.`);
+    if (!saved) {
+      addToast("O certificado não foi emitido porque o Firestore não confirmou a gravação.", "error");
+      return;
+    }
 
     const updatedCerts = [newCertificate, ...certificates];
-    const updatedFiles = [newFile, ...storageFiles];
-
     setCertificates(updatedCerts);
-    setStorageFiles(updatedFiles);
-
-    // Save to Cache & Firestore
-    updateCache({
-      certificates: updatedCerts,
-      templates,
-      auditLogs,
-      storageFiles: updatedFiles
-    });
-
-    await handleFirestoreSave("issued_certificates", uuid, newCertificate, `Certificate ${uuid} successfully emitted to ${issueForm.recipientName}.`);
+    updateCache({ certificates: updatedCerts, templates, auditLogs, storageFiles });
     
     // Upload audit trail block
     addToast(`Certificado gerado com sucesso! Código único: ${uuid}`, "success");

@@ -11,6 +11,7 @@
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
     "test": "vitest",
+    "test:e2e": "playwright test",
     "test:firestore-rules": "firebase emulators:exec --only firestore 'vitest run src/tests/firestoreUsersRules.test.ts src/tests/firestorePaymentsRules.test.ts'"
   },
   "dependencies": {
@@ -51,6 +52,7 @@
   "devDependencies": {
     "@firebase/eslint-plugin-security-rules": "^0.0.2",
     "@firebase/rules-unit-testing": "^5.0.1",
+    "@playwright/test": "^1.62.1",
     "@testing-library/jest-dom": "^7.0.0",
     "@testing-library/react": "^16.3.2",
     "@types/express": "^4.17.21",

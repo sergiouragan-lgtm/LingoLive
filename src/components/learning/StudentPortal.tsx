@@ -11,6 +11,10 @@ import { db, auth } from "../../firebase";
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import { useToast } from "../../context/ToastContext";
 import { useUserRole } from "../../context/UserRoleContext";
+import { LearningActivityEngine } from "../../application/learning/LearningActivityEngine";
+import { PronunciationService } from "../../services/pronunciation.service";
+import { saveProgressToDB } from "../../utils/indexedDB";
+import { CefrAssessmentEngine } from "../../application/cefr/CefrAssessmentEngine";
 import { 
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, 
   Tooltip, BarChart, Bar, Legend, PieChart, Pie, Cell, LineChart, Line, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar
@@ -165,6 +169,8 @@ export const StudentPortal: React.FC<{ setView?: (v: string) => void }> = ({ set
   const [userInput, setUserInput] = useState<string>("");
   const [sendingAi, setSendingAi] = useState<boolean>(false);
   const [grammarTips, setGrammarTips] = useState<string>("");
+  const [writingText, setWritingText] = useState<string>("");
+  const [analyzingWriting, setAnalyzingWriting] = useState<boolean>(false);
 
   const handleSendAiMessage = async () => {
     if (!userInput.trim()) return;
@@ -192,37 +198,109 @@ export const StudentPortal: React.FC<{ setView?: (v: string) => void }> = ({ set
         throw new Error();
       }
     } catch (e) {
-      setTimeout(() => {
-        setAiMessages(prev => [...prev, { 
-          sender: "AI Tutor", 
-          text: `Muito bem! Disseste de forma excelente. Em Kimbundu dizemos: 'Mwazekeleny, mbeji kudi mabaia?' (Bom dia, quanto custa?). Continua com o ótimo esforço!`, 
-          time: "Agora" 
-        }]);
-        setGrammarTips("Dica do Co-Pilot: Lembra-te de colocar o prefixo 'M-' para o plural ao saudar um grupo de comerciantes.");
-        saveGamification(xp + 15, coins + 2);
-      }, 1000);
+      setAiMessages(prev => [...prev, {
+        sender: "AI Tutor",
+        text: "Não consegui analisar esta mensagem agora. A tua resposta foi preservada; tenta novamente quando a ligação estiver disponível.",
+        time: "Agora"
+      }]);
+      addToast("Tutor temporariamente indisponível. Nenhum XP foi atribuído.", "info");
     } finally {
       setSendingAi(false);
     }
   };
 
-  // B. Speaking & Whisper API simulation
+  const handleAnalyzeWriting = async () => {
+    if (!writingText.trim() || !user) {
+      addToast("Escreve um texto e inicia sessão antes de analisar.", "info");
+      return;
+    }
+    setAnalyzingWriting(true);
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch('/api/ai/text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ prompt: `Analisa este texto em Português Regional ou Kimbundu. Identifica erros concretos, explica cada correção e devolve uma versão corrigida. Não inventes erros: ${writingText}` }),
+      });
+      if (!response.ok) throw new Error('WRITING_ANALYSIS_FAILED');
+      const data = await response.json();
+      setGrammarTips(data.text ?? data.feedback ?? 'Análise concluída sem observações adicionais.');
+      const evidenceScore = CefrAssessmentEngine.evaluate(writingText, 'B1');
+      const feedback = LearningActivityEngine.evaluate({ id: `writing-${Date.now()}`, userId: user.uid, courseId: 'kimbundu-regional', lessonId: 'writing-lab', activityId: 'regional-writing', kind: 'writing', skill: 'Writing', score: evidenceScore, durationSeconds: 0, completedAt: new Date().toISOString() }, 0);
+      saveGamification(xp + feedback.earnedXp, coins + 1);
+      addToast("Texto analisado pelo Tutor IA.", "success");
+    } catch {
+      addToast("A análise não ficou disponível. Nenhuma recompensa foi atribuída.", "info");
+    } finally {
+      setAnalyzingWriting(false);
+    }
+  };
+
+  // B. Speaking with real microphone capture and pronunciation API
   const [isRecording, setIsRecording] = useState<boolean>(false);
   const [pronunciationScore, setPronunciationScore] = useState<number | null>(null);
   const [transcription, setTranscription] = useState<string>("");
   const [phoneticFeedback, setPhoneticFeedback] = useState<string>("");
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const pronunciationServiceRef = useRef(new PronunciationService());
 
-  const handleStartRecording = () => {
-    setIsRecording(true);
-    addToast("Microfone capturando áudio em 16kHz... Fale agora!", "info");
-    setTimeout(() => {
+  const handleStartRecording = async () => {
+    if (!user) {
+      addToast("Inicia sessão para guardar e avaliar a tua pronúncia.", "info");
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      addToast("Este navegador não suporta gravação de áudio.", "info");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      const chunks: BlobPart[] = [];
+      recorder.ondataavailable = event => {
+        if (event.data.size > 0) chunks.push(event.data);
+      };
+      recorder.onstop = async () => {
+        stream.getTracks().forEach(track => track.stop());
+        setIsRecording(false);
+        try {
+          const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
+          const audioBase64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result));
+            reader.onerror = () => reject(reader.error);
+            reader.readAsDataURL(blob);
+          });
+          const result = await pronunciationServiceRef.current.evaluatePronunciation(
+            'Wazekele kyambote!', audioBase64, 'Kimbundu', blob.type,
+          );
+          setTranscription(result.transcription);
+          setPronunciationScore(result.overallScore);
+          setPhoneticFeedback(result.generalFeedback);
+          const feedback = LearningActivityEngine.evaluate({ id: result.id, userId: user.uid, courseId: 'kimbundu-regional', lessonId: 'speaking-lab', activityId: 'wazekele-pronunciation', kind: 'speaking', skill: 'Speaking', score: result.overallScore / 100, durationSeconds: 5, completedAt: result.timestamp }, 0);
+          saveGamification(xp + feedback.earnedXp, coins + (feedback.mastered ? 4 : 1));
+          addToast("Pronúncia analisada com áudio real.", "success");
+        } catch (error) {
+          const message = error instanceof Error && error.message === 'OFFLINE_MODE_SAVED'
+            ? "Áudio guardado offline para análise quando a ligação regressar."
+            : "Não foi possível analisar o áudio. Nenhuma recompensa foi atribuída.";
+          addToast(message, "info");
+        }
+      };
+      mediaRecorderRef.current = recorder;
+      setTranscription("");
+      setPronunciationScore(null);
+      setPhoneticFeedback("");
+      setIsRecording(true);
+      recorder.start();
+      addToast("Microfone ativo. Fala: Wazekele kyambote!", "info");
+      window.setTimeout(() => {
+        if (recorder.state === 'recording') recorder.stop();
+      }, 5000);
+    } catch {
       setIsRecording(false);
-      setTranscription("Wazekele kyambote, professor Sérgio.");
-      setPronunciationScore(94);
-      setPhoneticFeedback("Excelente calibração! As tuas sílabas tônicas no termo 'Wazekele' estão perfeitas. Desvio fonético de apenas 0.4 Hz.");
-      saveGamification(xp + 25, coins + 4);
-      addToast("Pronúncia analisada com sucesso com Whisper AI neural!", "success");
-    }, 3000);
+      addToast("Permissão de microfone recusada ou indisponível.", "info");
+    }
   };
 
   // C. Flashcard States
@@ -243,11 +321,12 @@ export const StudentPortal: React.FC<{ setView?: (v: string) => void }> = ({ set
     }, 200);
   };
 
-  // D. Mock Exam Simulation
+  // D. CEFR practice exam
   const [examStarted, setExamStarted] = useState<boolean>(false);
   const [examScore, setExamScore] = useState<number | null>(null);
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState<number>(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
+  const [examAnswers, setExamAnswers] = useState<Record<string, number>>({});
   const [examFinished, setExamFinished] = useState<boolean>(false);
 
   const examQuestions: PracticeQuestion[] = [
@@ -276,6 +355,7 @@ export const StudentPortal: React.FC<{ setView?: (v: string) => void }> = ({ set
 
   const handleAnswerQuestion = (index: number) => {
     setSelectedAnswer(index);
+    setExamAnswers(previous => ({ ...previous, [examQuestions[currentQuestionIdx].id]: index }));
   };
 
   const handleNextExamQuestion = () => {
@@ -284,25 +364,43 @@ export const StudentPortal: React.FC<{ setView?: (v: string) => void }> = ({ set
       setCurrentQuestionIdx(currentQuestionIdx + 1);
       setSelectedAnswer(null);
     } else {
-      // Calculate score
-      let correct = 0;
-      // In a real flow we would collect all answers, here we simulate based on this last actions
+      const finalAnswers = { ...examAnswers, [examQuestions[currentQuestionIdx].id]: selectedAnswer };
+      const normalizedScore = LearningActivityEngine.scoreAnswers(examQuestions, finalAnswers);
+      const feedback = LearningActivityEngine.evaluate({
+        id: `portal-exam-${Date.now()}`,
+        userId: user?.uid ?? 'anonymous',
+        courseId: 'kimbundu-regional',
+        lessonId: 'cefr-practice',
+        activityId: 'regional-language-exam',
+        kind: 'quiz',
+        skill: 'Reading',
+        score: normalizedScore,
+        durationSeconds: 0,
+        completedAt: new Date().toISOString(),
+      }, 0);
       setExamFinished(true);
-      setExamScore(88); // mock score
-      saveGamification(xp + 100, coins + 20);
-      addToast("Parabéns! Exame simulado CEFR concluído com sucesso.", "success");
+      setExamScore(Math.round(feedback.normalizedScore * 100));
+      saveGamification(xp + feedback.earnedXp, coins + (feedback.mastered ? 5 : 1));
+      addToast(feedback.mastered ? "Parabéns! Exame CEFR concluído com domínio." : "Exame concluído. Revê as respostas e tenta novamente.", feedback.mastered ? "success" : "info");
     }
   };
 
   // Offline Download Trigger
-  const handleDownloadLesson = (lessonName: string) => {
-    addToast(`Descarregando "${lessonName}" para armazenamento local IndexedDB...`, "info");
-    setTimeout(() => {
-      addToast(`"${lessonName}" disponível offline! (2.4 MB)`, "success");
-    }, 1500);
+  const handleDownloadLesson = async (lessonName: string) => {
+    try {
+      await saveProgressToDB(`offline_lesson_${lessonName}`, {
+        lessonName,
+        userId: user?.uid ?? null,
+        savedAt: new Date().toISOString(),
+        status: 'metadata-cached',
+      });
+      addToast(`"${lessonName}" guardada no dispositivo para acesso offline.`, "success");
+    } catch {
+      addToast(`Não foi possível guardar "${lessonName}" offline.`, "info");
+    }
   };
 
-  // Goal Complete simulator
+  // Goal completion state
   const toggleGoalComplete = (goalId: string) => {
     setGoals(prev => prev.map(g => {
       if (g.id === goalId) {
@@ -789,20 +887,21 @@ export const StudentPortal: React.FC<{ setView?: (v: string) => void }> = ({ set
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">Escreve o teu ensaio ou frase para calibração</label>
                   <textarea
                     rows={5}
+                    value={writingText}
+                    onChange={event => setWritingText(event.target.value)}
                     placeholder="Cole ou escreva aqui o teu texto em Português Regional ou Kimbundu para análise gramatical..."
                     className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono leading-relaxed"
                   />
                 </div>
 
                 <button
-                  onClick={() => {
-                    addToast("Ensaio enviado com sucesso para calibração corretiva por IA!", "success");
-                    saveGamification(xp + 30, coins + 6);
-                  }}
+                  onClick={handleAnalyzeWriting}
+                  disabled={analyzingWriting || !writingText.trim()}
                   className="py-3 px-6 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-sm cursor-pointer transition-all"
                 >
-                  Analisar Gramática e Fluência
+                  {analyzingWriting ? 'Analisando…' : 'Analisar Gramática e Fluência'}
                 </button>
+                {grammarTips && <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4 text-xs leading-relaxed text-slate-700 whitespace-pre-wrap">{grammarTips}</div>}
               </div>
             )}
 

@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { db, auth } from "../../firebase";
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { 
   collection, doc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, 
   query, where, orderBy, limit, Timestamp 
@@ -139,6 +140,7 @@ export const EducationalCMS: React.FC = () => {
 
   const [isMediaModalOpen, setIsMediaModalOpen] = useState(false);
   const [mediaForm, setMediaForm] = useState<Partial<MediaAsset>>({ type: "pdf" });
+  const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [analyzingMedia, setAnalyzingMedia] = useState(false);
   const [cloudFunctionLogs, setCloudFunctionLogs] = useState<string[]>([]);
 
@@ -163,213 +165,6 @@ export const EducationalCMS: React.FC = () => {
   const isTeacher = role === "TEACHER" || role === "teacher" || role === "Educator";
   const isAdminUser = role === "SUPER_ADMIN" || role === "PLATFORM_ADMIN" || role === "SCHOOL_ADMIN" || role === "school_admin" || role === "Admin" || user?.email === "sergio.uragan@gmail.com";
 
-  // Mock static data for immediate fallback
-  const mockCourses: Course[] = [
-    {
-      id: "course_1",
-      title: "Iniciação ao Português de Angola (Kimbundu & Gírias)",
-      description: "Curso focado na fluência falada com expressões populares de Luanda como 'kamba', 'fixe' e 'bazar'.",
-      language: "Português (Angola)",
-      cefrLevel: "A1",
-      ageGroup: "Teens",
-      tags: ["Cultura", "Gírias", "Conversação"],
-      author: "Professora Maria Antónia",
-      authorEmail: "maria.antonia@lingolive.ao",
-      version: "1.2",
-      status: "Published",
-      createdAt: "2026-05-01T10:00:00Z",
-      updatedAt: "2026-07-10T14:30:00Z"
-    },
-    {
-      id: "course_2",
-      title: "Inglês Instrumental para Negócios Tecnológicos",
-      description: "Vocabulário de design de produto, metodologias ágeis e compliance legal no mercado internacional.",
-      language: "Inglês",
-      cefrLevel: "B1",
-      ageGroup: "Teens",
-      tags: ["Business", "Tech", "Product Management"],
-      author: "Sérgio Uragan",
-      authorEmail: "sergio.uragan@gmail.com",
-      version: "1.0",
-      status: "Published",
-      createdAt: "2026-06-15T09:00:00Z",
-      updatedAt: "2026-06-15T09:00:00Z"
-    },
-    {
-      id: "course_3",
-      title: "Cultura Angolana e Tradições Orais",
-      description: "Aprofunde-se no folclore, gastronomia (calulu, funge) e na rica história das províncias angolanas.",
-      language: "Português (Angola)",
-      cefrLevel: "C1",
-      ageGroup: "PreTeens",
-      tags: ["História", "Cultura", "Tradições"],
-      author: "Professor João Baptista",
-      authorEmail: "joao.baptista@lingolive.ao",
-      version: "0.9",
-      status: "In Review",
-      createdAt: "2026-07-01T11:00:00Z",
-      updatedAt: "2026-07-12T16:45:00Z"
-    }
-  ];
-
-  const mockLessons: Lesson[] = [
-    {
-      id: "lesson_1_1",
-      courseId: "course_1",
-      title: "O que é um 'Kamba'? Expressões de Amizade",
-      description: "Aprenda a saudar os seus amigos em Luanda usando termos afetuosos da nossa cultura.",
-      order: 1,
-      duration: "10 min",
-      contentMarkdown: "# O Kamba\nEm Angola, 'kamba' significa amigo ou companheiro. \n\n## Exemplo:\n'Aquele mambo correu bem, o meu kamba ajudou-me!'",
-      status: "Published",
-      version: "1.1",
-      author: "Professora Maria Antónia",
-      createdAt: "2026-05-01T10:30:00Z"
-    },
-    {
-      id: "lesson_1_2",
-      courseId: "course_1",
-      title: "Bazar e Ficar Fixe: Verbos de Movimento e Estado",
-      description: "Aprenda a expressar despedidas e concordância coloquial luandense de forma natural.",
-      order: 2,
-      duration: "12 min",
-      contentMarkdown: "# Bazar e Ficar Fixe\n'Bazar' significa ir embora ou sair rapidamente.\n'Fixe' indica que tudo está excelente, legal ou de acordo.",
-      status: "Published",
-      version: "1.0",
-      author: "Professora Maria Antónia",
-      createdAt: "2026-05-02T11:00:00Z"
-    },
-    {
-      id: "lesson_3_1",
-      courseId: "course_3",
-      title: "A preparação tradicional do Funge de Bombo",
-      description: "Abordagem linguística sobre termos culinários, rituais e expressões de mesa.",
-      order: 1,
-      duration: "20 min",
-      contentMarkdown: "# O Funge de Bombo\nAprenda o vocabulário por trás do prato nacional. A mandioca pilada cozida ao ponto ideal.",
-      status: "In Review",
-      version: "1.0",
-      author: "Professor João Baptista",
-      createdAt: "2026-07-01T11:30:00Z"
-    }
-  ];
-
-  const mockMedia: MediaAsset[] = [
-    {
-      id: "media_1",
-      title: "Ilustração Infográfico do Funge",
-      fileName: "infografico_funge_bom_apetite.png",
-      type: "image",
-      size: "1.4 MB",
-      tags: ["funge", "gastronomia", "angola"],
-      url: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=400",
-      whisperTranscript: "[OCR Vision AI]: Infográfico colorido descrevendo os ingredientes principais e a preparação do funge em Angola, acompanhado de peixe seco.",
-      author: "Professor João Baptista",
-      status: "active",
-      createdAt: "2026-07-01T12:00:00Z"
-    },
-    {
-      id: "media_2",
-      title: "Pronúncia do Kamba de Angola (Áudio)",
-      fileName: "pronuncia_luanda_kamba.mp3",
-      type: "audio",
-      size: "3.2 MB",
-      tags: ["pronuncia", "kamba", "gírias"],
-      url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-      whisperTranscript: "[Whisper API Transcrição]: Olá! Para falar corretamente 'kamba' com sotaque angolano, abra a primeira vogal. Diga: KAHM-bah. Significa o meu querido amigo.",
-      author: "Professora Maria Antónia",
-      status: "active",
-      createdAt: "2026-05-01T11:00:00Z"
-    },
-    {
-      id: "media_3",
-      title: "Guia PDF de Compliance Legal e Contratos",
-      fileName: "compliance_legal_international_v2.pdf",
-      type: "pdf",
-      size: "5.8 MB",
-      tags: ["legal", "business", "compliance"],
-      url: "https://example.com/compliance_sample.pdf",
-      whisperTranscript: "[PDF Extractor]: Este manual detalha as cláusulas padrão de privacidade, leis de exportação de tecnologia e licenciamento corporativo de softwares na União Europeia.",
-      author: "Sérgio Uragan",
-      status: "active",
-      createdAt: "2026-06-15T09:15:00Z"
-    }
-  ];
-
-  const mockExercises: Exercise[] = [
-    {
-      id: "ex_1",
-      question: "O que significa dizer que alguém é seu 'kamba' em Angola?",
-      options: [
-        "Significa que é seu colega de trabalho formal.",
-        "Significa que é seu amigo ou companheiro próximo.",
-        "Significa que é um turista estrangeiro.",
-        "Significa que é um chefe de cozinha tradicional."
-      ],
-      answer: "Significa que é seu amigo ou companheiro próximo.",
-      explanation: "Kamba é uma das gírias e empréstimos linguísticos do Kimbundu mais populares em Angola para designar um amigo de confiança.",
-      difficulty: "Beginner",
-      language: "Português (Angola)",
-      topic: "Expressões de Amizade",
-      type: "multiple-choice",
-      tags: ["gírias", "vocabulário"],
-      createdAt: "2026-05-01T12:00:00Z"
-    },
-    {
-      id: "ex_2",
-      question: "Como se conjuga o verbo 'bazar' na primeira pessoa do plural do presente do indicativo?",
-      options: [
-        "Nós bazamos.",
-        "Nós bazamos-nos.",
-        "Nós bazam.",
-        "Nós bazo."
-      ],
-      answer: "Nós bazamos.",
-      explanation: "O verbo 'bazar' é regular do primeiro grupo (-ar) e segue as desinências padrão da conjugação informal angolana.",
-      difficulty: "Intermediate",
-      language: "Português (Angola)",
-      topic: "Verbos Coloquiais",
-      type: "multiple-choice",
-      tags: ["verbos", "gramática"],
-      createdAt: "2026-05-02T12:00:00Z"
-    }
-  ];
-
-  const mockApprovalRequests: ApprovalRequest[] = [
-    {
-      id: "req_1",
-      entityId: "course_3",
-      entityType: "course",
-      entityTitle: "Cultura Angolana e Tradições Orais",
-      authorName: "Professor João Baptista",
-      authorEmail: "joao.baptista@lingolive.ao",
-      status: "Pending",
-      createdAt: "2026-07-12T17:00:00Z"
-    }
-  ];
-
-  const mockLogs: VersionLog[] = [
-    {
-      id: "log_1",
-      entityId: "course_1",
-      entityType: "course",
-      version: "1.2",
-      changeSummary: "Atualização de termos e adição do módulo de gírias modernas.",
-      author: "Professora Maria Antónia",
-      createdAt: "2026-07-10T14:30:00Z",
-      dataSnapshot: JSON.stringify(mockCourses[0])
-    },
-    {
-      id: "log_2",
-      entityId: "lesson_1_1",
-      entityType: "lesson",
-      version: "1.1",
-      changeSummary: "Adicionado exemplo de frase idiomática em Kimbundu.",
-      author: "Professora Maria Antónia",
-      createdAt: "2026-05-05T09:00:00Z"
-    }
-  ];
-
   // Load Content (Firestore + Cache Splicing)
   useEffect(() => {
     const loadCmsData = async () => {
@@ -378,12 +173,12 @@ export const EducationalCMS: React.FC = () => {
 
       // Check for locally cached CMS changes so the user keeps state on reload
       const cachedCms = localStorage.getItem("lingolive_cms_cache");
-      let localCourses = [...mockCourses];
-      let localLessons = [...mockLessons];
-      let localMedia = [...mockMedia];
-      let localExercises = [...mockExercises];
-      let localApprovals = [...mockApprovalRequests];
-      let localLogs = [...mockLogs];
+      let localCourses: Course[] = [];
+      let localLessons: Lesson[] = [];
+      let localMedia: MediaAsset[] = [];
+      let localExercises: Exercise[] = [];
+      let localApprovals: ApprovalRequest[] = [];
+      let localLogs: VersionLog[] = [];
 
       if (cachedCms) {
         try {
@@ -434,7 +229,7 @@ export const EducationalCMS: React.FC = () => {
           });
         }
       } catch (e) {
-        console.log("Firestore media_assets not readable, using cache/mock.");
+        console.warn("Firestore media_assets not readable; showing persisted cache only.");
       }
 
       // Try loading exercises
@@ -452,7 +247,7 @@ export const EducationalCMS: React.FC = () => {
           });
         }
       } catch (e) {
-        console.log("Firestore exercises not readable, using cache/mock.");
+        console.warn("Firestore exercises not readable; showing persisted cache only.");
       }
 
       // Sort courses by status (Published, In Review, Draft) and updatedAt/createdAt
@@ -781,29 +576,37 @@ export const EducationalCMS: React.FC = () => {
     setIsLessonModalOpen(false);
   };
 
-  // Media Library Upload & Analysis simulation (Cloud Functions & Whisper)
+  // Media Library upload backed by Firebase Storage and the analysis API.
   const handleMediaUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!mediaForm.fileName || !mediaForm.title) {
-      addToast("Nome de arquivo e título são obrigatórios.", "error");
+    if (!mediaFile || !mediaForm.title || !user) {
+      addToast("Seleciona um ficheiro, informa o título e inicia sessão.", "error");
       return;
     }
 
     setAnalyzingMedia(true);
-    setCloudFunctionLogs([`[${new Date().toISOString()}] 🚀 Upload simulado em andamento...`]);
+    setCloudFunctionLogs([`[${new Date().toISOString()}] Upload iniciado no Firebase Storage.`]);
 
     const timestamp = new Date().toISOString();
 
     try {
+      if (mediaFile.size > 15 * 1024 * 1024) throw new Error('FILE_TOO_LARGE');
+      const path = `cms-media/${user.uid}/${crypto.randomUUID()}-${mediaFile.name}`;
+      const target = storageRef(getStorage(), path);
+      await uploadBytes(target, mediaFile, { contentType: mediaFile.type });
+      const fileUrl = await getDownloadURL(target);
+      const token = await user.getIdToken();
       const response = await fetch("/api/cms/media-analyze", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           mediaType: mediaForm.type,
-          fileName: mediaForm.fileName,
-          fileUrl: `https://storage.googleapis.com/lingolive-media-bucket/${mediaForm.fileName}`
+          fileName: mediaFile.name,
+          fileUrl
         })
       });
+
+      if (!response.ok) throw new Error('MEDIA_ANALYSIS_FAILED');
 
       const parsed = await response.json();
 
@@ -816,11 +619,11 @@ export const EducationalCMS: React.FC = () => {
       const newMedia: MediaAsset = {
         id: mediaId,
         title: parsed.suggestedTitle || mediaForm.title!,
-        fileName: mediaForm.fileName!,
+        fileName: mediaFile.name,
         type: mediaForm.type || "pdf",
-        size: mediaForm.size || "2.1 MB",
+        size: `${(mediaFile.size / 1024 / 1024).toFixed(2)} MB`,
         tags: parsed.tags || ["automático"],
-        url: parsed.fileUrl || `https://storage.googleapis.com/lingolive-media-bucket/${mediaForm.fileName}`,
+        url: fileUrl,
         whisperTranscript: parsed.whisperTranscript || "",
         author: user?.displayName || "Sérgio Uragan",
         status: "active",
@@ -841,16 +644,14 @@ export const EducationalCMS: React.FC = () => {
       await handleSave("media_assets", mediaId, newMedia, "Recurso de mídia arquivado e analisado");
       addToast(`Análise concluída via Cloud Functions! Tags auto-geradas: ${newMedia.tags.join(", ")}`, "success");
       
-      // Keep logs visible briefly then close
-      setTimeout(() => {
-        setAnalyzingMedia(false);
-        setIsMediaModalOpen(false);
-        setCloudFunctionLogs([]);
-      }, 3500);
+      setAnalyzingMedia(false);
+      setIsMediaModalOpen(false);
+      setMediaFile(null);
+      setCloudFunctionLogs([]);
 
     } catch (error) {
       console.error(error);
-      addToast("Erro na simulação do processador de mídia.", "error");
+      addToast("O upload ou a análise não foi confirmado. O recurso não foi catalogado.", "error");
       setAnalyzingMedia(false);
     }
   };
@@ -2209,11 +2010,15 @@ export const EducationalCMS: React.FC = () => {
 
             <form onSubmit={handleMediaUpload} className="p-6 space-y-4">
               
-              {/* Fake Drag & drop card */}
               <div className="border-2 border-dashed border-slate-200 p-6 rounded-2xl text-center bg-slate-50 relative">
                 <Volume2 className="w-8 h-8 text-indigo-500 mx-auto mb-2 animate-bounce" />
                 <span className="text-xs font-bold text-slate-700 block">Solte os seus ficheiros de áudio, imagem ou PDF aqui</span>
                 <span className="text-[10px] text-slate-400 block mt-1">Suporta MP3, WAV, PNG, JPG, PDF (Max 15MB)</span>
+                <input type="file" required accept="audio/*,image/*,video/*,.pdf" onChange={event => {
+                  const file = event.target.files?.[0] ?? null;
+                  setMediaFile(file);
+                  if (file) setMediaForm(previous => ({ ...previous, fileName: file.name, size: `${(file.size / 1024 / 1024).toFixed(2)} MB` }));
+                }} className="mt-3 block w-full text-xs text-slate-600" />
               </div>
 
               <div>
@@ -2233,7 +2038,7 @@ export const EducationalCMS: React.FC = () => {
                   <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nome do Arquivo</label>
                   <input
                     type="text"
-                    required
+                    readOnly
                     value={mediaForm.fileName || ""}
                     onChange={(e) => setMediaForm({ ...mediaForm, fileName: e.target.value })}
                     placeholder="Ex: pronuncia_kamba.mp3"
@@ -2256,7 +2061,7 @@ export const EducationalCMS: React.FC = () => {
                 </div>
               </div>
 
-              {/* Cloud Function logs terminal simulation */}
+              {/* Verified processing log returned by the backend */}
               {analyzingMedia && (
                 <div className="bg-slate-900 text-green-400 p-4 rounded-xl font-mono text-[10px] space-y-1.5 max-h-32 overflow-y-auto">
                   <div className="text-white border-b border-slate-800 pb-1 flex justify-between items-center">

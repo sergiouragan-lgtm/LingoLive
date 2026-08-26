@@ -590,7 +590,7 @@ Responda APENAS em formato JSON, exatamente assim:
 });
 
 // CMS AI Generator Route - Generates high-quality language learning exercises
-router.post("/cms/generate-exercise", async (req: any, res) => {
+router.post("/cms/generate-exercise", requireAuth, async (req: any, res) => {
   try {
     const { language, proficiency, topic, type } = req.body;
     if (!language || !proficiency || !topic || !type) {
@@ -631,56 +631,8 @@ Type of Question: ${type} (can be: 'multiple-choice', 'true-false', 'fill-in-bla
       const parsedJSON = JSON.parse(response.text || "[]");
       res.status(200).json({ exercises: parsedJSON });
     } catch (apiError: any) {
-      console.warn("Gemini call for CMS exercise generation failed. Using premium local simulation database fallback:", apiError.message);
-      
-      // Smart Fallback Questions
-      const simulatedFallbacks: Record<string, any[]> = {
-        "multiple-choice": [
-          {
-            "id": "mc_local_1",
-            "question": `Qual é a opção que traduz corretamente '${topic}' para ${language}?`,
-            "options": ["Opção Correta", "Opção Incorreta A", "Opção Incorreta B", "Opção Incorreta C"],
-            "answer": "Opção Correta",
-            "explanation": "Explicação pedagógica automática sobre a concordância e vocabulário contextualizado.",
-            "difficulty": proficiency,
-            "tags": [topic.toLowerCase().replace(/\s+/g, '_'), "vocabulary"]
-          },
-          {
-            "id": "mc_local_2",
-            "question": `Completa a frase correspondente ao nível ${proficiency}: "Nós __________ a Angola no próximo mês."`,
-            "options": ["vamos", "ir", "fomos", "iremos"],
-            "answer": "vamos",
-            "explanation": "Em português, a locução de futuro imediato usa o presente do verbo ir + infinitivo.",
-            "difficulty": proficiency,
-            "tags": ["grammar", "verbs"]
-          }
-        ],
-        "true-false": [
-          {
-            "id": "tf_local_1",
-            "question": `A palavra '${topic}' é usada como um termo formal no idioma ${language}?`,
-            "options": ["Verdadeiro", "Falso"],
-            "answer": "Falso",
-            "explanation": "Este termo é comumente classificado como linguagem coloquial ou regional de nível intermédio.",
-            "difficulty": proficiency,
-            "tags": ["vocabulary", "formal-usage"]
-          }
-        ],
-        "fill-in-blanks": [
-          {
-            "id": "fib_local_1",
-            "question": `Preenche o espaço: "O kamba de Angola gosta muito de comer [_____] com peixe seco."`,
-            "options": [],
-            "answer": "funge",
-            "explanation": "O funge é o prato tradicional angolano mais célebre feito de mandioca ou milho.",
-            "difficulty": proficiency,
-            "tags": ["culture", "angola"]
-          }
-        ]
-      };
-
-      const selectedFallback = simulatedFallbacks[type] || simulatedFallbacks["multiple-choice"];
-      res.status(200).json({ exercises: selectedFallback });
+      console.warn("Gemini call for CMS exercise generation failed:", apiError.message);
+      return res.status(502).json({ error: "O gerador de exercícios não confirmou conteúdo." });
     }
   } catch (error: any) {
     console.error("Error in generating CMS exercises:", error);
@@ -689,7 +641,7 @@ Type of Question: ${type} (can be: 'multiple-choice', 'true-false', 'fill-in-bla
 });
 
 // Simulated Storage and Cloud Functions API - Analyzes uploaded media using Gemini or robust local heuristics
-router.post("/cms/media-analyze", async (req: any, res) => {
+router.post("/cms/media-analyze", requireAuth, async (req: any, res) => {
   try {
     const { mediaType, fileName, fileUrl } = req.body;
     if (!mediaType || !fileName) {
@@ -698,14 +650,14 @@ router.post("/cms/media-analyze", async (req: any, res) => {
 
     const timestamp = new Date().toISOString();
     const systemInstruction = `You are a high-performance Cloud Functions analyzer for an Educational CMS.
-Analyze the file name and return a structured JSON configuration mimicking Cloud Functions and Whisper API auto-transcription/OCR pipelines.
+Analyze the supplied media metadata and return a structured JSON description. Do not claim that OCR or transcription occurred unless the file content was actually analyzed.
 Do NOT wrap output in code blocks, return pure JSON.
 
 The response schema MUST be:
 {
   "suggestedTitle": "string (a polished user-friendly title)",
   "tags": ["array of 3 suggested tags"],
-  "whisperTranscript": "string (if mediaType is 'audio' or 'video', simulate Whisper API transcription. Else if image/pdf, extract hypothetical OCR text or summaries. Max 2 sentences)",
+  "whisperTranscript": "string (leave empty because this endpoint receives metadata, not file bytes)",
   "suggestedMetadata": {
     "language": "string (Portuguese / English / etc.)",
     "proficiency": "Beginner" | "Intermediate" | "Advanced",
@@ -714,7 +666,7 @@ The response schema MUST be:
   }
 }`;
 
-    const promptText = `Analyze this file and simulate Whisper API transcription or Image OCR/classification:
+    const promptText = `Analyze only the following file metadata and do not invent its contents:
 File Name: ${fileName}
 Media Type: ${mediaType}
 URL: ${fileUrl || 'Local Workspace Blob'}`;
@@ -731,53 +683,17 @@ URL: ${fileUrl || 'Local Workspace Blob'}`;
       });
       resultJSON = JSON.parse(response.text || "{}");
     } catch (apiError: any) {
-      console.warn("Gemini call for media analyzer failed, using high-availability local rules:", apiError.message);
-      
-      // Robust fallbacks based on files
-      let suggestedTitle = fileName.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
-      suggestedTitle = suggestedTitle.charAt(0).toUpperCase() + suggestedTitle.slice(1);
-      
-      let tags = ["aula", "multimédia", "lingolive"];
-      let transcript = "Documento ou imagem analisados com sucesso pelo motor integrado.";
-      let estDur = "5 min";
-
-      if (mediaType === "audio" || mediaType === "video") {
-        tags = ["áudio-aula", "compreensão-oral", "pronúncia"];
-        transcript = "[Whisper API Transcrição Automática]: Olá a todos! Bem-vindos ao LingoLive. Hoje vamos abordar expressões cotidianas e culturais em Angola.";
-        estDur = "10 min";
-      } else if (mediaType === "image") {
-        tags = ["visual", "vocabulário-gráfico", "ilustração"];
-        transcript = "[OCR/Vision AI]: Imagem contendo ilustrações pedagógicas para identificação de objetos e ações do dia-a-dia.";
-        estDur = "3 min";
-      } else if (mediaType === "pdf") {
-        tags = ["leitura", "gramática", "pdf-exercícios"];
-        transcript = "[PDF Parser]: Sumário executivo da lição contendo explicações gramaticais detalhadas de nível intermédio e fichas de exercícios adicionais.";
-        estDur = "15 min";
-      }
-
-      resultJSON = {
-        suggestedTitle,
-        tags,
-        whisperTranscript: transcript,
-        suggestedMetadata: {
-          language: "Português (Angola)",
-          proficiency: "Intermediate",
-          estimatedDuration: estDur,
-          description: `Recurso educativo do tipo ${mediaType} processado automaticamente.`
-        }
-      };
+      console.warn("Gemini media metadata analysis failed:", apiError.message);
+      return res.status(502).json({ error: "A análise de mídia não confirmou um resultado." });
     }
 
-    // Generate real-time Cloud Functions logs
+    // Report only operations performed by this endpoint.
     const processingLogs = [
-      `[${timestamp}] 🚀 Cloud Function "onMediaUploadedTrigger" started.`,
+      `[${timestamp}] Media metadata analysis started.`,
       `[${timestamp}] 📁 Detected resource type: "${mediaType}" | FileName: "${fileName}"`,
-      mediaType === "audio" || mediaType === "video" 
-        ? `[${timestamp}] 🎙️ Routing to Whisper API v3 for high-fidelity audio transcription...`
-        : `[${timestamp}] 👁️ Routing to Google Cloud Vision API for OCR and visual tagging...`,
-      `[${timestamp}] 🧠 Correlating context with LLM Metadata Generator...`,
+      `[${timestamp}] Metadata sent to the configured AI provider.`,
       `[${timestamp}] 🏷️ Automatically generated tags: ${JSON.stringify(resultJSON.tags)}`,
-      `[${timestamp}] ✅ Processing complete. Firestore document updated securely.`
+      `[${timestamp}] Analysis response validated.`
     ];
 
     res.status(200).json({

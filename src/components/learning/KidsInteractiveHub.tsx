@@ -90,6 +90,16 @@ interface KidsInteractiveHubProps {
   language: Language;
 }
 
+export function scoreKidsPronunciation(spoken: string, target: string): number {
+  const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+  const heard = normalize(spoken);
+  const expected = normalize(target);
+  if (!heard || !expected) return 0;
+  if (heard === expected) return 3;
+  if (heard.includes(expected) || expected.includes(heard)) return 2;
+  return 1;
+}
+
 export default function KidsInteractiveHub({ language }: KidsInteractiveHubProps) {
   const [selectedWordId, setSelectedWordId] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
@@ -183,7 +193,7 @@ export default function KidsInteractiveHub({ language }: KidsInteractiveHubProps
     setStars(0);
     playBeep("mic");
 
-    // Standard webkitSpeechRecognition for real evaluation, with cute responsive simulation if offline/blocked
+    // Browser speech recognition with evidence-based scoring.
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     
     if (SpeechRecognition) {
@@ -198,18 +208,22 @@ export default function KidsInteractiveHub({ language }: KidsInteractiveHubProps
                                    KIDS_WORDS.find(w => w.id === selectedWordId)?.translations["pt"];
         const targetWord = currentTranslation?.word.split(" ")[0].toLowerCase() || "";
 
-        console.log("Kid spoke:", spoken, "Target:", targetWord);
-
         setIsRecording(false);
-        playBeep("success");
-        setStars(3);
-        setMicFeedback(`Incrível! Você falou: "${spoken}"! Parabéns! 🎉`);
+        const score = scoreKidsPronunciation(spoken, targetWord);
+        setStars(score);
+        if (score >= 2) playBeep("success");
+        setMicFeedback(score === 3
+          ? `Muito bem! Ouvimos "${spoken}". 🌟`
+          : score === 2
+            ? `Quase perfeito! Ouvimos "${spoken}". Escuta e tenta mais uma vez.`
+            : `Ouvimos "${spoken}". Vamos repetir devagar juntos.`);
       };
 
       recognition.onerror = (err: any) => {
         console.warn("Speech recognition error:", err);
-        // Delightful fallback animation simulation so it NEVER fails for kids
-        simulateSuccess();
+        setIsRecording(false);
+        setStars(0);
+        setMicFeedback("Não conseguimos ouvir desta vez. Tenta novamente ou pede ajuda a um adulto.");
       };
 
       recognition.onend = () => {
@@ -218,24 +232,10 @@ export default function KidsInteractiveHub({ language }: KidsInteractiveHubProps
 
       recognition.start();
     } else {
-      // Fallback playful simulation
-      setTimeout(() => {
-        simulateSuccess();
-      }, 2000);
+      setIsRecording(false);
+      setStars(0);
+      setMicFeedback("Este navegador não consegue avaliar a voz. Podes continuar a ouvir as palavras.");
     }
-  };
-
-  const simulateSuccess = () => {
-    setIsRecording(false);
-    playBeep("success");
-    const score = Math.floor(Math.random() * 2) + 2; // 2 or 3 stars
-    setStars(score);
-    const feedbackPhrases = [
-      "Incrível! Pronúncia maravilhosa! 🌟",
-      "Perfeito! Você fala como um nativo! 🐯",
-      "Espetacular! Nota 10! 🚀"
-    ];
-    setMicFeedback(feedbackPhrases[Math.floor(Math.random() * feedbackPhrases.length)]);
   };
 
   const activeWordObj = KIDS_WORDS.find(w => w.id === selectedWordId);

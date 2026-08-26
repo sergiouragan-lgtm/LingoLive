@@ -118,10 +118,10 @@ export const AssessmentEngine: React.FC = () => {
     }
 
     if (candidates.length > 0) {
-      // Pick random from the best matches
+      // Deterministic adaptive selection: closest difficulty, then stable ID.
       const bestCandidates = candidates.filter(q => q.difficulty === candidates[0].difficulty);
-      const randomQ = bestCandidates[Math.floor(Math.random() * bestCandidates.length)];
-      setCurrentQuestion(randomQ);
+      bestCandidates.sort((a, b) => a.id.localeCompare(b.id));
+      setCurrentQuestion(bestCandidates[0]);
     } else {
       // No more questions available
       setState(prev => ({ ...prev, isFinished: true }));
