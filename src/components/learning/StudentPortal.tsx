@@ -11,6 +11,7 @@ import { db, auth } from "../../firebase";
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import { useToast } from "../../context/ToastContext";
 import { useUserRole } from "../../context/UserRoleContext";
+import { LearningActivityEngine } from "../../application/learning/LearningActivityEngine";
 import { 
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, 
   Tooltip, BarChart, Bar, Legend, PieChart, Pie, Cell, LineChart, Line, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar
@@ -192,15 +193,12 @@ export const StudentPortal: React.FC<{ setView?: (v: string) => void }> = ({ set
         throw new Error();
       }
     } catch (e) {
-      setTimeout(() => {
-        setAiMessages(prev => [...prev, { 
-          sender: "AI Tutor", 
-          text: `Muito bem! Disseste de forma excelente. Em Kimbundu dizemos: 'Mwazekeleny, mbeji kudi mabaia?' (Bom dia, quanto custa?). Continua com o ótimo esforço!`, 
-          time: "Agora" 
-        }]);
-        setGrammarTips("Dica do Co-Pilot: Lembra-te de colocar o prefixo 'M-' para o plural ao saudar um grupo de comerciantes.");
-        saveGamification(xp + 15, coins + 2);
-      }, 1000);
+      setAiMessages(prev => [...prev, {
+        sender: "AI Tutor",
+        text: "Não consegui analisar esta mensagem agora. A tua resposta foi preservada; tenta novamente quando a ligação estiver disponível.",
+        time: "Agora"
+      }]);
+      addToast("Tutor temporariamente indisponível. Nenhum XP foi atribuído.", "info");
     } finally {
       setSendingAi(false);
     }
@@ -243,11 +241,12 @@ export const StudentPortal: React.FC<{ setView?: (v: string) => void }> = ({ set
     }, 200);
   };
 
-  // D. Mock Exam Simulation
+  // D. CEFR practice exam
   const [examStarted, setExamStarted] = useState<boolean>(false);
   const [examScore, setExamScore] = useState<number | null>(null);
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState<number>(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
+  const [examAnswers, setExamAnswers] = useState<Record<string, number>>({});
   const [examFinished, setExamFinished] = useState<boolean>(false);
 
   const examQuestions: PracticeQuestion[] = [
@@ -276,6 +275,7 @@ export const StudentPortal: React.FC<{ setView?: (v: string) => void }> = ({ set
 
   const handleAnswerQuestion = (index: number) => {
     setSelectedAnswer(index);
+    setExamAnswers(previous => ({ ...previous, [examQuestions[currentQuestionIdx].id]: index }));
   };
 
   const handleNextExamQuestion = () => {
@@ -284,13 +284,24 @@ export const StudentPortal: React.FC<{ setView?: (v: string) => void }> = ({ set
       setCurrentQuestionIdx(currentQuestionIdx + 1);
       setSelectedAnswer(null);
     } else {
-      // Calculate score
-      let correct = 0;
-      // In a real flow we would collect all answers, here we simulate based on this last actions
+      const finalAnswers = { ...examAnswers, [examQuestions[currentQuestionIdx].id]: selectedAnswer };
+      const normalizedScore = LearningActivityEngine.scoreAnswers(examQuestions, finalAnswers);
+      const feedback = LearningActivityEngine.evaluate({
+        id: `portal-exam-${Date.now()}`,
+        userId: user?.uid ?? 'anonymous',
+        courseId: 'kimbundu-regional',
+        lessonId: 'cefr-practice',
+        activityId: 'regional-language-exam',
+        kind: 'quiz',
+        skill: 'Reading',
+        score: normalizedScore,
+        durationSeconds: 0,
+        completedAt: new Date().toISOString(),
+      }, 0);
       setExamFinished(true);
-      setExamScore(88); // mock score
-      saveGamification(xp + 100, coins + 20);
-      addToast("Parabéns! Exame simulado CEFR concluído com sucesso.", "success");
+      setExamScore(Math.round(feedback.normalizedScore * 100));
+      saveGamification(xp + feedback.earnedXp, coins + (feedback.mastered ? 5 : 1));
+      addToast(feedback.mastered ? "Parabéns! Exame CEFR concluído com domínio." : "Exame concluído. Revê as respostas e tenta novamente.", feedback.mastered ? "success" : "info");
     }
   };
 

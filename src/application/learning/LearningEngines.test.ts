@@ -3,6 +3,9 @@ import { CurriculumEngine } from '../curriculum/CurriculumEngine';
 import { CefrAssessmentEngine } from '../cefr/CefrAssessmentEngine';
 import { LearningProgressService } from './LearningProgressService';
 import { LearningProgress } from '../../domain/learning/LearningProgress';
+import { LearningActivityEngine } from './LearningActivityEngine';
+import { LearningProgressMerger } from './LearningProgressMerger';
+import { LearningExperiencePolicy } from './LearningExperiencePolicy';
 
 const nodes = [
   { id: 'a1', type: 'Cambridge' as const, title: 'A1', competencyId: 'speaking-a1', dependencies: [], isCompleted: false },
@@ -14,6 +17,42 @@ describe('learning engines', () => {
     expect(CurriculumEngine.validateAcyclic(nodes)).toBe(true);
     expect(CurriculumEngine.getUnlockedNodes(nodes).map(node => node.id)).toEqual(['a1']);
     expect(CurriculumEngine.calculateProgress([])).toBe(0);
+  });
+
+  it.each([
+    ['Reading', 'reading'], ['Writing', 'writing'], ['Listening', 'listening'], ['Speaking', 'speaking'],
+  ] as const)('records %s activity evidence with immediate feedback', (skill, kind) => {
+    const attempt = { id: `a-${kind}`, userId: 'u1', courseId: 'c1', lessonId: 'l1', activityId: kind, kind, skill, score: 0.85, durationSeconds: 60, completedAt: '2026-08-26T10:00:00.000Z' };
+    const feedback = LearningActivityEngine.evaluate(attempt, 1, new Date('2026-08-26T10:00:00.000Z'));
+    expect(feedback.mastered).toBe(true);
+    expect(feedback.earnedXp).toBe(15);
+    expect(feedback.nextReviewAt).toBe('2026-08-29T10:00:00.000Z');
+  });
+
+  it('scores real quiz answers instead of returning a fixed result', () => {
+    const questions = [{ id: 'q1', correctAnswer: 1 }, { id: 'q2', correctAnswer: 0 }, { id: 'q3', correctAnswer: 2 }];
+    expect(LearningActivityEngine.scoreAnswers(questions, { q1: 1, q2: 0, q3: 1 })).toBe(0.667);
+    expect(LearningActivityEngine.scoreAnswers(questions, {})).toBe(0);
+  });
+
+  it('reconciles progress from two devices without losing completions or mastery', () => {
+    const base: LearningProgress = { userId: 'u1', courseId: 'c1', language: 'en', cefrLevel: 'A1', completedLessonIds: ['l1'], unlockedLessonIds: ['l2'], mastery: [{ skill: 'Reading', score: 0.8, attempts: 2, updatedAt: '2026-08-25T10:00:00.000Z' }], xp: 10, streakDays: 2, updatedAt: '2026-08-25T10:00:00.000Z', version: 2 };
+    const remote = { ...base, completedLessonIds: ['l2'], mastery: [{ skill: 'Reading' as const, score: 0.9, attempts: 3, updatedAt: '2026-08-26T10:00:00.000Z' }], xp: 20, updatedAt: '2026-08-26T10:00:00.000Z', version: 3 };
+    const merged = LearningProgressMerger.merge(base, remote);
+    expect(merged.completedLessonIds.sort()).toEqual(['l1', 'l2']);
+    expect(merged.mastery[0].score).toBe(0.9);
+    expect(merged.xp).toBe(20);
+    expect(merged.version).toBe(4);
+  });
+
+  it.each([
+    ['CHILD', 10, false],
+    ['TEEN', 20, true],
+    ['ADULT', 30, true],
+  ] as const)('applies the safe %s learning experience', (group, minutes, allowOpenEndedAi) => {
+    const experience = LearningExperiencePolicy.forAgeGroup(group);
+    expect(experience.sessionMinutes).toBe(minutes);
+    expect(experience.allowOpenEndedAi).toBe(allowOpenEndedAi);
   });
 
   it('rejects cyclic curriculum dependencies', () => {
