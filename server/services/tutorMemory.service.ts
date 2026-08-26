@@ -1,6 +1,7 @@
 import { TutorSessionContext } from "../../src/features/tutor/tutorSessionContextBuilder";
 
 export interface TutorMemory {
+  readonly enabled: boolean;
   readonly userId: string;
   readonly vocabularyMastered: readonly string[];
   readonly grammarWeaknesses: readonly string[];
@@ -18,6 +19,16 @@ export interface TutorFeedbackEvidence {
   fluencyLevel?: unknown;
   grammarMistakes?: unknown;
   vocabularyTips?: unknown;
+}
+
+export interface TutorMemoryUpdate {
+  enabled?: unknown;
+  learningGoals?: unknown;
+  preferredStyle?: unknown;
+  motivation?: unknown;
+  studyFrequency?: unknown;
+  grammarWeaknesses?: unknown;
+  vocabularyMastered?: unknown;
 }
 
 export const MEMORY_SECTION_HEADER = "[LINGOLIVE LONG-TERM LEARNER MEMORY]";
@@ -70,6 +81,7 @@ export function normalizeTutorMemory(raw: unknown, userId: string): TutorMemory 
 
   return Object.freeze({
     userId,
+    enabled: memory.enabled !== false,
     vocabularyMastered: Object.freeze(safeList(memory.vocabularyMastered)),
     grammarWeaknesses: Object.freeze(safeList(memory.grammarWeaknesses)),
     preferredStyle: safeString(memory.preferredStyle, 40) || "balanced",
@@ -100,7 +112,7 @@ export function appendTutorMemoryInstruction(
   systemInstruction: string,
   memory: TutorMemory
 ): string {
-  if (!systemInstruction || systemInstruction.includes(MEMORY_SECTION_HEADER)) {
+  if (!systemInstruction || !memory.enabled || systemInstruction.includes(MEMORY_SECTION_HEADER)) {
     return systemInstruction;
   }
   return `${systemInstruction}\n\n${buildTutorMemoryInstruction(memory)}`;
@@ -111,6 +123,7 @@ export function recordTutorTurn(
   context: TutorSessionContext,
   now = new Date()
 ): TutorMemory {
+  if (!memory.enabled) return memory;
   const goals = [
     ...memory.learningGoals,
     ...context.sessionGoals.map((goal) => safeMemoryText(goal)).filter((goal): goal is string => Boolean(goal)),
@@ -133,6 +146,7 @@ export function applyTutorFeedback(
   memory: TutorMemory,
   evidence: TutorFeedbackEvidence
 ): TutorMemory {
+  if (!memory.enabled) return memory;
   const mistakes = Array.isArray(evidence.grammarMistakes)
     ? evidence.grammarMistakes.map((item) => {
         const record = item && typeof item === "object" ? item as Record<string, unknown> : {};
@@ -151,5 +165,34 @@ export function applyTutorFeedback(
     cefrLevel: safeString(evidence.fluencyLevel, 8) || memory.cefrLevel,
     grammarWeaknesses: [...memory.grammarWeaknesses, ...mistakes],
     vocabularyMastered: [...memory.vocabularyMastered, ...vocabulary],
+  }, memory.userId);
+}
+
+export function updateTutorMemoryPreferences(
+  memory: TutorMemory,
+  patch: TutorMemoryUpdate
+): TutorMemory {
+  const update = patch && typeof patch === "object" ? patch : {};
+  return normalizeTutorMemory({
+    ...memory,
+    enabled: typeof update.enabled === "boolean" ? update.enabled : memory.enabled,
+    learningGoals: update.learningGoals === undefined
+      ? memory.learningGoals
+      : safeList(update.learningGoals, 8),
+    preferredStyle: update.preferredStyle === undefined
+      ? memory.preferredStyle
+      : safeMemoryText(update.preferredStyle, 40) || "balanced",
+    motivation: update.motivation === undefined
+      ? memory.motivation
+      : safeMemoryText(update.motivation, 120) || "",
+    studyFrequency: update.studyFrequency === undefined
+      ? memory.studyFrequency
+      : safeMemoryText(update.studyFrequency, 40) || "",
+    grammarWeaknesses: update.grammarWeaknesses === undefined
+      ? memory.grammarWeaknesses
+      : safeList(update.grammarWeaknesses),
+    vocabularyMastered: update.vocabularyMastered === undefined
+      ? memory.vocabularyMastered
+      : safeList(update.vocabularyMastered),
   }, memory.userId);
 }

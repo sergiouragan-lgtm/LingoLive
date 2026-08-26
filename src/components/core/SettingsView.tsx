@@ -12,6 +12,7 @@ import { db, auth } from '../../firebase';
 import { reauthenticateWithCredential, EmailAuthProvider, deleteUser } from 'firebase/auth';
 import { UserRepository } from '../../repositories/user.repository';
 import { simulateStreakRiskNotification } from '../../services/streakNotification.service';
+import { LearningMemoryPanel } from '../learning/LearningMemoryPanel';
 import {
   isPushNotificationSupported,
   requestNotificationPermission,
@@ -886,6 +887,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <span>Configuração sincronizada com os canais locais e de nuvem.</span>
           </div>
         </div>
+
+        <LearningMemoryPanel userId={userId} />
 
         {/* Card: Configuração de Voz Neural de Alta Fidelidade (TTS) */}
         <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between" id="neural-tts-voice-card">

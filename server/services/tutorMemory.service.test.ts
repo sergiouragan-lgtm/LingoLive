@@ -5,6 +5,7 @@ import {
   applyTutorFeedback,
   normalizeTutorMemory,
   recordTutorTurn,
+  updateTutorMemoryPreferences,
 } from "./tutorMemory.service";
 
 describe("tutorMemory service", () => {
@@ -75,5 +76,19 @@ describe("tutorMemory service", () => {
 
     expect(updated.grammarWeaknesses).toEqual([]);
     expect(updated.vocabularyMastered).toEqual([]);
+  });
+
+  it("lets the learner disable and edit only bounded memory fields", () => {
+    const memory = normalizeTutorMemory({ learningGoals: ["Viagens"] }, "u1");
+    const updated = updateTutorMemoryPreferences(memory, {
+      enabled: false,
+      learningGoals: ["Trabalho", "Trabalho"],
+      preferredStyle: "gentle",
+    });
+
+    expect(updated.enabled).toBe(false);
+    expect(updated.learningGoals).toEqual(["Trabalho"]);
+    expect(updated.preferredStyle).toBe("gentle");
+    expect(recordTutorTurn(updated, buildTutorSessionContext({ sessionGoals: ["Outro"] }))).toBe(updated);
   });
 });

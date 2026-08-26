@@ -3,7 +3,7 @@ import { LRUCache } from 'lru-cache';
 import { requireAuth } from "../middleware/requireAuth";
 import { ai, generateContentWithRetry } from "../config/gemini";
 import { Type } from "@google/genai";
-import { safeGetDoc, safeSetDoc, safeAddDoc } from "../services/firestoreSafe.service";
+import { safeDeleteDoc, safeGetDoc, safeSetDoc, safeAddDoc } from "../services/firestoreSafe.service";
 import { NeuralMemoryEngine } from "../../src/types/neuralMemoryEngine";
 import { COUNTRY_DETAILS } from "../../src/data/localizationData";
 import { MemoriaCognitiva } from "../../src/types/neuralMemory";
@@ -26,6 +26,7 @@ import {
   applyTutorFeedback,
   normalizeTutorMemory,
   recordTutorTurn,
+  updateTutorMemoryPreferences,
 } from "../services/tutorMemory.service";
 
 const router = Router();
@@ -289,11 +290,13 @@ router.post("/feedback", requireAuth, feedbackLimiter, async (req: any, res) => 
 
     try {
       const currentMemory = await loadTutorMemory(userUid);
-      const updatedMemory = applyTutorFeedback(currentMemory, result);
-      await safeSetDoc("user_memory", userUid, {
-        ...updatedMemory,
-        lastUpdated: new Date().toISOString(),
-      });
+      if (currentMemory.enabled) {
+        const updatedMemory = applyTutorFeedback(currentMemory, result);
+        await safeSetDoc("user_memory", userUid, {
+          ...updatedMemory,
+          lastUpdated: new Date().toISOString(),
+        });
+      }
     } catch (memoryError) {
       console.error("Failed to consolidate tutor feedback memory:", memoryError);
     }
@@ -362,6 +365,38 @@ router.post("/feedback", requireAuth, feedbackLimiter, async (req: any, res) => 
   }
 });
 
+// Learner-facing long-term memory controls
+router.get("/tutor-memory", requireAuth, async (req: any, res) => {
+  const memory = await loadTutorMemory(req.user.uid);
+  res.json({ memory });
+});
+
+router.patch("/tutor-memory", requireAuth, async (req: any, res) => {
+  try {
+    const currentMemory = await loadTutorMemory(req.user.uid);
+    const updatedMemory = updateTutorMemoryPreferences(currentMemory, req.body || {});
+    const lastUpdated = new Date().toISOString();
+    await safeSetDoc("user_memory", req.user.uid, {
+      ...updatedMemory,
+      lastUpdated,
+    });
+    res.json({ memory: updatedMemory, lastUpdated });
+  } catch (error) {
+    console.error("Failed to update tutor memory preferences:", error);
+    res.status(500).json({ error: "Não foi possível atualizar a memória de aprendizagem." });
+  }
+});
+
+router.delete("/tutor-memory", requireAuth, async (req: any, res) => {
+  try {
+    await safeDeleteDoc("user_memory", req.user.uid);
+    res.status(204).send();
+  } catch (error) {
+    console.error("Failed to delete tutor memory:", error);
+    res.status(500).json({ error: "Não foi possível apagar a memória de aprendizagem." });
+  }
+});
+
 // 3. API endpoint for general AI Tutor Chat with rate limiter
 router.post("/ai-chat", requireAuth, chatLimiter, async (req: any, res) => {
   const { messages, task, userContext } = req.body;
@@ -407,18 +442,21 @@ router.post("/ai-chat", requireAuth, chatLimiter, async (req: any, res) => {
         completedAt
       );
       try {
-        await Promise.all([
+        const persistenceTasks: Promise<unknown>[] = [
           safeAddDoc("ai_sessions", {
             userId,
             type: task || 'chat',
             messages: [...messages, { role: 'assistant', text: response }],
             createdAt: completedAt.toISOString()
           }),
-          safeSetDoc("user_memory", userId, {
+        ];
+        if (currentMemory.enabled) {
+          persistenceTasks.push(safeSetDoc("user_memory", userId, {
             ...updatedMemory,
             lastUpdated: completedAt.toISOString(),
-          }),
-        ]);
+          }));
+        }
+        await Promise.all(persistenceTasks);
       } catch (memoryError) {
         console.error("Failed to persist tutor session memory:", memoryError);
       }

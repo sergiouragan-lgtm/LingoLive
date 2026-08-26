@@ -131,6 +131,22 @@ export async function safeSetDoc(
   return true;
 }
 
+export async function safeDeleteDoc(collectionName: string, docId: string) {
+  const key = `${collectionName}_${docId}`;
+  localMemoryDb.delete(key);
+
+  if (dbAdminUsable()) {
+    try {
+      await dbAdmin.collection(collectionName).doc(docId).delete();
+      return true;
+    } catch (e: any) {
+      logSandboxWarning(`delete on ${collectionName}/${docId}`, e);
+      if (!shouldFallback(e)) throw e;
+    }
+  }
+  return true;
+}
+
 export async function safeSetSubDoc(
   parentCollection: string,
   parentDocId: string,
