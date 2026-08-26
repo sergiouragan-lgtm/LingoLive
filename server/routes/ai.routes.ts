@@ -21,9 +21,25 @@ import {
   buildContextualTutorSystemInstruction,
   buildTutorContextFromRequest,
 } from "../services/tutorContext.service";
+import {
+  appendTutorMemoryInstruction,
+  applyTutorFeedback,
+  normalizeTutorMemory,
+  recordTutorTurn,
+} from "../services/tutorMemory.service";
 
 const router = Router();
 const phraseCache = new LRUCache<string, any>({ max: 500 });
+
+async function loadTutorMemory(userId: string) {
+  try {
+    const memoryDoc = await safeGetDoc("user_memory", userId);
+    return normalizeTutorMemory(memoryDoc.exists ? memoryDoc.data() : null, userId);
+  } catch (memoryError) {
+    console.error("Failed to load tutor memory; continuing without history:", memoryError);
+    return normalizeTutorMemory(null, userId);
+  }
+}
 
 // Smart Local Fallback generators for high availability when API quotas are exceeded
 function getLocalPhraseExplanation(phrase: string, language: string) {
@@ -173,6 +189,7 @@ router.post("/explain-phrase", requireAuth, explainPhraseLimiter, async (req: an
     });
 
     const result = JSON.parse(response.text || "{}");
+
     phraseCache.set(cacheKey, result);
     res.json(result);
   } catch (error: any) {
@@ -269,6 +286,17 @@ router.post("/feedback", requireAuth, feedbackLimiter, async (req: any, res) => 
     });
 
     const result = JSON.parse(response.text || "{}");
+
+    try {
+      const currentMemory = await loadTutorMemory(userUid);
+      const updatedMemory = applyTutorFeedback(currentMemory, result);
+      await safeSetDoc("user_memory", userUid, {
+        ...updatedMemory,
+        lastUpdated: new Date().toISOString(),
+      });
+    } catch (memoryError) {
+      console.error("Failed to consolidate tutor feedback memory:", memoryError);
+    }
     
     // Save success record to educator analytics
     try {
@@ -344,9 +372,13 @@ router.post("/ai-chat", requireAuth, chatLimiter, async (req: any, res) => {
   const context = userContext || { level: 'A1', languageLearning: ['English'], languageNative: 'Portuguese' };
   const userId = req.user.uid;
   const tutorSessionContext = buildTutorContextFromRequest(context);
-  const systemInstruction = buildContextualTutorSystemInstruction(tutorSessionContext);
   
   try {
+    const currentMemory = await loadTutorMemory(userId);
+    const systemInstruction = appendTutorMemoryInstruction(
+      buildContextualTutorSystemInstruction(tutorSessionContext),
+      currentMemory
+    );
     const response = await orchestrateAI({
       message: messages[messages.length - 1].text,
       userId,
@@ -368,12 +400,28 @@ router.post("/ai-chat", requireAuth, chatLimiter, async (req: any, res) => {
     });
     
     if (userId) {
-      await safeAddDoc("ai_sessions", {
-        userId,
-        type: task || 'chat',
-        messages: [...messages, { role: 'assistant', text: response }],
-        createdAt: new Date().toISOString()
-      });
+      const completedAt = new Date();
+      const updatedMemory = recordTutorTurn(
+        currentMemory,
+        tutorSessionContext,
+        completedAt
+      );
+      try {
+        await Promise.all([
+          safeAddDoc("ai_sessions", {
+            userId,
+            type: task || 'chat',
+            messages: [...messages, { role: 'assistant', text: response }],
+            createdAt: completedAt.toISOString()
+          }),
+          safeSetDoc("user_memory", userId, {
+            ...updatedMemory,
+            lastUpdated: completedAt.toISOString(),
+          }),
+        ]);
+      } catch (memoryError) {
+        console.error("Failed to persist tutor session memory:", memoryError);
+      }
     }
 
     res.json({ response });
