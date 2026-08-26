@@ -400,7 +400,7 @@ export const StudentPortal: React.FC<{ setView?: (v: string) => void }> = ({ set
     }
   };
 
-  // Goal Complete simulator
+  // Goal completion state
   const toggleGoalComplete = (goalId: string) => {
     setGoals(prev => prev.map(g => {
       if (g.id === goalId) {

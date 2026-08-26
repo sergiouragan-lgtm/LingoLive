@@ -351,7 +351,7 @@ export const LearningAnalyticsPlatform: React.FC = () => {
   };
 
   // ----------------------------------------------------------------------
-  // AI INSIGHT GENERATOR USING BACKEND ROUTE OR HIGH-FIDELITY SIMULATION
+  // AI insight generator backed by the authenticated server route.
   // ----------------------------------------------------------------------
   const handleGenerateAIInsights = async () => {
     if (!selectedStudent) {
