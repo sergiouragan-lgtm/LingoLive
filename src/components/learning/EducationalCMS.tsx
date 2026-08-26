@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { db, auth } from "../../firebase";
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { 
   collection, doc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, 
   query, where, orderBy, limit, Timestamp 
@@ -139,6 +140,7 @@ export const EducationalCMS: React.FC = () => {
 
   const [isMediaModalOpen, setIsMediaModalOpen] = useState(false);
   const [mediaForm, setMediaForm] = useState<Partial<MediaAsset>>({ type: "pdf" });
+  const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [analyzingMedia, setAnalyzingMedia] = useState(false);
   const [cloudFunctionLogs, setCloudFunctionLogs] = useState<string[]>([]);
 
@@ -378,12 +380,12 @@ export const EducationalCMS: React.FC = () => {
 
       // Check for locally cached CMS changes so the user keeps state on reload
       const cachedCms = localStorage.getItem("lingolive_cms_cache");
-      let localCourses = [...mockCourses];
-      let localLessons = [...mockLessons];
-      let localMedia = [...mockMedia];
-      let localExercises = [...mockExercises];
-      let localApprovals = [...mockApprovalRequests];
-      let localLogs = [...mockLogs];
+      let localCourses: Course[] = [];
+      let localLessons: Lesson[] = [];
+      let localMedia: MediaAsset[] = [];
+      let localExercises: Exercise[] = [];
+      let localApprovals: ApprovalRequest[] = [];
+      let localLogs: VersionLog[] = [];
 
       if (cachedCms) {
         try {
@@ -434,7 +436,7 @@ export const EducationalCMS: React.FC = () => {
           });
         }
       } catch (e) {
-        console.log("Firestore media_assets not readable, using cache/mock.");
+        console.warn("Firestore media_assets not readable; showing persisted cache only.");
       }
 
       // Try loading exercises
@@ -452,7 +454,7 @@ export const EducationalCMS: React.FC = () => {
           });
         }
       } catch (e) {
-        console.log("Firestore exercises not readable, using cache/mock.");
+        console.warn("Firestore exercises not readable; showing persisted cache only.");
       }
 
       // Sort courses by status (Published, In Review, Draft) and updatedAt/createdAt
@@ -781,29 +783,37 @@ export const EducationalCMS: React.FC = () => {
     setIsLessonModalOpen(false);
   };
 
-  // Media Library Upload & Analysis simulation (Cloud Functions & Whisper)
+  // Media Library upload backed by Firebase Storage and the analysis API.
   const handleMediaUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!mediaForm.fileName || !mediaForm.title) {
-      addToast("Nome de arquivo e título são obrigatórios.", "error");
+    if (!mediaFile || !mediaForm.title || !user) {
+      addToast("Seleciona um ficheiro, informa o título e inicia sessão.", "error");
       return;
     }
 
     setAnalyzingMedia(true);
-    setCloudFunctionLogs([`[${new Date().toISOString()}] 🚀 Upload simulado em andamento...`]);
+    setCloudFunctionLogs([`[${new Date().toISOString()}] Upload iniciado no Firebase Storage.`]);
 
     const timestamp = new Date().toISOString();
 
     try {
+      if (mediaFile.size > 15 * 1024 * 1024) throw new Error('FILE_TOO_LARGE');
+      const path = `cms-media/${user.uid}/${crypto.randomUUID()}-${mediaFile.name}`;
+      const target = storageRef(getStorage(), path);
+      await uploadBytes(target, mediaFile, { contentType: mediaFile.type });
+      const fileUrl = await getDownloadURL(target);
+      const token = await user.getIdToken();
       const response = await fetch("/api/cms/media-analyze", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           mediaType: mediaForm.type,
-          fileName: mediaForm.fileName,
-          fileUrl: `https://storage.googleapis.com/lingolive-media-bucket/${mediaForm.fileName}`
+          fileName: mediaFile.name,
+          fileUrl
         })
       });
+
+      if (!response.ok) throw new Error('MEDIA_ANALYSIS_FAILED');
 
       const parsed = await response.json();
 
@@ -816,11 +826,11 @@ export const EducationalCMS: React.FC = () => {
       const newMedia: MediaAsset = {
         id: mediaId,
         title: parsed.suggestedTitle || mediaForm.title!,
-        fileName: mediaForm.fileName!,
+        fileName: mediaFile.name,
         type: mediaForm.type || "pdf",
-        size: mediaForm.size || "2.1 MB",
+        size: `${(mediaFile.size / 1024 / 1024).toFixed(2)} MB`,
         tags: parsed.tags || ["automático"],
-        url: parsed.fileUrl || `https://storage.googleapis.com/lingolive-media-bucket/${mediaForm.fileName}`,
+        url: fileUrl,
         whisperTranscript: parsed.whisperTranscript || "",
         author: user?.displayName || "Sérgio Uragan",
         status: "active",
@@ -841,16 +851,14 @@ export const EducationalCMS: React.FC = () => {
       await handleSave("media_assets", mediaId, newMedia, "Recurso de mídia arquivado e analisado");
       addToast(`Análise concluída via Cloud Functions! Tags auto-geradas: ${newMedia.tags.join(", ")}`, "success");
       
-      // Keep logs visible briefly then close
-      setTimeout(() => {
-        setAnalyzingMedia(false);
-        setIsMediaModalOpen(false);
-        setCloudFunctionLogs([]);
-      }, 3500);
+      setAnalyzingMedia(false);
+      setIsMediaModalOpen(false);
+      setMediaFile(null);
+      setCloudFunctionLogs([]);
 
     } catch (error) {
       console.error(error);
-      addToast("Erro na simulação do processador de mídia.", "error");
+      addToast("O upload ou a análise não foi confirmado. O recurso não foi catalogado.", "error");
       setAnalyzingMedia(false);
     }
   };
@@ -2209,11 +2217,15 @@ export const EducationalCMS: React.FC = () => {
 
             <form onSubmit={handleMediaUpload} className="p-6 space-y-4">
               
-              {/* Fake Drag & drop card */}
               <div className="border-2 border-dashed border-slate-200 p-6 rounded-2xl text-center bg-slate-50 relative">
                 <Volume2 className="w-8 h-8 text-indigo-500 mx-auto mb-2 animate-bounce" />
                 <span className="text-xs font-bold text-slate-700 block">Solte os seus ficheiros de áudio, imagem ou PDF aqui</span>
                 <span className="text-[10px] text-slate-400 block mt-1">Suporta MP3, WAV, PNG, JPG, PDF (Max 15MB)</span>
+                <input type="file" required accept="audio/*,image/*,video/*,.pdf" onChange={event => {
+                  const file = event.target.files?.[0] ?? null;
+                  setMediaFile(file);
+                  if (file) setMediaForm(previous => ({ ...previous, fileName: file.name, size: `${(file.size / 1024 / 1024).toFixed(2)} MB` }));
+                }} className="mt-3 block w-full text-xs text-slate-600" />
               </div>
 
               <div>
@@ -2233,7 +2245,7 @@ export const EducationalCMS: React.FC = () => {
                   <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nome do Arquivo</label>
                   <input
                     type="text"
-                    required
+                    readOnly
                     value={mediaForm.fileName || ""}
                     onChange={(e) => setMediaForm({ ...mediaForm, fileName: e.target.value })}
                     placeholder="Ex: pronuncia_kamba.mp3"

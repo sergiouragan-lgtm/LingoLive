@@ -87,7 +87,7 @@ export const PronunciationModule: React.FC<PronunciationModuleProps> = ({ onAddX
   const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
   const [recordedBase64, setRecordedBase64] = useState<string | null>(null);
   
-  // Waveform effect simulator
+  // Waveform derived from the real microphone analyser.
   const [waveHeights, setWaveHeights] = useState<number[]>(new Array(15).fill(4));
 
   // Evaluation States
@@ -103,6 +103,8 @@ export const PronunciationModule: React.FC<PronunciationModuleProps> = ({ onAddX
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<any>(null);
+  const analyserFrameRef = useRef<number | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
 
   // Monitor online status & offline queue
   useEffect(() => {
@@ -140,19 +142,6 @@ export const PronunciationModule: React.FC<PronunciationModuleProps> = ({ onAddX
     loadData();
   }, [service, result]);
 
-  // Handle waveform dynamic bounce during recording
-  useEffect(() => {
-    let animRef: any;
-    if (isRecording) {
-      animRef = setInterval(() => {
-        setWaveHeights(prev => prev.map(() => Math.floor(Math.random() * 24) + 6));
-      }, 100);
-    } else {
-      setWaveHeights(new Array(15).fill(4));
-    }
-    return () => clearInterval(animRef);
-  }, [isRecording]);
-
   // Timer counter for recording limit
   useEffect(() => {
     if (isRecording) {
@@ -180,6 +169,18 @@ export const PronunciationModule: React.FC<PronunciationModuleProps> = ({ onAddX
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const audioContext = new AudioContext();
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 64;
+      audioContext.createMediaStreamSource(stream).connect(analyser);
+      audioContextRef.current = audioContext;
+      const bins = new Uint8Array(analyser.frequencyBinCount);
+      const drawWaveform = () => {
+        analyser.getByteFrequencyData(bins);
+        setWaveHeights(Array.from(bins.slice(0, 15), value => Math.max(4, Math.round(value / 8))));
+        analyserFrameRef.current = requestAnimationFrame(drawWaveform);
+      };
+      drawWaveform();
       const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
       mediaRecorderRef.current = recorder;
 
@@ -204,6 +205,11 @@ export const PronunciationModule: React.FC<PronunciationModuleProps> = ({ onAddX
 
         // Stop all track streams to release microphone
         stream.getTracks().forEach(track => track.stop());
+        if (analyserFrameRef.current !== null) cancelAnimationFrame(analyserFrameRef.current);
+        analyserFrameRef.current = null;
+        audioContextRef.current?.close();
+        audioContextRef.current = null;
+        setWaveHeights(new Array(15).fill(4));
       };
 
       recorder.start();

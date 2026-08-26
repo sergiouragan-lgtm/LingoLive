@@ -285,33 +285,25 @@ export const LearningAnalyticsPlatform: React.FC = () => {
   }, [role]);
 
   const fallbackToDefaults = () => {
-    setStudents(defaultStudents);
-    setAggregateLogs(defaultAggregateLogs);
-    setExportHistory(defaultExportHistory);
-    setSelectedStudent(defaultStudents[0]);
+    setStudents([]);
+    setAggregateLogs([]);
+    setExportHistory([]);
+    setSelectedStudent(null);
   };
 
   const handleSyncFirestoreAggregations = async () => {
     setIsSyncing(true);
-    // Simulate query of actual firestore collections and aggregating raw study counters
-    setTimeout(async () => {
-      try {
-        // Safe check for Firestore connection
-        const snap = await getDocs(collection(db, "users_practice_sessions"));
-        console.log("Raw sessions queried count:", snap.size);
-      } catch (e) {
-        console.warn("Firestore connection sandbox limit. Working with isolated Aggregation Engine.");
-      }
-
-      // Append new aggregation logs representing updated pipeline
+    try {
+      const snap = await getDocs(collection(db, "users_practice_sessions"));
+      const timestamp = new Date().toISOString();
       const newLog: FirestoreAggregateLog = {
-        id: `agg-${Date.now()}`,
+        id: `agg-${crypto.randomUUID()}`,
         collection: "users_practice_sessions",
-        documentId: `agg_time_${Math.floor(Math.random() * 900)}`,
+        documentId: `snapshot_${timestamp}`,
         operation: "COUNT",
-        timestamp: new Date().toISOString(),
+        timestamp,
         status: "SUCCESS",
-        sizeBytes: 1024 + Math.floor(Math.random() * 2000)
+        sizeBytes: snap.size
       };
 
       const updatedLogs = [newLog, ...aggregateLogs];
@@ -325,21 +317,21 @@ export const LearningAnalyticsPlatform: React.FC = () => {
       }));
 
       setIsSyncing(false);
-      addToast("Agregadores do Firestore re-calculados e sincronizados!", "success");
-    }, 1500);
+      addToast(`Agregação confirmada: ${snap.size} sessões encontradas.`, "success");
+    } catch {
+      setIsSyncing(false);
+      addToast("A agregação Firestore falhou; nenhum resultado foi fabricado.", "error");
+    }
   };
 
-  const handleTriggerBigQueryExport = () => {
+  const handleTriggerBigQueryExport = async () => {
     setIsExporting(true);
-    setTimeout(() => {
-      const newExport: ExportPipelineEvent = {
-        id: `bq-tx-${Math.random().toString(16).substring(2, 6)}f`,
-        timestamp: new Date().toISOString(),
-        eventType: ["STUDENT_COMPLETION_EVENTS", "SPEECH_PRONUNCIATION_METRICS", "LEARNER_COMPLIANCE_AUDITS"][Math.floor(Math.random() * 3)],
-        rowsExported: 200 + Math.floor(Math.random() * 5000),
-        latencyMs: 150 + Math.floor(Math.random() * 400),
-        status: "COMPLETED"
-      };
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) throw new Error('AUTH_REQUIRED');
+      const response = await fetch('/api/analytics/bigquery-export', { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+      if (!response.ok) throw new Error('EXPORT_FAILED');
+      const newExport = await response.json() as ExportPipelineEvent;
 
       const updatedHistory = [newExport, ...exportHistory];
       setExportHistory(updatedHistory);
@@ -351,8 +343,11 @@ export const LearningAnalyticsPlatform: React.FC = () => {
       }));
 
       setIsExporting(false);
-      addToast("Pipeline BigQuery: Exportação incremental realizada com sucesso!", "success");
-    }, 1200);
+      addToast(`BigQuery confirmou ${newExport.rowsExported} linhas exportadas.`, "success");
+    } catch {
+      setIsExporting(false);
+      addToast("BigQuery não confirmou a exportação; nenhum evento foi criado.", "error");
+    }
   };
 
   // ----------------------------------------------------------------------
@@ -385,24 +380,7 @@ export const LearningAnalyticsPlatform: React.FC = () => {
         throw new Error("Proxy error");
       }
     } catch (e) {
-      // High-fidelity fallback simulated feedback based on real performance math
-      setTimeout(() => {
-        const customInsights = `### 🤖 PAINEL DE INSIGHTS PEDAGÓGICOS - IA LINGOLIVE
-Estudante Analisado: **${targetName}** (${selectedStudent.learningLanguage})
-
-#### 1. Mapeamento de Frequência & Pronúncia (Apoio Whisper API)
-*   **Acurácia Fonética**: O aluno exibe excelente controle de entonação regional (${selectedStudent.speakingProgress}%), indicando bom tempo de escuta. No entanto, nota-se uma ligeira pausa silábica pré-vocal no início de frases complexas.
-*   **Recomendação**: Adicionar 3 lições rápidas de "Vowel Merging" na seção de Estudo Adaptativo para reduzir as pausas e aumentar a fluência natural.
-
-#### 2. Mineração de Texto & NLP (Análise Gramatical)
-*   **Complexidade de Escrita**: O índice de escrita está em ${selectedStudent.writingProgress}%. O modelo de NLP detectou uma oscilação na concordância nominal regional pós-pluralização. 
-*   **Ação**: Injetar minijogos de fixação focados especificamente nas estruturas de concordância mais frequentes do dialeto estudado.
-
-#### 3. Comportamento & Calibração de Engajamento (Streak Economics)
-*   **Risco de Churn**: Classificado como **${selectedStudent.dropoutRisk}**. ${selectedStudent.dropoutRisk === 'High' ? 'Atenção Crítica! O engajamento caiu 45% nos últimos 5 dias.' : 'Saúde de engajamento estável. O aluno mantém o streak ativo.'}
-*   **Intervenção recomendada**: ${selectedStudent.dropoutRisk === 'High' ? 'Acionar notificação push com incentivo duplo de tokens LingoCoins hoje às 18h.' : 'Recompensar com a insígnia de "Estudante Consistente" para selar o compromisso de estudo.'}`;
-        setAiInsightOutput(customInsights);
-      }, 1000);
+      setAiInsightOutput("O serviço de IA não confirmou a análise. Nenhuma inferência pedagógica foi gerada.");
     } finally {
       setGeneratingAI(false);
     }
