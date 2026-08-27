@@ -57,6 +57,7 @@ import { LoadingFallback } from "./components/core/LoadingFallback";
 import { motion, AnimatePresence } from 'motion/react';
 
 import { SettingsView } from "./components/core/SettingsView";
+import { learningProgressService } from "./services/learningProgress.service";
 import { SchoolRegistration } from "./components/core/SchoolRegistration";
 import { B2BPayment } from "./components/core/B2BPayment";
 import { SchoolEnterprisePlatform } from "./components/b2b/area-escolar/SchoolEnterprisePlatform";
@@ -1230,7 +1231,11 @@ function AppContent() {
   };
 
   // Function to register a practice session (adds to streak if consecutive)
-  const registerPracticeSession = () => {
+  const registerPracticeSession = (
+    activityType: "conversation" | "quiz" = "quiz",
+    score?: number,
+    durationMinutes = activityType === "conversation" ? 10 : 5
+  ) => {
     const today = getLocalDateString();
     
     setStreakData((prev) => {
@@ -1308,6 +1313,16 @@ function AppContent() {
 
       return updated;
     });
+
+    void learningProgressService.recordEvent({
+      type: activityType,
+      language: selectedLanguage.code || selectedLanguage.name,
+      durationMinutes,
+      ...(score === undefined ? {} : { score }),
+      skills: activityType === "conversation"
+        ? ["speaking", "listening"]
+        : ["grammar", "vocabulary"],
+    }).catch((error) => console.warn("Progresso guardado apenas localmente:", error));
   };
 
   // Visual simulation utility to add/simulate practice on any past day
@@ -1533,7 +1548,8 @@ function AppContent() {
     }
     
     // Automatically credit streak progression upon finishing a practice session
-    registerPracticeSession();
+    const learnerTurns = transcript.filter((item) => item.role === "user").length;
+    registerPracticeSession("conversation", undefined, Math.max(1, learnerTurns * 2));
   };
 
   const handleSaveWord = (word: SavedWord) => {
@@ -2069,7 +2085,7 @@ function AppContent() {
             savedWords={savedWords}
             onAddWords={handleAddWords}
             onBack={() => setView("dashboard")}
-            onCompleteQuiz={registerPracticeSession}
+            onCompleteQuiz={(result) => registerPracticeSession("quiz", result.score, result.durationMinutes)}
           />
         )}
 

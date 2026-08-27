@@ -24,6 +24,7 @@ import {
 import { Language, Proficiency, Scenario, SavedWord, FeedbackReport } from "../../types";
 import { SCENARIOS } from "../../data";
 import { auth } from "../../firebase";
+import { learningProgressService, LearningProgress } from "../../services/learningProgress.service";
 
 interface LearningPathProps {
   selectedLanguage: Language;
@@ -49,6 +50,23 @@ export const LearningPath: React.FC<LearningPathProps> = ({
   // Regional slang unlocking system states
   const [profile, setProfile] = useState<any>(null);
   const [currentXp, setCurrentXp] = useState<number>(500);
+  const [learningProgress, setLearningProgress] = useState<LearningProgress | null>(null);
+  const [progressUnavailable, setProgressUnavailable] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    if (!auth.currentUser) return;
+    learningProgressService.getProgress()
+      .then((progress) => {
+        if (active) setLearningProgress(progress);
+      })
+      .catch(() => {
+        if (active) setProgressUnavailable(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     const currentUser = auth.currentUser;
@@ -312,6 +330,31 @@ export const LearningPath: React.FC<LearningPathProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Canonical progress persisted in Firestore */}
+      <section className="bg-white rounded-3xl border border-slate-100 p-5 shadow-xs" aria-labelledby="learning-progress-title">
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <div>
+            <h2 id="learning-progress-title" className="text-sm font-bold text-slate-900">Meu progresso consolidado</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Atividades sincronizadas entre sessões e dispositivos.</p>
+          </div>
+          {learningProgress?.lastActivityAt && (
+            <span className="text-[10px] text-slate-400 text-right">
+              Última atividade<br />{new Date(learningProgress.lastActivityAt).toLocaleDateString("pt-PT")}
+            </span>
+          )}
+        </div>
+        {progressUnavailable ? (
+          <p className="text-xs text-amber-700 bg-amber-50 rounded-xl p-3">O progresso online está temporariamente indisponível. As atividades locais continuam preservadas.</p>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="rounded-2xl bg-indigo-50 p-3"><div className="text-2xl font-extrabold text-indigo-700">{learningProgress?.totalActivities ?? 0}</div><div className="text-[11px] font-semibold text-indigo-600">Atividades</div></div>
+            <div className="rounded-2xl bg-emerald-50 p-3"><div className="text-2xl font-extrabold text-emerald-700">{Math.round(learningProgress?.totalMinutes ?? 0)}</div><div className="text-[11px] font-semibold text-emerald-600">Minutos praticados</div></div>
+            <div className="rounded-2xl bg-violet-50 p-3"><div className="text-2xl font-extrabold text-violet-700">{learningProgress?.completedByType.conversation ?? 0}</div><div className="text-[11px] font-semibold text-violet-600">Conversas</div></div>
+            <div className="rounded-2xl bg-amber-50 p-3"><div className="text-2xl font-extrabold text-amber-700">{learningProgress?.completedByType.quiz ?? 0}</div><div className="text-[11px] font-semibold text-amber-600">Quizzes</div></div>
+          </div>
+        )}
+      </section>
 
       {/* Main Adaptive Path Roadmap */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">

@@ -8,6 +8,7 @@ export class CurriculumEngine {
 
   // Calcula progresso total de uma trilha
   static calculateProgress(nodes: CurriculumNode[]): number {
+    if (nodes.length === 0) return 0;
     const completed = nodes.filter(n => n.isCompleted).length;
     return (completed / nodes.length) * 100;
   }

@@ -150,7 +150,7 @@ export interface LanguageQuizProps {
   savedWords?: SavedWord[];
   onAddWords?: (words: SavedWord[]) => void;
   onBack: () => void;
-  onCompleteQuiz?: () => void;
+  onCompleteQuiz?: (result: { score: number; correctAnswers: number; totalQuestions: number; durationMinutes: number }) => void;
   selectedAgeGroup?: TargetAgeGroup | string | null;
   userAge?: number;
 }
@@ -508,7 +508,12 @@ export default function LanguageQuiz({
       playSoundEffect("finish");
       setIsFinished(true);
       if (onCompleteQuiz) {
-        onCompleteQuiz();
+        onCompleteQuiz({
+          score: currentQuestions.length > 0 ? Math.round((score / currentQuestions.length) * 100) : 0,
+          correctAnswers: score,
+          totalQuestions: currentQuestions.length,
+          durationMinutes: Math.max(1, Math.ceil(currentQuestions.length * 0.75)),
+        });
       }
     }
   };
