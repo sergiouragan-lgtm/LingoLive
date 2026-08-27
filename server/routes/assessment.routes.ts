@@ -330,7 +330,10 @@ router.post("/submit", requireAuth, async (req: any, res) => {
 
         for (const sub of subjectiveSubmissions) {
           const aiGrading = parsedAIResults.find((r: any) => r.id === sub.question.id);
-          const pts = aiGrading ? Math.min(sub.question.points, aiGrading.pointsEarned) : Math.round(sub.question.points * 0.7);
+          if (!aiGrading || typeof aiGrading.pointsEarned !== "number") {
+            throw new Error(`A IA não devolveu uma correção válida para ${sub.question.id}.`);
+          }
+          const pts = Math.max(0, Math.min(sub.question.points, aiGrading.pointsEarned));
           totalPointsEarned += pts;
 
           questionScores.push({
@@ -338,35 +341,17 @@ router.post("/submit", requireAuth, async (req: any, res) => {
             pointsEarned: pts,
             maxPoints: sub.question.points,
             isCorrect: pts >= (sub.question.points * 0.6),
-            aiFeedback: aiGrading?.aiFeedback || "Resposta de bom tom corporativo, apresentando coesão sintática e clareza de ideias.",
-            rubricScores: aiGrading?.rubricScores || sub.question.rubricCriteria?.map((r: any) => ({
-              dimension: r.dimension,
-              score: Math.round(r.maxScore * 0.75),
-              feedback: "Cumpre de forma aceitável com o nível corporativo exigido."
-            }))
+            aiFeedback: aiGrading.aiFeedback,
+            rubricScores: Array.isArray(aiGrading.rubricScores) ? aiGrading.rubricScores : []
           });
         }
 
       } catch (geminiErr) {
-        console.warn("[Assessment Router] Subjective AI grading failed. Injecting safe realistic backup evaluation:", geminiErr);
-        // Backup Simulator to keep app highly robust
-        for (const sub of subjectiveSubmissions) {
-          const pts = Math.round(sub.question.points * 0.8);
-          totalPointsEarned += pts;
-
-          questionScores.push({
-            questionId: sub.question.id,
-            pointsEarned: pts,
-            maxPoints: sub.question.points,
-            isCorrect: true,
-            aiFeedback: "A sua resposta de redação/fala cumpre com as diretrizes da LingoLIVE IA. Apresenta boa estrutura lexical e coesão empresarial.",
-            rubricScores: sub.question.rubricCriteria?.map((r: any) => ({
-              dimension: r.dimension,
-              score: Math.round(r.maxScore * 0.8),
-              feedback: "Demonstrou excelente nível lexical e profissionalismo."
-            }))
-          });
-        }
+        console.warn("[Assessment Router] Subjective AI grading failed:", geminiErr);
+        return res.status(503).json({
+          error: "A correção das respostas abertas está temporariamente indisponível. Nenhuma nota ou certificado foi emitido.",
+          retryable: true,
+        });
       }
     }
 

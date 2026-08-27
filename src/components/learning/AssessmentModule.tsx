@@ -64,6 +64,7 @@ import {
   Radar 
 } from "recharts";
 import { AssessmentService } from "../../services/assessment.service";
+import { learningProgressService, LearningSkill } from "../../services/learningProgress.service";
 import { Exam, ScheduledExam, ExamAttempt, Certificate, Question } from "../../types/assessment";
 
 interface AssessmentModuleProps {
@@ -273,6 +274,17 @@ export const AssessmentModule: React.FC<AssessmentModuleProps> = ({ onAddXp, set
       const res = await service.submitExam(activeExam.id, submissionsList, studentName);
       setLastExamResult(res);
       setModuleMode("grading-result");
+
+      if (res.attempt.status === "graded") {
+        const assessedSkills = [...new Set(activeExam.questions.map(question => question.category))] as LearningSkill[];
+        void learningProgressService.recordEvent({
+          type: "assessment",
+          language: activeExam.language,
+          durationMinutes: Math.max(0.1, (examTotalDuration - examTimeRemaining) / 60),
+          score: res.attempt.scorePercent,
+          skills: assessedSkills,
+        }).catch((error) => console.warn("Assessment progress sync failed:", error));
+      }
 
       if (res.attempt.passed && onAddXp) {
         onAddXp(150); // High points for passing formal enterprise certification
