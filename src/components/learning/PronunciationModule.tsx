@@ -37,9 +37,12 @@ import {
 } from "recharts";
 import { PronunciationService } from "../../services/pronunciation.service";
 import { PronunciationResult, PronunciationReport } from "../../types/pronunciation";
+import { learningProgressService } from "../../services/learningProgress.service";
 
 interface PronunciationModuleProps {
   onAddXp?: (xp: number) => void;
+  languageCode: string;
+  languageName: string;
 }
 
 const PRESET_SCENARIOS = [
@@ -66,7 +69,7 @@ const PRESET_SCENARIOS = [
   }
 ];
 
-export const PronunciationModule: React.FC<PronunciationModuleProps> = ({ onAddXp }) => {
+export const PronunciationModule: React.FC<PronunciationModuleProps> = ({ onAddXp, languageCode, languageName }) => {
   const service = React.useMemo(() => new PronunciationService(), []);
 
   // System status
@@ -235,11 +238,18 @@ export const PronunciationModule: React.FC<PronunciationModuleProps> = ({ onAddX
       const evaluation = await service.evaluatePronunciation(
         targetText,
         recordedBase64,
-        "Inglês",
+        languageName,
         "audio/webm"
       );
 
       setResult(evaluation);
+      void learningProgressService.recordEvent({
+        type: "pronunciation",
+        language: languageCode,
+        durationMinutes: Math.max(0.1, recordingDuration / 60),
+        score: evaluation.overallScore,
+        skills: ["speaking", "listening"],
+      }).catch((error) => console.warn("Pronunciation progress sync failed:", error));
       if (onAddXp) {
         onAddXp(evaluation.overallScore >= 80 ? 100 : 50);
       }

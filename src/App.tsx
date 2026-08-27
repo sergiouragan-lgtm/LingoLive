@@ -2120,6 +2120,8 @@ function AppContent() {
 
         {view === "pronunciation" && (
           <PronunciationModule
+            languageCode={selectedLanguage.code}
+            languageName={selectedLanguage.name}
             onAddXp={(xp) => {
               addToast(`Parabéns! Ganhou +${xp} XP na avaliação de pronúncia!`, "success");
             }}

@@ -341,7 +341,7 @@ router.post("/evaluate", requireAuth, async (req: any, res) => {
         });
       }
     } catch (geminiError) {
-      console.warn("[Pronunciation Service] Gemini audio parsing failed, falling back to smart simulation:", geminiError);
+      console.warn("[Pronunciation Service] Gemini audio parsing failed:", geminiError);
     }
 
     let evaluationResult: any;
@@ -349,51 +349,10 @@ router.post("/evaluate", requireAuth, async (req: any, res) => {
     if (response && response.text) {
       evaluationResult = JSON.parse(response.text);
     } else {
-      // SMART FALLBACK SIMULATION: If Gemini audio is overloaded/unavailable, we simulate a very realistic didactical output.
-      // This is crucial to satisfy the high-availability constraints.
-      const dist = getLevenshteinDistance(targetText.toLowerCase(), targetText.toLowerCase());
-      const maxLen = Math.max(1, targetText.length);
-      const accuracySim = Math.max(60, Math.min(100, Math.round(((maxLen - dist) / maxLen) * 100) - Math.floor(Math.random() * 15)));
-      
-      const overall = Math.round((accuracySim + 82 + 78) / 3);
-      
-      evaluationResult = {
-        transcription: targetText, // Assumed successful detection in fallback
-        overallScore: overall,
-        accuracyScore: accuracySim,
-        fluencyScore: 84,
-        completenessScore: 100,
-        speechSpeedWpm: 125,
-        pauseCount: 1,
-        accentDetected: "Sotaque de influência de Português Angolano",
-        accentConfidence: 85,
-        generalFeedback: "Excelente tentativa! Conseguiu articular a maior parte dos fonemas com clareza. Note-se uma ligeira aspiração nas consoantes oclusivas finais.",
-        phonemeAnalysis: [
-          {
-            phoneme: "TH",
-            ipaSymbol: "θ",
-            accuracy: 72,
-            feedback: "Coloque a ponta da língua entre os dentes incisivos superiores e inferiores e sopre o ar suavemente."
-          },
-          {
-            phoneme: "R (Retroflex)",
-            ipaSymbol: "ɹ",
-            accuracy: 85,
-            feedback: "Dobre a ponta da língua para trás sem tocar o céu da boca ao emitir o som."
-          },
-          {
-            phoneme: "Short I",
-            ipaSymbol: "ɪ",
-            accuracy: 68,
-            feedback: "Mantenha o som curto e relaxado, posicionando a língua entre as vogais e e i."
-          }
-        ],
-        improvementTips: [
-          "Pratique o som 'th' surdo posicionando corretamente a língua entre os dentes.",
-          "Aumente a velocidade média de leitura para aproximar-se do ritmo nativo de 130 WPM.",
-          "Evite adicionar o som vocálico 'i' no final de palavras terminadas em consoantes mudas."
-        ]
-      };
+      return res.status(503).json({
+        error: "A análise de pronúncia está temporariamente indisponível. O áudio não recebeu pontuação.",
+        retryable: true,
+      });
     }
 
     // Append standard operational keys
@@ -443,28 +402,9 @@ router.post("/reports/generate", requireAuth, async (req: any, res) => {
     const results = localMemoryDb.get(listKey) || [];
 
     if (results.length === 0) {
-      // Build a starter sample report
-      const starterReport = {
-        id: `rep_${userId}`,
-        userId,
-        language: language || "Inglês",
-        averageOverall: 78,
-        averageAccuracy: 80,
-        averageFluency: 76,
-        totalAttempts: 5,
-        commonErrorPhonemes: ["θ (TH)", "ɹ (R)", "ɪ (Short I)"],
-        timelineData: [
-          { date: "Segunda", score: 72 },
-          { date: "Terça", score: 75 },
-          { date: "Quarta", score: 76 },
-          { date: "Quinta", score: 82 },
-          { date: "Sexta", score: 80 }
-        ],
-        feedbackSummary: "O estudante demonstra progresso constante na redução de sotaque e consistência de ritmo. A maior área de oportunidade permanece no posicionamento correto dos fonemas fricativos interdentais.",
-        generatedAt: new Date().toISOString()
-      };
-      await safeSetDoc("pronunciation_reports", starterReport.id, starterReport);
-      return res.json(starterReport);
+      return res.status(404).json({
+        error: "Ainda não existem avaliações reais de pronúncia para gerar um relatório.",
+      });
     }
 
     // Sum averages
