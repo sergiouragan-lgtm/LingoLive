@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { 
   Sparkles, 
   Map, 
@@ -118,6 +118,8 @@ export const LearningPath: React.FC<LearningPathProps> = ({
   const [flashcards, setFlashcards] = useState<{ word: string; meaning: string; pronunciation: string }[]>([]);
   const [showFlashcardMeaning, setShowFlashcardMeaning] = useState(false);
   const [flashcardScores, setFlashcardScores] = useState<Record<string, 'known' | 'learning'>>({});
+  const [flashcardCompleted, setFlashcardCompleted] = useState(false);
+  const flashcardStartedAt = useRef<number>(0);
 
   useEffect(() => {
     // Attempt to load from storage
@@ -178,43 +180,20 @@ export const LearningPath: React.FC<LearningPathProps> = ({
     setGame1Active(true);
   };
 
-  // Set up Flashcards using real saved words or preset high-frequency vocabulary
+  // Set up Flashcards exclusively from vocabulary saved by this learner.
   const initFlashcards = () => {
-    let list: { word: string; meaning: string; pronunciation: string }[] = [];
-
-    if (savedWords && savedWords.length > 0) {
-      list = savedWords.map(w => ({
-        word: w.word,
-        meaning: w.meaning,
-        pronunciation: w.pronunciation || ""
-      }));
-    } else {
-      // High-frequency presets based on language
-      if (selectedLanguage.code === "en") {
-        list = [
-          { word: "Aesthetic", meaning: "Relativo à beleza ou gosto artístico", pronunciation: "/es-te-tik/" },
-          { word: "Overwhelming", meaning: "Esmagador, muito intenso", pronunciation: "/oh-ver-wel-ming/" },
-          { word: "Serendipity", meaning: "Descoberta afortunada ao acaso", pronunciation: "/se-ren-di-pi-tee/" }
-        ];
-      } else if (selectedLanguage.code === "fr") {
-        list = [
-          { word: "Éphémère", meaning: "Que dura pouco tempo; efêmero", pronunciation: "/ay-fay-mair/" },
-          { word: "Bienveillance", meaning: "Benevolência, gentileza", pronunciation: "/byan-vay-lahns/" },
-          { word: "Dépaysement", meaning: "A sensação de desorientação positiva ao estar em outro país", pronunciation: "/day-pay-eez-mah/" }
-        ];
-      } else {
-        list = [
-          { word: "Saudade", meaning: "Sentimento nostálgico de ausência", pronunciation: "/saw-dah-dee/" },
-          { word: "Desafiar", meaning: "Incentivar alguém a superar um limite", pronunciation: "/deh-zah-fee-ahr/" },
-          { word: "Partilhar", meaning: "Dividir algo com os outros; compartilhar", pronunciation: "/pahr-teel-yahr/" }
-        ];
-      }
-    }
+    const list = savedWords.map(w => ({
+      word: w.word,
+      meaning: w.meaning,
+      pronunciation: w.pronunciation || ""
+    }));
 
     setFlashcards(list);
     setCurrentFlashcardIndex(0);
     setShowFlashcardMeaning(false);
     setFlashcardScores({});
+    setFlashcardCompleted(false);
+    flashcardStartedAt.current = Date.now();
     setGame2Active(true);
   };
 
@@ -247,8 +226,16 @@ export const LearningPath: React.FC<LearningPathProps> = ({
       setCurrentFlashcardIndex(prev => prev + 1);
       setShowFlashcardMeaning(false);
     } else {
-      // All flashcards finished
-      setShowFlashcardMeaning(true);
+      const finalScores = { ...flashcardScores, [card.word]: rating };
+      const finalKnownCount = Object.values(finalScores).filter(value => value === "known").length;
+      setFlashcardCompleted(true);
+      void learningProgressService.recordEvent({
+        type: "vocabulary",
+        language: selectedLanguage.code,
+        durationMinutes: Math.max(0.1, (Date.now() - flashcardStartedAt.current) / 60_000),
+        score: Math.round((finalKnownCount / flashcards.length) * 100),
+        skills: ["vocabulary", "reading"],
+      }).catch((error) => console.warn("Flashcard progress sync failed:", error));
     }
   };
 
@@ -635,7 +622,13 @@ export const LearningPath: React.FC<LearningPathProps> = ({
                 </button>
               </div>
 
-              {flashcards.length > 0 && currentFlashcardIndex < flashcards.length ? (
+              {flashcards.length === 0 ? (
+                <div className="py-8 text-center space-y-2">
+                  <BookMarked className="w-9 h-9 text-slate-500 mx-auto" />
+                  <h4 className="font-bold text-slate-200">Ainda não há palavras para rever</h4>
+                  <p className="text-xs text-slate-400">Guarde palavras durante uma conversa e elas aparecerão aqui.</p>
+                </div>
+              ) : !flashcardCompleted ? (
                 <div className="space-y-4">
                   {/* Flip Card Stage */}
                   <div 
