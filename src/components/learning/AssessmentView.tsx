@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db, auth } from '../../firebase';
+import { auth } from '../../firebase';
 import { Loader2, CheckCircle2 } from 'lucide-react';
 import { AppView } from '../../types';
 
 interface Question {
   question: string;
   options: string[];
-  correctAnswer: number;
 }
 
 interface AssessmentViewProps {
@@ -18,6 +16,7 @@ interface AssessmentViewProps {
 
 export const AssessmentView: React.FC<AssessmentViewProps> = ({ userId, language, setView }) => {
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [assessmentId, setAssessmentId] = useState('');
   const [answers, setAnswers] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -36,6 +35,10 @@ export const AssessmentView: React.FC<AssessmentViewProps> = ({ userId, language
           body: JSON.stringify({ language }),
         });
         const data = await response.json();
+        if (!response.ok || !data.assessmentId || !Array.isArray(data.questions)) {
+          throw new Error(data.error || 'Não foi possível gerar a avaliação.');
+        }
+        setAssessmentId(data.assessmentId);
         setQuestions(data.questions);
       } catch (error) {
         console.error("Error fetching questions:", error);
@@ -57,13 +60,12 @@ export const AssessmentView: React.FC<AssessmentViewProps> = ({ userId, language
           'Content-Type': 'application/json',
           ...(idToken ? { 'Authorization': `Bearer ${idToken}` } : {})
         },
-        body: JSON.stringify({ answers, questions }),
+        body: JSON.stringify({ assessmentId, answers }),
       });
-      const { suggestedLevel } = await response.json();
-
-      // Update user profile
-      const userRef = doc(db, 'users', userId);
-      await updateDoc(userRef, { level: suggestedLevel });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Não foi possível corrigir a avaliação.');
+      }
 
       setView('dashboard');
     } catch (error) {

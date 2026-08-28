@@ -86,26 +86,8 @@ export class AssessmentService {
     const user = auth.currentUser;
     if (!user) throw new Error("Usuário não autenticado");
 
-    // Check offline capability
     if (!this.isOnline()) {
-      // Simulate safe offline queue caching
-      const fallbackAttempt: ExamAttempt = {
-        id: `offline_attempt_${Date.now()}`,
-        examId,
-        userId: user.uid,
-        studentName: studentName || "Aluno LingoLIVE",
-        timestamp: new Date().toISOString(),
-        scorePercent: 0,
-        totalPointsEarned: 0,
-        totalPointsPossible: 100,
-        passed: false,
-        questionScores: [],
-        generalFeedback: "Exame gravado com sucesso no dispositivo! O feedback será processado com Inteligência Artificial e rubricas assim que a internet voltar.",
-        status: "pending-manual"
-      };
-      
-      await this.repository.saveAttempt(fallbackAttempt);
-      return { attempt: fallbackAttempt };
+      throw new Error("A avaliação exige conexão para correção segura. As respostas não foram submetidas.");
     }
 
     const headers = await this.getAuthHeaders();
