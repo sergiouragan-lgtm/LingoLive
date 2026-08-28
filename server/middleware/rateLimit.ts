@@ -57,6 +57,18 @@ export const explainPhraseLimiter = createRateLimiter({
   message: "Excedeu o limite de tradução/explicação (máximo 30 por minuto)."
 });
 
+export const quizGenerationLimiter = createRateLimiter({
+  windowMs: 10 * 60 * 1000,
+  max: 5,
+  message: "Limite de geração de quizzes atingido. Aguarde antes de criar outro quiz."
+});
+
+export const quizSubmissionLimiter = createRateLimiter({
+  windowMs: 60 * 1000,
+  max: 10,
+  message: "Limite de submissões de quiz atingido."
+});
+
 export const paymentsLimiter = createRateLimiter({
   windowMs: 60000,
   max: 10,

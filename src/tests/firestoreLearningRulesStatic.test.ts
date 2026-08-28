@@ -26,4 +26,9 @@ describe("canonical learning records are backend-owned", () => {
   ])("bloqueia criação, alteração e eliminação direta em %s", (collection) => {
     expect(matchBlock(collection)).toContain("allow create, update, delete: if false");
   });
+
+  it("mantém sessões de quiz e gabaritos exclusivamente no backend", () => {
+    const block = matchBlock("quiz_sessions");
+    expect(block).toContain("allow read, create, update, delete: if false");
+  });
 });
