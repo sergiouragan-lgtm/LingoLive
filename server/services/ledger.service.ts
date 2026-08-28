@@ -1,5 +1,6 @@
 import { dbAdmin } from "../config/firebaseAdmin";
 import { getStripeClient } from "../config/stripe";
+import { getMonetizationConfig } from "../config/monetization";
 import { safeGetDoc } from "./firestoreSafe.service";
 
 // Ver nota equivalente em stripe.service.ts / firestoreSafe.service.ts: evita
@@ -69,9 +70,6 @@ const LEDGER_ENTRIES_COLLECTION = "ledger_entries";
 const HOLDS_COLLECTION = "holds";
 const TRANSACTIONS_COLLECTION = "ledger_transactions";
 const PAYOUT_REQUESTS_COLLECTION = "payout_requests";
-
-const DEFAULT_HOLD_EXPIRY_HOURS = 48;
-const DEFAULT_COMMISSION_RATE = 0.18;
 
 export class InsufficientBalanceError extends Error {
   constructor(message = "Saldo insuficiente de LingoCoins.") {
@@ -363,7 +361,7 @@ export async function createBookingHold(params: {
   amountLc: number;
   holdExpiryHours?: number;
 }): Promise<Hold> {
-  const { studentId, bookingId, amountLc, holdExpiryHours = DEFAULT_HOLD_EXPIRY_HOURS } = params;
+  const { studentId, bookingId, amountLc, holdExpiryHours = getMonetizationConfig().holdExpiryHours } = params;
   if (amountLc <= 0) throw new LedgerStateError("amountLc deve ser positivo.");
 
   const studentWalletId = walletIdFor(studentId, "STUDENT");
@@ -476,7 +474,7 @@ export async function settleBooking(params: {
   tutorId: string;
   commissionRate?: number;
 }): Promise<{ platformFee: number; tutorAmount: number }> {
-  const { holdId, tutorId, commissionRate = DEFAULT_COMMISSION_RATE } = params;
+  const { holdId, tutorId, commissionRate = getMonetizationConfig().commissionRate } = params;
   const hold = await getHold(holdId);
   if (!hold) throw new LedgerStateError(`Hold ${holdId} não encontrado.`);
   if (hold.status !== "ACTIVE") {
@@ -624,11 +622,19 @@ export async function markTutorKycVerified(tutorId: string): Promise<void> {
 export async function requestTutorPayout(params: {
   tutorId: string;
   amountLc: number;
-  lcToFiatRate: number; // ex.: 100 LC = 1 unidade monetária
+  /** Sobrepõe a taxa de saída configurada (LC por unidade monetária). Opcional. */
+  lcToFiatRate?: number;
   payoutFeeFixedLc?: number;
   minPayoutAmountLc?: number;
 }): Promise<PayoutRequest> {
-  const { tutorId, amountLc, lcToFiatRate, payoutFeeFixedLc = 0, minPayoutAmountLc = 0 } = params;
+  const config = getMonetizationConfig();
+  const {
+    tutorId,
+    amountLc,
+    lcToFiatRate = config.lcToFiatRate,
+    payoutFeeFixedLc = config.payoutFeeFixedLc,
+    minPayoutAmountLc = config.minPayoutAmountLc,
+  } = params;
 
   if (amountLc < minPayoutAmountLc) {
     throw new LedgerStateError(`Valor abaixo do mínimo de levantamento (${minPayoutAmountLc} LC).`);

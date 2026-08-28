@@ -41,9 +41,10 @@ import walletRouter from "./server/routes/wallet.routes";
 
 const app = express();
 
-// Stripe Webhook needs express.raw BEFORE express.json() is applied globally
-// Mount paymentRouter containing Stripe webhook first
+// Stripe/Paddle webhooks need express.raw BEFORE express.json() is applied globally
+// Mount paymentRouter (Stripe webhook) and walletRouter (Paddle top-up webhook) first
 app.use("/api", paymentRouter);
+app.use("/api", walletRouter);
 
 // Global express.json() is applied only AFTER Stripe webhook route registration
 app.use(express.json({ limit: '50mb' }));
@@ -63,7 +64,6 @@ app.use("/api", languagesRouter);
 app.use("/api/gamification", gamificationRouter);
 app.use("/api", adminPaymentRouter);
 app.use("/api/geo", geoRouter);
-app.use("/api", walletRouter);
 
 // Endpoint for Service Worker Background Sync of vocabulary updates
 app.post("/api/sync-vocabulary", async (req, res) => {
