@@ -282,7 +282,10 @@ router.post("/submit", requireAuth, async (req: any, res) => {
         language: exam.language,
         scorePercent,
         issueDate: new Date().toISOString(),
-        verificationCode: `LL-VAL-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+        verificationCode: `LL-VAL-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+        documentStatus: "pending",
+        deliveryStatus: "not_sent",
+        documentUrl: null,
       };
       await safeSetDoc("assessment_certificates", certificate.id, certificate);
       

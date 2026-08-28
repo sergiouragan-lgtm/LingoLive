@@ -8,7 +8,6 @@ import { NeuralMemoryEngine } from "../../src/types/neuralMemoryEngine";
 import { COUNTRY_DETAILS } from "../../src/data/localizationData";
 import { MemoriaCognitiva } from "../../src/types/neuralMemory";
 import { orchestrateAI } from "../aiOrchestrator";
-import { sendCertificateEmail } from "../services/email.service";
 import { textoParaVoz } from "../services/tts.service";
 import { Timestamp } from "firebase-admin/firestore";
 import {
@@ -524,13 +523,16 @@ Responda APENAS em formato JSON, exatamente assim:
 
     await safeSetDoc("neuralMemory", alunoId, memoriaAtualizada);
 
-    if (memoriaAtualizada.nivelAtual !== oldLevel && alunoData?.emailPai) {
-        try {
-            const placeholderUrl = "https://example.com/placeholder-certificado.pdf";
-            await sendCertificateEmail(alunoData.emailPai, alunoData.nome || "Aluno", placeholderUrl);
-        } catch (e) {
-            console.error("Erro ao enviar certificado:", e);
-        }
+    if (memoriaAtualizada.nivelAtual !== oldLevel) {
+      await safeAddDoc("certificate_delivery_events", {
+        userId: alunoId,
+        recipientEmail: alunoData?.emailPai || null,
+        previousLevel: oldLevel,
+        achievedLevel: memoriaAtualizada.nivelAtual,
+        status: "pending_document",
+        reason: "Aguardando emissão e persistência do certificado oficial.",
+        createdAt: new Date().toISOString(),
+      });
     }
 
     let audioBase64 = "";
