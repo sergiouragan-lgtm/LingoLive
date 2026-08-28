@@ -1,15 +1,15 @@
 import { Router } from "express";
 import { requireAuth } from "../middleware/requireAuth";
-import { safeGetDoc, safeSetDoc } from "../services/firestoreSafe.service";
-import { applyLearningEvent, normalizeLearningEvent, normalizeLearningProgress } from "../services/learningProgress.service";
+import { normalizeLearningEvent } from "../services/learningProgress.service";
+import { getLearningProgress, LearningEventCollisionError, LearningStorageUnavailableError, recordLearningEvent } from "../services/learningProgress.repository";
 
 const router = Router();
 
 router.get("/progress", requireAuth, async (req: any, res) => {
   try {
-    const doc = await safeGetDoc("learning_progress", req.user.uid);
-    res.json({ progress: normalizeLearningProgress(doc.exists ? doc.data() : null, req.user.uid) });
+    res.json({ progress: await getLearningProgress(req.user.uid) });
   } catch (error) {
+    if (error instanceof LearningStorageUnavailableError) return res.status(503).json({ error: "Persistência de aprendizagem indisponível." });
     console.error("Failed to load learning progress:", error);
     res.status(500).json({ error: "Não foi possível carregar o progresso." });
   }
@@ -20,14 +20,11 @@ router.post("/events", requireAuth, async (req: any, res) => {
   if (!event) return res.status(400).json({ error: "Evento de aprendizagem inválido." });
 
   try {
-    const doc = await safeGetDoc("learning_progress", req.user.uid);
-    const current = normalizeLearningProgress(doc.exists ? doc.data() : null, req.user.uid);
-    const progress = applyLearningEvent(current, event);
-    if (progress !== current) {
-      await safeSetDoc("learning_progress", req.user.uid, { ...progress, updatedAt: new Date().toISOString() });
-    }
-    res.status(progress === current ? 200 : 201).json({ progress, duplicate: progress === current });
+    const result = await recordLearningEvent(req.user.uid, event);
+    res.status(result.duplicate ? 200 : 201).json(result);
   } catch (error) {
+    if (error instanceof LearningEventCollisionError) return res.status(409).json({ error: "O identificador do evento já pertence a outro conteúdo." });
+    if (error instanceof LearningStorageUnavailableError) return res.status(503).json({ error: "Persistência de aprendizagem indisponível." });
     console.error("Failed to record learning event:", error);
     res.status(500).json({ error: "Não foi possível registar a atividade." });
   }
