@@ -3,7 +3,7 @@ import { LRUCache } from 'lru-cache';
 import { requireAuth } from "../middleware/requireAuth";
 import { ai, generateContentWithRetry } from "../config/gemini";
 import { Type } from "@google/genai";
-import { safeGetDoc, safeSetDoc, safeAddDoc } from "../services/firestoreSafe.service";
+import { safeGetDoc, safeSetDoc, safeAddDoc, safeQueryDocs } from "../services/firestoreSafe.service";
 import { NeuralMemoryEngine } from "../../src/types/neuralMemoryEngine";
 import { COUNTRY_DETAILS } from "../../src/data/localizationData";
 import { MemoriaCognitiva } from "../../src/types/neuralMemory";
@@ -18,6 +18,7 @@ import {
 } from "../middleware/rateLimit";
 import { getExplanationPrompt, getFeedbackPrompt } from "../services/aiPrompts.service";
 import { AIEngineOrchestrator } from "../services/learning/AIEngineOrchestrator";
+import { scoreAssessment, validateGeneratedQuestions } from "../services/assessmentScoring.service";
 
 const router = Router();
 const phraseCache = new LRUCache<string, any>({ max: 500 });
@@ -419,6 +420,10 @@ router.post("/ai-chat", requireAuth, chatLimiter, async (req: any, res) => {
 // 4. API endpoint to generate assessment
 router.post("/generate-assessment", requireAuth, async (req: any, res) => {
   const { language } = req.body;
+  const userId = req.user.uid;
+  if (typeof language !== "string" || !language.trim() || language.length > 60) {
+    return res.status(400).json({ error: "Idioma inválido." });
+  }
   
   const prompt = `Create a short 5-question quiz to assess the language proficiency of a student learning ${language}.
   The quiz should be balanced, starting from easy (A1) and becoming harder (up to C2).
@@ -457,7 +462,24 @@ router.post("/generate-assessment", requireAuth, async (req: any, res) => {
         }
       }
     });
-    res.json(JSON.parse(response.text || '{"questions": []}'));
+    const generated = JSON.parse(response.text || '{"questions": []}');
+    const questions = validateGeneratedQuestions(generated.questions);
+    const assessmentId = `placement_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+    const createdAt = new Date().toISOString();
+    await safeSetDoc("assessment_sessions", assessmentId, {
+      id: assessmentId,
+      userId,
+      language,
+      questions,
+      createdAt,
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      status: "pending",
+    });
+
+    res.json({
+      assessmentId,
+      questions: questions.map(({ question, options }) => ({ question, options })),
+    });
   } catch (error) {
     console.error("Error generating assessment:", error);
     res.status(500).json({ error: "Failed to generate assessment" });
@@ -466,25 +488,65 @@ router.post("/generate-assessment", requireAuth, async (req: any, res) => {
 
 // 5. API endpoint to submit assessment
 router.post("/submit-assessment", requireAuth, async (req: any, res) => {
-  const { answers, questions } = req.body;
-  
-  let score = 0;
-  questions.forEach((q: any, index: number) => {
-    if (answers[index] === q.correctAnswer) {
-      score++;
-    }
-  });
+  const userId = req.user.uid;
+  const { assessmentId, answers } = req.body;
+  if (!assessmentId || !Array.isArray(answers)) {
+    return res.status(400).json({ error: "assessmentId e answers são obrigatórios." });
+  }
 
-  const percentage = (score / questions.length) * 100;
-  let suggestedLevel = 'A1';
-  if (percentage >= 90) suggestedLevel = 'C2';
-  else if (percentage >= 75) suggestedLevel = 'C1';
-  else if (percentage >= 60) suggestedLevel = 'B2';
-  else if (percentage >= 40) suggestedLevel = 'B1';
-  else if (percentage >= 20) suggestedLevel = 'A2';
-  else suggestedLevel = 'A1';
+  try {
+    const snapshot = await safeGetDoc("assessment_sessions", assessmentId);
+    if (!snapshot.exists) return res.status(404).json({ error: "Avaliação não encontrada." });
+    const assessment = snapshot.data();
+    if (assessment.userId !== userId) return res.status(403).json({ error: "Avaliação não pertence ao aluno autenticado." });
+    if (assessment.status !== "pending") return res.status(409).json({ error: "Esta avaliação já foi concluída." });
+    if (Date.parse(assessment.expiresAt) <= Date.now()) return res.status(410).json({ error: "Esta avaliação expirou." });
 
-  res.json({ suggestedLevel });
+    const result = scoreAssessment(assessment.questions, answers);
+    const completedAt = new Date().toISOString();
+    const attemptId = `placement_attempt_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    await safeSetDoc("assessment_attempts", attemptId, {
+      id: attemptId,
+      assessmentId,
+      examId: assessmentId,
+      userId,
+      language: assessment.language,
+      timestamp: completedAt,
+      scorePercent: result.percentage,
+      totalPointsEarned: result.correctCount,
+      totalPointsPossible: assessment.questions.length,
+      passed: true,
+      questionScores: [],
+      generalFeedback: "Avaliação de nível corrigida com o gabarito seguro do servidor.",
+      status: "graded",
+      suggestedLevel: result.suggestedLevel,
+    });
+    await safeSetDoc("assessment_sessions", assessmentId, { ...assessment, status: "completed", completedAt });
+
+    const gradedAttempts = await safeQueryDocs("assessment_attempts", "userId", userId);
+    const quizScoreAverage = Math.round(
+      gradedAttempts.reduce((sum, attempt) => sum + Number(attempt.scorePercent || 0), 0) / gradedAttempts.length
+    );
+    const profileSnapshot = await safeGetDoc("adaptive_profiles", userId);
+    const profile = profileSnapshot.exists ? profileSnapshot.data() : { userId };
+    await safeSetDoc("adaptive_profiles", userId, {
+      ...profile,
+      userId,
+      quizScoreAverage,
+      assessmentAttempts: gradedAttempts.length,
+      estimatedCefr: result.suggestedLevel,
+      latestAssessmentId: attemptId,
+      latestAssessmentAt: completedAt,
+      lastUpdated: completedAt,
+    });
+    await safeSetDoc("users", userId, { level: result.suggestedLevel, lastAssessmentAt: completedAt });
+
+    res.json({ suggestedLevel: result.suggestedLevel, scorePercent: result.percentage, attemptId });
+  } catch (error: any) {
+    const invalidInput = String(error?.message || "").startsWith("INVALID_ASSESSMENT_");
+    console.error("Error submitting assessment:", error);
+    res.status(invalidInput ? 400 : 500).json({ error: invalidInput ? "Respostas inválidas." : "Failed to submit assessment" });
+  }
 });
 
 // 6. API endpoint for Kamba IA - Angolan cultural tutor
