@@ -47,105 +47,6 @@ const learningOrchestrator = new AIEngineOrchestrator(
   orchestrateAI,
 );
 
-// Smart Local Fallback generators for high availability when API quotas are exceeded
-function getLocalPhraseExplanation(phrase: string, language: string) {
-  const norm = phrase.toLowerCase().trim();
-  const phrasesDict: Record<string, any> = {
-    "bom dia": {
-      meaning: "Good morning",
-      pronunciation: "BOHNG DEE-ah",
-      grammarNote: "A standard polite morning greeting used in Portuguese-speaking regions.",
-      exampleOriginal: "Bom dia, como você está?",
-      exampleTranslation: "Good morning, how are you?"
-    },
-    "obrigado": {
-      meaning: "Thank you",
-      pronunciation: "oh-bree-GAH-doo",
-      grammarNote: "Used by male speakers. Female speakers should use 'obrigada'.",
-      exampleOriginal: "Muito obrigado pela ajuda!",
-      exampleTranslation: "Thank you very much for the help!"
-    },
-    "com licença": {
-      meaning: "Excuse me",
-      pronunciation: "cohm lee-SEN-sah",
-      grammarNote: "Used to politely request passage or get someone's attention.",
-      exampleOriginal: "Com licença, onde fica a escola?",
-      exampleTranslation: "Excuse me, where is the school?"
-    },
-    "por favor": {
-      meaning: "Please",
-      pronunciation: "poor fah-VOHR",
-      grammarNote: "A standard courtesy formula used in requests.",
-      exampleOriginal: "Um copo de água, por favor.",
-      exampleTranslation: "A glass of water, please."
-    }
-  };
-
-  if (phrasesDict[norm]) {
-    return {
-      ...phrasesDict[norm],
-      maturityLevel: "Infantil",
-      category: "Geral"
-    };
-  }
-
-  const cleanPhrase = phrase.replace(/[?.,!]/g, "").trim();
-  return {
-    meaning: `Expression/Word in ${language}`,
-    pronunciation: `[Phonetic: ${cleanPhrase}]`,
-    grammarNote: `Interactive practice phrase for vocabulary building in ${language}.`,
-    exampleOriginal: `Vamos praticar a expressão "${phrase}".`,
-    exampleTranslation: `Let's practice the expression "${phrase}".`,
-    maturityLevel: "Adulto",
-    category: "Geral"
-  };
-}
-
-function getLocalAngolanResponse(msg: string, memory: any) {
-  const norm = msg.toLowerCase();
-  let text = "";
-  let correction = "";
-  let word = "Kamba";
-  let meaning = "Amigo / Companheiro";
-
-  if (norm.includes("olá") || norm.includes("oi") || norm.includes("bom dia") || norm.includes("boa tarde") || norm.includes("olã")) {
-    text = "Olá, meu kamba! Tudo bem contigo? É um prazer enorme estar aqui a conversar contigo sobre a nossa terra e a nossa cultura angolana. Como vão as coisas por aí?";
-  } else if (norm.includes("comida") || norm.includes("comer") || norm.includes("gastronomia") || norm.includes("funge") || norm.includes("calulu")) {
-    text = "Ah, falar de comida em Angola é falar do nosso funge! Funge de bombo ou de milho, acompanhado com um calulu de peixe ou carne seca, ou um muamba de galinha bem gostoso! Já provaste, mano?";
-    word = "Funge";
-    meaning = "Prato tradicional de Angola feito com farinha de mandioca ou milho cozida.";
-  } else if (norm.includes("música") || norm.includes("dança") || norm.includes("semba") || norm.includes("kizomba") || norm.includes("kuduro")) {
-    text = "A música corre nas veias de Angola, mano! O Semba é a nossa alma, a Kizomba espalhou o nosso ritmo pelo mundo inteiro, e o Kuduro dá aquela energia incrível. Que estilo gostas mais?";
-    word = "Semba";
-    meaning = "Estilo de música e dança tradicional angolana, antecessor do samba.";
-  } else if (norm.includes("gíria") || norm.includes("calão") || norm.includes("expressão") || norm.includes("falar") || norm.includes("gírias")) {
-    text = "Aqui em Angola usamos muito calão fixe! Por exemplo, 'kamba' é amigo, 'bazar' é ir embora, e 'está fixe' significa está bom. Estás a apanhar bem o ritmo?";
-    word = "Fixe";
-    meaning = "Expressão informal para algo muito bom, legal, espetacular.";
-  } else {
-    text = "Estou a perceber muito bem o teu ponto, meu kamba! Estás a progredir muito bem. Conversar contigo assim faz com que o teu nível de fluidez melhore a cada dia. O que mais gostarias de saber sobre Luanda ou a nossa cultura?";
-  }
-
-  if (norm.includes("eu querer") || norm.includes("nós vai")) {
-    correction = "Lembra-te de conjugar o verbo corretamente: 'eu quero' ou 'nós vamos'. Mas continuas a falar muito bem, mano!";
-  }
-
-  return {
-    respostaAI: text,
-    correcaoPedagogica: correction || null,
-    aprendizadoMaquina: {
-      nivelEstimado: memory.nivelAtual || "Iniciante",
-      vocabularioRetido: [word],
-      pontosDeAtencao: "Foco na concordância verbal e pronúncia das vogais abertas.",
-      engajamentoCultural: 5
-    },
-    vocabularioDoDia: {
-      termo: word,
-      significado: meaning
-    }
-  };
-}
-
 // 1. API endpoint for instant word/phrase translation and explanation with rate limiter
 router.post("/explain-phrase", requireAuth, explainPhraseLimiter, async (req: any, res) => {
   const { phrase, language, age } = req.body;
@@ -198,14 +99,12 @@ router.post("/explain-phrase", requireAuth, explainPhraseLimiter, async (req: an
     phraseCache.set(cacheKey, result);
     res.json(result);
   } catch (error: any) {
-    console.warn("Gemini explain-phrase call failed, using smart local database fallback:", error.message);
-    const mockData = getLocalPhraseExplanation(phrase, language);
-    if (parsedAge < 12) {
-      mockData.maturityLevel = "Infantil";
-    } else if (parsedAge < 18) {
-      mockData.maturityLevel = "Adolescente";
-    }
-    res.json(mockData);
+    console.warn("Gemini explain-phrase call failed:", error.message);
+    res.status(503).json({
+      error: "PHRASE_EXPLANATION_UNAVAILABLE",
+      message: "A explicação real está temporariamente indisponível.",
+      retryable: true,
+    });
   }
 });
 
@@ -308,51 +207,12 @@ router.post("/feedback", requireAuth, feedbackLimiter, async (req: any, res) => 
 
     res.json(result);
   } catch (error: any) {
-    console.warn("Gemini feedback analysis failed, using local high-availability state:", error.message);
-    const mockFeedback = {
-      overallScore: 82,
-      fluencyLevel: proficiency || "A1",
-      strengths: ["Vocabulário apropriado para o cenário", "Respostas calorosas e gentis"],
-      grammarMistakes: [],
-      vocabularyTips: [
-        {
-          word: "Kamba",
-          definition: "Friend or partner in Kimbundu / Angolan Portuguese.",
-          suggestion: "Use this to show friendship and cultural appreciation in Angola."
-        }
-      ],
-      pronunciationTips: ["Continue praticando as vogais nasais.", "Muito boa articulação no sotaque geral."],
-      pronunciationAnalysis: [
-        {
-          word: "Kamba",
-          userPhonetic: "kam-bah",
-          nativePhonetic: "KAHM-bah",
-          tip: "Position your tongue flat and slightly back on the 'm' sound for a fuller resonant tone, and make the 'a' sound more nasalized as is typical in Angolan Portuguese."
-        },
-        {
-          word: "Funge",
-          userPhonetic: "fun-jee",
-          nativePhonetic: "FOON-jeh",
-          tip: "Keep the ending 'e' closed and short, almost sounding like an 'eh'. Do not pronounce it as a long English 'ee' sound."
-        }
-      ],
-      encouragingSummary: "Maravilhoso progresso! O teu fluxo de conversação está fantástico e o uso de termos locais está cada vez mais natural. Continua a praticar diariamente com o Kamba IA para consolidar a tua fluência!"
-    };
-
-    try {
-      await safeAddDoc("analytics", {
-        alunoId: userUid,
-        detected_error: "Sem erros gramaticais expressivos nesta sessão (Fallback).",
-        correction: "Excelente fluidez verbal.",
-        pedagogical_note: mockFeedback.encouragingSummary,
-        planId,
-        timestamp: Timestamp.now()
-      });
-    } catch (e) {
-      console.error("Failed to log fallback analytic to database:", e);
-    }
-
-    res.json(mockFeedback);
+    console.warn("Gemini feedback analysis failed:", error.message);
+    res.status(503).json({
+      error: "CONVERSATION_FEEDBACK_UNAVAILABLE",
+      message: "A análise real da conversa está temporariamente indisponível. Nenhuma nota foi gravada.",
+      retryable: true,
+    });
   }
 });
 
@@ -651,8 +511,12 @@ Responda APENAS em formato JSON, exatamente assim:
       });
       resultadoJSON = JSON.parse(response.text || "{}");
     } catch (error: any) {
-      console.warn("Gemini ia-live call failed, using high-availability local Kamba AI response:", error.message);
-      resultadoJSON = getLocalAngolanResponse(mensagemUsuario, memory);
+      console.warn("Gemini ia-live call failed:", error.message);
+      return res.status(503).json({
+        error: "KAMBA_AI_UNAVAILABLE",
+        message: "O tutor cultural real está temporariamente indisponível.",
+        retryable: true,
+      });
     }
 
     const oldLevel = memory.nivelAtual;
