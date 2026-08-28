@@ -18,28 +18,6 @@ if (openaiKey) {
   console.log("[Whisper Service] No OPENAI_API_KEY environment variable found. Falling back to Gemini audio analysis.");
 }
 
-// Helper: Calculate similarity distance for fallback
-function getLevenshteinDistance(a: string, b: string): number {
-  const tmp = [];
-  let i, j;
-  for (i = 0; i <= a.length; i++) {
-    tmp[i] = [i];
-  }
-  for (j = 0; j <= b.length; j++) {
-    tmp[0][j] = j;
-  }
-  for (i = 1; i <= a.length; i++) {
-    for (j = 1; j <= b.length; j++) {
-      tmp[i][j] = Math.min(
-        tmp[i - 1][j] + 1,
-        tmp[i][j - 1] + 1,
-        tmp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
-      );
-    }
-  }
-  return tmp[a.length][b.length];
-}
-
 // 0. Transcribe Audio (OpenAI Whisper with Gemini Fallback)
 router.post("/transcribe", requireAuth, async (req: any, res) => {
   const { audioBase64, language, mimeType } = req.body;
@@ -341,7 +319,7 @@ router.post("/evaluate", requireAuth, async (req: any, res) => {
         });
       }
     } catch (geminiError) {
-      console.warn("[Pronunciation Service] Gemini audio parsing failed, falling back to smart simulation:", geminiError);
+      console.warn("[Pronunciation Service] Real audio evaluation failed:", geminiError);
     }
 
     let evaluationResult: any;
@@ -349,51 +327,11 @@ router.post("/evaluate", requireAuth, async (req: any, res) => {
     if (response && response.text) {
       evaluationResult = JSON.parse(response.text);
     } else {
-      // SMART FALLBACK SIMULATION: If Gemini audio is overloaded/unavailable, we simulate a very realistic didactical output.
-      // This is crucial to satisfy the high-availability constraints.
-      const dist = getLevenshteinDistance(targetText.toLowerCase(), targetText.toLowerCase());
-      const maxLen = Math.max(1, targetText.length);
-      const accuracySim = Math.max(60, Math.min(100, Math.round(((maxLen - dist) / maxLen) * 100) - Math.floor(Math.random() * 15)));
-      
-      const overall = Math.round((accuracySim + 82 + 78) / 3);
-      
-      evaluationResult = {
-        transcription: targetText, // Assumed successful detection in fallback
-        overallScore: overall,
-        accuracyScore: accuracySim,
-        fluencyScore: 84,
-        completenessScore: 100,
-        speechSpeedWpm: 125,
-        pauseCount: 1,
-        accentDetected: "Sotaque de influência de Português Angolano",
-        accentConfidence: 85,
-        generalFeedback: "Excelente tentativa! Conseguiu articular a maior parte dos fonemas com clareza. Note-se uma ligeira aspiração nas consoantes oclusivas finais.",
-        phonemeAnalysis: [
-          {
-            phoneme: "TH",
-            ipaSymbol: "θ",
-            accuracy: 72,
-            feedback: "Coloque a ponta da língua entre os dentes incisivos superiores e inferiores e sopre o ar suavemente."
-          },
-          {
-            phoneme: "R (Retroflex)",
-            ipaSymbol: "ɹ",
-            accuracy: 85,
-            feedback: "Dobre a ponta da língua para trás sem tocar o céu da boca ao emitir o som."
-          },
-          {
-            phoneme: "Short I",
-            ipaSymbol: "ɪ",
-            accuracy: 68,
-            feedback: "Mantenha o som curto e relaxado, posicionando a língua entre as vogais e e i."
-          }
-        ],
-        improvementTips: [
-          "Pratique o som 'th' surdo posicionando corretamente a língua entre os dentes.",
-          "Aumente a velocidade média de leitura para aproximar-se do ritmo nativo de 130 WPM.",
-          "Evite adicionar o som vocálico 'i' no final de palavras terminadas em consoantes mudas."
-        ]
-      };
+      return res.status(503).json({
+        error: "PRONUNCIATION_EVALUATION_UNAVAILABLE",
+        message: "Os avaliadores de áudio reais estão temporariamente indisponíveis.",
+        retryable: true,
+      });
     }
 
     // Append standard operational keys
