@@ -3,7 +3,7 @@ import { MessageSquare, Sparkles, Send, Minus, Maximize2 } from 'lucide-react';
 import { useLocalization } from '../../context/LocalizationContext';
 import { auth } from '../../firebase';
 
-export const AIAssistant: React.FC<{ userId?: string }> = ({ userId }) => {
+export const AIAssistant: React.FC<{ userId?: string }> = () => {
   const { localization } = useLocalization();
   const [messages, setMessages] = useState<{ role: 'user' | 'assistant', text: string }[]>([
     { role: 'assistant', text: 'Olá! Sou o seu Professor Virtual. Como posso ajudar você hoje? Posso traduzir frases ou explicar conceitos.' }
@@ -35,17 +35,17 @@ export const AIAssistant: React.FC<{ userId?: string }> = ({ userId }) => {
 
     try {
       const idToken = await auth.currentUser?.getIdToken();
-      const response = await fetch('/api/ai-chat', {
+      if (!idToken) throw new Error('AUTH_REQUIRED');
+      const response = await fetch('/api/learning-interaction', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           ...(idToken ? { 'Authorization': `Bearer ${idToken}` } : {})
         },
         body: JSON.stringify({ 
-          userId,
-          messages: newMessages, 
+          message: userMessage.text,
           task: task,
-          userContext: { 
+          context: {
             level: profile?.level || 'A1', 
             languageLearning: [profile?.learningLanguage || 'English'], 
             languageNative: profile?.nativeLanguage || 'Portuguese',
@@ -61,7 +61,9 @@ export const AIAssistant: React.FC<{ userId?: string }> = ({ userId }) => {
         })
       });
       const data = await response.json();
-      
+      if (!response.ok || typeof data.response !== 'string') {
+        throw new Error(data.error || 'LEARNING_INTERACTION_FAILED');
+      }
       setMessages(prev => [...prev, { role: 'assistant' as const, text: data.response }]);
     } catch (err) {
       setMessages(prev => [...prev, { role: 'assistant', text: 'Desculpe, não consegui processar isso agora.' }]);
