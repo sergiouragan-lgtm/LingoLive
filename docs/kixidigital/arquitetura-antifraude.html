@@ -1,0 +1,294 @@
+<title>Livro-Razão da KixiDigital</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root{
+  --esmeralda:#0F4C3A; --fundo:#08251C; --painel:rgba(255,255,255,.035);
+  --dourado:#D4AF37; --gelo:#F8F9FA; --cta:#E85D26;
+  --ok:#2ECC71; --perigo:#E74C3C; --aviso:#D4AF37;
+  --musgo:#94ABA1; --musgo-fraco:#5D7A6F; --linha:rgba(212,175,55,.16);
+  --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --ui:"Inter",-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--fundo); color:var(--gelo); font-family:var(--ui);
+  font-size:16.5px; line-height:1.65; -webkit-font-smoothing:antialiased}
+.wrap{max-width:840px; margin:0 auto; padding:0 24px}
+h1,h2,h3,h4{font-family:var(--display); font-weight:600; text-wrap:balance; margin:0; line-height:1.14}
+p{margin:0}
+a{color:var(--dourado)}
+.eyebrow{font-size:11.5px; letter-spacing:.18em; text-transform:uppercase; color:var(--dourado); font-weight:600}
+section{padding:60px 0; border-top:1px solid var(--linha)}
+section>.wrap>h2{font-size:clamp(25px,3.6vw,34px); letter-spacing:-.02em}
+section>.wrap>h2+p{color:var(--musgo); margin-top:14px; max-width:66ch}
+h3{font-size:19px; margin-top:38px}
+h3+p,h4+p{margin-top:10px}
+h4{font-size:15.5px; margin-top:26px; color:var(--dourado)}
+p+p{margin-top:14px}
+.corpo p{max-width:66ch}
+ul,ol{color:var(--musgo); padding-left:20px; margin:14px 0; max-width:64ch}
+li{margin-bottom:9px}
+li b,p b{color:var(--gelo); font-weight:600}
+code{font-family:var(--mono); font-size:.86em; background:rgba(212,175,55,.12);
+  padding:2px 6px; border-radius:5px; color:#EBD489}
+pre{font-family:var(--mono); font-size:13px; line-height:1.6; background:rgba(0,0,0,.32);
+  border:1px solid var(--linha); border-radius:14px; padding:18px 20px; overflow-x:auto; margin:20px 0}
+pre code{background:none; padding:0; color:var(--musgo)}
+pre .k{color:var(--dourado)} pre .c{color:var(--musgo-fraco); font-style:italic}
+pre .g{color:var(--ok)} pre .r{color:#F09A8E}
+
+header{padding:80px 0 60px}
+header h1{font-size:clamp(34px,5.6vw,54px); letter-spacing:-.028em; max-width:17ch; margin-top:26px}
+header .lede{margin-top:22px; font-size:18.5px; color:var(--musgo); max-width:60ch}
+.trilha{display:flex; align-items:center; gap:12px; font-size:13px; color:var(--musgo-fraco)}
+.trilha b{color:var(--dourado); font-weight:600}
+
+.painel{border:1px solid var(--linha); border-radius:16px; padding:22px 24px; background:var(--painel); margin:24px 0}
+.painel h4{margin-top:0}
+.tese{border-left:3px solid var(--dourado); border-radius:0 16px 16px 0}
+.alerta{border-color:rgba(231,76,60,.4); background:rgba(231,76,60,.07)}
+.alerta h4{color:#F09A8E}
+
+.tabela-scroll{overflow-x:auto; margin:24px 0}
+table{width:100%; border-collapse:collapse; font-size:14.5px; min-width:560px}
+th{text-align:left; font-size:11px; letter-spacing:.13em; text-transform:uppercase;
+  color:var(--musgo-fraco); font-weight:600; padding:0 18px 12px 0;
+  border-bottom:1px solid var(--linha); white-space:nowrap; vertical-align:bottom}
+td{padding:15px 18px 15px 0; border-bottom:1px solid rgba(148,171,161,.12);
+  color:var(--musgo); vertical-align:top}
+td:first-child{color:var(--gelo); font-weight:600; white-space:nowrap}
+tr:last-child td{border:0}
+.tnum{font-variant-numeric:tabular-nums}
+
+.selo{display:inline-block; font-size:11px; font-weight:700; padding:3px 9px;
+  border-radius:999px; letter-spacing:.03em; white-space:nowrap}
+.s-alto{background:rgba(231,76,60,.15); color:#F09A8E}
+.s-medio{background:rgba(212,175,55,.16); color:#E5C766}
+.s-baixo{background:rgba(46,204,113,.14); color:#7EE2A8}
+
+/* diagramas */
+.fluxo{display:grid; gap:10px; margin:26px 0}
+.passo{display:grid; grid-template-columns:34px 1fr; gap:16px; align-items:start;
+  border:1px solid var(--linha); border-radius:14px; padding:16px 18px; background:var(--painel)}
+.passo .n{font-family:var(--display); color:var(--dourado); font-size:14px;
+  border:1px solid var(--linha); border-radius:9px; height:28px; display:grid; place-items:center}
+.passo b{display:block; font-size:15px; font-weight:600}
+.passo span{color:var(--musgo); font-size:14.5px}
+.passo.trava{border-color:rgba(212,175,55,.5); background:rgba(212,175,55,.07)}
+
+.maquina{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:24px 0;
+  padding:20px; border:1px solid var(--linha); border-radius:16px; background:var(--painel)}
+.estado{font-family:var(--mono); font-size:12px; font-weight:600; padding:8px 13px;
+  border-radius:9px; border:1px solid currentColor; white-space:nowrap}
+.e-inicio{color:var(--musgo)} .e-espera{color:var(--aviso)}
+.e-ok{color:var(--ok)} .e-mau{color:var(--perigo)}
+.seta{color:var(--musgo-fraco); font-size:13px}
+
+.duas{display:grid; grid-template-columns:1fr 1fr; gap:18px; margin:24px 0}
+@media (max-width:720px){.duas{grid-template-columns:1fr}}
+.duas .painel{margin:0}
+
+footer{padding:52px 0 80px; border-top:1px solid var(--linha); color:var(--musgo-fraco); font-size:13.5px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<header>
+  <div class="wrap">
+    <div class="trilha"><b>KixiDigital</b><span>·</span><span>Arquitectura de backend</span><span>·</span><span>v1</span></div>
+    <h1>O dinheiro não pode depender de ninguém acreditar em ninguém.</h1>
+    <p class="lede">A kixikila funciona há gerações à base de confiança pessoal. Digitalizá-la sem cuidado não remove a fraude — dá-lhe escala. Este documento descreve o backend que torna a burla cara, lenta e visível, começando por uma decisão que resolve metade dos problemas de uma vez.</p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap corpo">
+    <span class="eyebrow">Princípio fundador</span>
+    <h2>A plataforma é notário, nunca banco</h2>
+    <p>A tentação óbvia é a KixiDigital receber as contribuições numa conta própria e entregar ao beneficiário na data certa. Não faça isso. Guardar dinheiro de terceiros muda a natureza do negócio em dois eixos ao mesmo tempo.</p>
+
+    <div class="painel tese">
+      <h4>A regra que tudo o resto assume</h4>
+      <p>O dinheiro vai directamente do membro para o beneficiário, pela operadora. A KixiDigital orquestra, regista, prova e reconcilia — mas <b>nunca fica na posse do dinheiro</b>, nem por um dia.</p>
+    </div>
+
+    <p>No eixo regulatório: reter fundos de clientes em Angola aproxima-o de <b>instituição de pagamentos sob supervisão do BNA</b>, com capital mínimo, reporte e licenciamento. Uma app de gestão que só orquestra transferências entre contas de terceiros vive num regime bem mais leve. Esta é a diferença entre lançar em meses ou em anos.</p>
+    <p>No eixo da fraude: se a plataforma não detém o dinheiro, uma falha de segurança ou um funcionário desonesto não conseguem <em>desviar saldo</em> — no máximo corrompem registos, o que a cadeia de hash mais abaixo torna detectável. O ataque com maior retorno deixa de existir.</p>
+    <p>Há um custo honesto nesta escolha: sem custódia, a plataforma não consegue reter automaticamente uma penalização por atraso nem devolver dinheiro de um grupo dissolvido. Essas funções passam a ser acordos entre membros, registados e provados pela app, não executados por ela.</p>
+
+    <h3>Onde vive cada coisa</h3>
+    <p>O repositório já usa Firebase, e para o protótipo isso é acertado — dá sincronização offline de graça, que é indispensável no Mercado do Povo. Mas Firestore não sabe garantir que uma soma fecha em zero. A separação:</p>
+    <div class="duas">
+      <div class="painel">
+        <h4>PostgreSQL — razão de registo</h4>
+        <p style="font-size:14.5px; color:var(--musgo)">Obrigações, lançamentos, entregas, reconciliação. Transacional, com constraints que o código de aplicação não consegue contornar. Nenhum cliente lhe toca directamente.</p>
+      </div>
+      <div class="painel">
+        <h4>Firestore — projecção de leitura</h4>
+        <p style="font-size:14.5px; color:var(--musgo)">Só o que o telemóvel mostra: saldos já calculados, listas de membros, estados. Escrita sempre <code>false</code> nas regras. Alimentado pelo servidor a partir do razão.</p>
+      </div>
+    </div>
+    <p>Regra sem excepção: <b>nenhum movimento de dinheiro nasce no cliente</b>. A app pede <em>«quero pagar a obrigação X»</em>; o servidor decide se essa obrigação existe, se o montante bate certo e o que escrever. Um telemóvel comprometido consegue mentir sobre a sua intenção, nunca sobre o resultado.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap corpo">
+    <span class="eyebrow">O núcleo</span>
+    <h2>Um livro-razão que não sabe mentir</h2>
+    <p>Três garantias, todas forçadas pela base de dados e não por disciplina de programação. O <code>schema.sql</code> ao lado deste documento implementa-as e o <code>schema_testes.sql</code> prova que funcionam.</p>
+
+    <h3>1. Partida dobrada — cada movimento fecha em zero</h3>
+    <p>Nenhum valor aparece ou desaparece: todo o dinheiro que sai de um sítio entra noutro. Quando João paga 25.000 Kz via KWiK, a contribuição divide-se pelas contas de destino e a soma dos lançamentos é exactamente zero.</p>
+<pre><code><span class="c">-- João paga 25.000 Kz (2.500.000 cêntimos) via KWiK</span>
+<span class="k">insert into</span> lancamento (transacao_id, conta, montante_kz) <span class="k">values</span>
+  (:tx, <span class="g">'grupo:G1:fundo'</span>,               2450000),  <span class="c">-- chega ao grupo</span>
+  (:tx, <span class="g">'plataforma:receita_taxa'</span>,        25000),  <span class="c">-- 1,0%</span>
+  (:tx, <span class="g">'mae:U7:comissao'</span>,                12500),  <span class="c">-- 0,5%</span>
+  (:tx, <span class="g">'operadora:KWIK:processamento'</span>,   12500),  <span class="c">-- 0,5%</span>
+  (:tx, <span class="g">'membro:U3:obrigacao'</span>,         -2500000); <span class="c">-- a dívida extingue-se</span>
+<span class="c">-- soma = 0 → a constraint deferida deixa o COMMIT passar</span></code></pre>
+    <p>A verificação é uma <code>constraint trigger</code> deferida: corre no <code>COMMIT</code>, quando a transação já está completa. Tentar gravar um desequilíbrio — o que uma burla precisa de fazer para criar dinheiro do nada — aborta a operação inteira:</p>
+<pre><code><span class="r">ERROR: Transação 2222…2222 não fecha: desequilíbrio de 2499900 cêntimos</span></code></pre>
+    <p>Um efeito lateral valioso: o saldo de qualquer conta nunca é um campo guardado, é sempre a soma dos lançamentos. Não existe um número editável a que um atacante possa chegar.</p>
+
+    <h3>2. Append-only — corrige-se por estorno, não por edição</h3>
+    <p><code>UPDATE</code> e <code>DELETE</code> sobre o razão levantam excepção. Um erro real — e vão existir — corrige-se com um lançamento inverso que aponta para o original. O erro fica visível para sempre, com data, autor e justificação. É assim que a contabilidade funciona há seiscentos anos, e pela mesma razão: um registo que se pode reescrever não prova nada.</p>
+
+    <h3>3. Cadeia de hash — a defesa contra quem tem a palavra-passe</h3>
+    <p>As duas garantias acima protegem contra a aplicação. Nenhuma protege contra quem entra directamente no PostgreSQL — um administrador de sistemas, ou alguém que roube as credenciais. Para esse caso, cada lançamento sela o anterior:</p>
+<pre><code>hash = SHA-256( hash_anterior ‖ transacao_id ‖ conta ‖ montante ‖ criado_em )</code></pre>
+    <p>Alterar uma linha antiga por SQL directo obriga a recalcular todos os hashes seguintes. E, uma vez por dia, o <b>selo diário</b> — o hash do último lançamento — é publicado aos membros na app. Reescrever o passado passa a exigir também apagar um número que já saiu do servidor e está no telemóvel de vinte pessoas.</p>
+    <p>Detalhe de implementação que é fácil falhar: o cálculo do encadeamento adquire um <code>pg_advisory_xact_lock</code>. Sem ele, duas escritas simultâneas selam o mesmo antecessor e a cadeia bifurca em silêncio. Isto serializa os acréscimos ao razão — a um volume de kixikilas, é irrelevante; a um volume de operadora, exigiria uma cadeia por grupo.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap corpo">
+    <span class="eyebrow">Fluxo</span>
+    <h2>Um pagamento é uma alegação até três fontes concordarem</h2>
+    <p>O erro mais comum em integrações de pagamento é tratar o webhook da operadora como prova. O webhook é uma <em>alegação</em>: pode ser forjado, repetido, ou chegar sobre um pagamento que depois é revertido. A prova é o extracto de liquidação.</p>
+
+    <div class="maquina">
+      <span class="estado e-inicio">ALEGADO</span><span class="seta">→</span>
+      <span class="estado e-espera">PENDENTE_RECONCILIACAO</span><span class="seta">→</span>
+      <span class="estado e-ok">CONFIRMADO</span>
+      <span class="seta" style="margin-left:12px">ou</span>
+      <span class="estado e-mau">QUARENTENA</span><span class="seta">→</span>
+      <span class="estado e-mau">ANULADO</span>
+    </div>
+
+    <div class="fluxo">
+      <div class="passo"><span class="n">1</span><span><b>Assinatura e janela temporal</b><span>HMAC verificado contra o segredo da operadora e carimbo dentro de ±5 minutos. Falha aqui, nada é escrito no razão — só no <code>evento_webhook</code>, para investigação.</span></span></div>
+      <div class="passo trava"><span class="n">2</span><span><b>Idempotência ao nível da base de dados</b><span>Índice único em <code>(operadora, referencia_externa)</code>. O replay do mesmo callback colide antes de chegar a qualquer lançamento — não depende de o código se lembrar de verificar.</span></span></div>
+      <div class="passo trava"><span class="n">3</span><span><b>O montante do payload nunca é aceite</b><span>Compara-se com a obrigação esperada. Diferente? Vai para <code>QUARENTENA</code> e chama um humano. Nunca se credita o que o payload disser, ou basta forjar um valor para criar saldo.</span></span></div>
+      <div class="passo"><span class="n">4</span><span><b>Estado PENDENTE_RECONCILIACAO</b><span>O membro vê «pagamento recebido, a confirmar». Já conta como esforço feito, mas ainda não liberta uma entrega.</span></span></div>
+      <div class="passo"><span class="n">5</span><span><b>Extracto diário da operadora</b><span>Importado e cruzado. Bate certo, passa a <code>CONFIRMADO</code>. Não aparece no extracto em 48h, abre <code>divergencia</code> do tipo <code>SEM_EXTRACTO</code>.</span></span></div>
+      <div class="passo trava"><span class="n">6</span><span><b>Entrega só com fundo suficiente</b><span>A libertação da kixikila verifica <code>saldo('grupo:{id}:fundo') &gt;= valor</code> em isolamento <code>serializable</code>. Nunca se entrega dinheiro que ainda não entrou.</span></span></div>
+    </div>
+
+    <h3>Reconciliação a três fontes, todas as noites</h3>
+    <p>Um trabalho nocturno compara o razão interno, os extractos das operadoras e as atestações dos membros. Qualquer desacordo entre os três gera uma <code>divergencia</code> com tipo próprio — <code>SEM_EXTRACTO</code>, <code>SEM_WEBHOOK</code>, <code>MONTANTE_DIFERE</code>, <code>CADEIA_QUEBRADA</code> — e nenhuma divergência aberta há mais de 72 horas deve existir sem alguém a olhar para ela. Esta é a métrica operacional que interessa vigiar desde o primeiro grupo do piloto.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap corpo">
+    <span class="eyebrow">O caso difícil</span>
+    <h2>O dinheiro vivo é onde a fraude vai viver</h2>
+    <p>A maior parte das contribuições, no arranque, será em numerário. O razão não consegue observar dinheiro em notas — só consegue observar <em>quem afirma o quê</em>. A resposta não é confiar na Mãe da Kixikila: é nunca aceitar uma só voz.</p>
+
+    <div class="painel">
+      <h4>Dupla atestação</h4>
+      <p style="color:var(--musgo)">Um pagamento em dinheiro precisa de <b>duas assinaturas independentes</b>: quem entregou e quem recebeu, cada uma do seu dispositivo. Com uma só, a obrigação fica em <code>ALEGADO</code> e não conta para nada — nem liberta entrega, nem soma reputação.</p>
+    </div>
+
+    <ul>
+      <li><b>Prazo de 72 horas.</b> Uma atestação sem contraparte expira e abre disputa visível a todo o grupo. Silêncio nunca vira confirmação.</li>
+      <li><b>Dinheiro não gera comissão.</b> A plataforma cobra 1% só sobre o que consegue verificar. O incentivo fica alinhado: ninguém ganha por registar pagamentos que não existem, e a Mãe da Kixikila ganha mais empurrando o grupo para o canal digital — que é exactamente a migração que o negócio precisa.</li>
+      <li><b>A reputação só conta o verificado.</b> A <code>view reputacao</code> conta apenas pagamentos com canal digital confirmado por terceiro. Se contasse atestações, o selo «Pagador Ouro» comprava-se com dois amigos e dez minutos.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="wrap corpo">
+    <span class="eyebrow">Modelo de ameaça</span>
+    <h2>Treze formas de roubar uma kixikila, e o que as trava</h2>
+    <p>Ordenado por prejuízo esperado. As duas primeiras são as que matam o produto; as restantes corroem-no.</p>
+
+    <div class="tabela-scroll">
+      <table>
+        <thead><tr><th>Ataque</th><th>Risco</th><th>Controlo</th></tr></thead>
+        <tbody>
+          <tr><td>Mãe desaparece com o fundo</td><td><span class="selo s-alto">Crítico</span></td><td>Sem custódia: o dinheiro nunca passa pela conta da Mãe. Entrega verifica fundo suficiente e vai directa ao beneficiário pela operadora.</td></tr>
+          <tr><td>Falsa confirmação em dinheiro</td><td><span class="selo s-alto">Crítico</span></td><td>Dupla atestação obrigatória, expiração em 72h, disputa visível ao grupo e comissão zero sobre numerário.</td></tr>
+          <tr><td>Membros-fantasma (sybil)</td><td><span class="selo s-alto">Alto</span></td><td>Um telemóvel verificado por conta; <code>impressao_digital</code> do aparelho partilhada por &gt;3 contas gera sinal; bónus de referência só paga após 2 contribuições digitais confirmadas em rodadas distintas.</td></tr>
+          <tr><td>Manipulação do rodízio</td><td><span class="selo s-alto">Alto</span></td><td><code>hash_rodizio</code> selado no arranque e visível na app; <code>unique(ciclo, posicao)</code>; reordenar exige novo ciclo com quórum de membros.</td></tr>
+          <tr><td>Desvio do destino da entrega</td><td><span class="selo s-alto">Alto</span></td><td><code>destino_hash</code> congelado 48h antes da entrega. Alteração dentro da janela bloqueia a rodada e exige re-verificação.</td></tr>
+          <tr><td>SIM swap / tomada de conta</td><td><span class="selo s-alto">Alto</span></td><td>Dispositivo novo entra em arrefecimento de 48h: sem mudar destino, sem libertar fundos. Consulta a <code>last_sim_change</code> da operadora quando disponível.</td></tr>
+          <tr><td>Replay de webhook</td><td><span class="selo s-medio">Médio</span></td><td>Índice único <code>(operadora, referencia_externa)</code>, provado a falhar no teste T4.</td></tr>
+          <tr><td>Webhook forjado</td><td><span class="selo s-medio">Médio</span></td><td>HMAC + janela de ±5 min + montante confrontado com a obrigação esperada.</td></tr>
+          <tr><td>Entrega dupla por concorrência</td><td><span class="selo s-medio">Médio</span></td><td><code>serializable</code> na libertação, <code>unique(ciclo, posicao)</code> na rodada, idempotência na transação.</td></tr>
+          <tr><td>Edição retroactiva de registos</td><td><span class="selo s-medio">Médio</span></td><td>Append-only, cadeia de hash e selo diário publicado aos membros.</td></tr>
+          <tr><td>Fraude de comissão (wash)</td><td><span class="selo s-medio">Médio</span></td><td>Detecção de ida-e-volta A→B→A no mesmo dia; a taxa da operadora torna o ciclo deficitário para quem tenta.</td></tr>
+          <tr><td>Funcionário interno</td><td><span class="selo s-baixo">Contido</span></td><td>Suporte lê, não escreve; estorno exige segunda aprovação por constraint; toda a acção interna exige justificação e entra no trilho.</td></tr>
+          <tr><td>Esquema em pirâmide disfarçado</td><td><span class="selo s-baixo">Contido</span></td><td>Grupo fechado no arranque do ciclo: quem adere depois só entra no ciclo seguinte. Um rodízio não pode crescer para pagar o passado.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Regras de risco, computáveis desde o primeiro dia</h3>
+    <p>Nada de aprendizagem automática no início — não há dados e as regras explícitas são auditáveis perante o regulador. Cada regra escreve um <code>sinal_risco</code> pontuado; acima de um limiar, o ciclo passa a <code>CONGELADO</code> e um humano decide.</p>
+    <ul>
+      <li>Grupo cuja Mãe ocupa a 1.ª posição do rodízio <b>e</b> tem histórico de ciclo dissolvido antes do fim.</li>
+      <li>Proporção de pagamentos em numerário acima de 70% num grupo com integração digital activa há mais de um mês.</li>
+      <li>Beneficiário cujo <code>iban_hash</code> coincide com o de outro membro do mesmo ciclo.</li>
+      <li>Mais de 5 adesões nas 24h anteriores a uma entrega.</li>
+      <li>Contribuição que salta mais de 3× a média histórica do membro — sinal de <em>structuring</em>, relevante para o reporte AML.</li>
+      <li>Divergência de reconciliação aberta há mais de 72h no mesmo grupo.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="wrap corpo">
+    <span class="eyebrow">Conformidade</span>
+    <h2>Níveis de identificação atados a limites reais</h2>
+    <p>Exigir bilhete de identidade à porta mata a adopção no Mercado do Povo. Não exigir nada nenhuma torna a app um veículo de lavagem. A saída é escalonar: o esforço de identificação cresce com o dinheiro em causa.</p>
+
+    <div class="tabela-scroll">
+      <table>
+        <thead><tr><th>Nível</th><th>Exige</th><th class="tnum">Limite por ciclo</th><th>Permite</th></tr></thead>
+        <tbody>
+          <tr><td>Nível 0</td><td>Telemóvel verificado por OTP</td><td class="tnum">50.000 Kz</td><td>Participar, pagar, receber</td></tr>
+          <tr><td>Nível 1</td><td>BI e selfie com prova de vida</td><td class="tnum">500.000 Kz</td><td>Criar grupo, canais digitais</td></tr>
+          <tr><td>Nível 2</td><td>BI, NIF e IBAN</td><td class="tnum">Sem limite</td><td>Receber comissão, ser agente</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>O Nível 2 não é opcional para quem recebe: o schema recusa gravar um utilizador nesse nível sem NIF e IBAN, porque é o nível a que a comissão de 0,5% é paga e a AGT exige factura certificada sobre ela.</p>
+
+    <div class="painel alerta">
+      <h4>O ponto que precisa de parecer jurídico antes do piloto</h4>
+      <p style="color:var(--musgo)">A arquitectura sem custódia foi desenhada para manter a KixiDigital fora do perímetro de instituição de pagamentos do BNA — mas essa qualificação depende de leitura legal do regime angolano de serviços de pagamento, não de decisão de engenharia. Vale confirmar antes do piloto, porque <b>a resposta muda a arquitectura, não só a papelada</b>: com custódia, é preciso conta segregada, reporte prudencial e uma equipa de <em>compliance</em>. Os dados pessoais seguem a Lei n.º 22/11 — telemóvel e IBAN guardados só como HMAC, consentimento explícito, e direito a eliminação que não pode apagar o razão (anonimiza-se a identidade, preserva-se o lançamento).</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap corpo">
+    <span class="eyebrow">Sequência</span>
+    <h2>O que construir primeiro</h2>
+    <p>A ordem importa: cada camada só é útil se a anterior existir, e as duas primeiras já entregam a maior parte da protecção.</p>
+    <div class="fluxo">
+      <div class="passo"><span class="n">1</span><span><b>Razão com as três garantias</b><span>Schema, partida dobrada, append-only, cadeia de hash e o selo diário na app. Sem isto, nada do resto se sustenta.</span></span></div>
+      <div class="passo"><span class="n">2</span><span><b>Rodízio selado e dupla atestação</b><span>Cobre o piloto inteiro, mesmo com 100% dos pagamentos em numerário. É o que permite lançar antes da integração KWiK estar pronta.</span></span></div>
+      <div class="passo"><span class="n">3</span><span><b>Webhooks e reconciliação a três fontes</b><span>Entra com a integração KWiK, junto com a receita de 1% por transação.</span></span></div>
+      <div class="passo"><span class="n">4</span><span><b>Motor de regras de risco</b><span>Só faz sentido com volume real. Comece pelas seis regras acima; o resto vem dos incidentes verdadeiros do piloto.</span></span></div>
+    </div>
+    <p>Uma nota sobre o piloto: os três a cinco grupos do Mercado do Povo valem mais como fonte de modelo de ameaça do que como validação de produto. As tentativas de fraude que aparecerem em grupos reais vão ser mais criativas do que esta lista — o valor desta arquitectura é que cada uma delas se traduz numa regra nova sem precisar de mexer no núcleo.</p>
+  </div>
+</section>
+
+<footer><div class="wrap">KixiDigital · arquitectura de backend anti-fraude · acompanha <code>schema.sql</code> e <code>schema_testes.sql</code>, verificados em PostgreSQL 16.</div></footer>
