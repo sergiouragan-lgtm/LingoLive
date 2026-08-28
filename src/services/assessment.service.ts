@@ -120,10 +120,6 @@ export class AssessmentService {
     }
 
     const result = await res.json();
-    await this.repository.saveAttempt(result.attempt);
-    if (result.certificate) {
-      await this.repository.saveCertificate(result.certificate);
-    }
     return result;
   }
 
@@ -145,9 +141,6 @@ export class AssessmentService {
         const res = await fetch('/api/assessment/certificates', { headers });
         if (res.ok) {
           const list = await res.json();
-          for (const c of list) {
-            await this.repository.saveCertificate(c);
-          }
           return list;
         }
       } catch (err) {

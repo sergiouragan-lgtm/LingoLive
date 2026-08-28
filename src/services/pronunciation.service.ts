@@ -56,7 +56,6 @@ export class PronunciationService {
     }
 
     const result: PronunciationResult = await res.json();
-    await this.repository.saveResult(result);
     return result;
   }
 
@@ -71,10 +70,6 @@ export class PronunciationService {
         const res = await fetch('/api/pronunciation/results', { headers });
         if (res.ok) {
           const results = await res.json();
-          // Cache each result locally
-          for (const r of results) {
-            await this.repository.saveResult(r);
-          }
           return results;
         }
       } catch (err) {

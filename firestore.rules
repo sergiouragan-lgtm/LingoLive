@@ -621,15 +621,22 @@ service cloud.firestore {
     // 33. Exam Attempts
     match /assessment_attempts/{attemptId} {
       allow read: if isSignedIn() && (isOwner(existing().userId) || isAdmin());
-      allow create: if isEmailVerified() && isOwner(incoming().userId);
-      allow update: if isEmailVerified() && (isOwner(existing().userId) || isAdmin());
+      // Scores and grading are written only by the trusted backend/Admin SDK.
+      allow create, update, delete: if false;
     }
 
     // 34. Certificates
     match /assessment_certificates/{certId} {
       allow read: if isSignedIn() && (isOwner(existing().userId) || isAdmin());
-      allow create: if isEmailVerified() && isOwner(incoming().userId);
-      allow update: if isEmailVerified() && (isOwner(existing().userId) || isAdmin());
+      // Certificates are immutable backend-issued records.
+      allow create, update, delete: if false;
+    }
+
+    // Canonical learning totals are aggregated exclusively by the backend.
+    match /learning_progress/{userId} {
+      allow get: if isSignedIn() && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+      allow create, update, delete: if false;
     }
 
     // 35. Settings Collection
@@ -709,14 +716,12 @@ service cloud.firestore {
     match /pronunciation_results/{resultId} {
       allow get: if isSignedIn() && (isOwner(resource.data.userId) || isAdmin());
       allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isEmailVerified() && isOwner(incoming().userId);
-      allow update, delete: if isAdmin();
+      allow create, update, delete: if false;
     }
     match /pronunciation_reports/{reportId} {
       allow get: if isSignedIn() && (isOwner(resource.data.userId) || isAdmin());
       allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isEmailVerified() && isOwner(incoming().userId);
-      allow update, delete: if isAdmin();
+      allow create, update, delete: if false;
     }
 
     // 39. Adaptive Engine Repository
