@@ -134,9 +134,25 @@ header.capa h1 em{font-style:normal; color:var(--dourado)}
 .membro small{color:var(--tinta-fraca); font-size:12.5px}
 .barra{height:9px; border-radius:99px; background:rgba(15,76,58,.1); overflow:hidden}
 .barra i{display:block; height:100%; border-radius:99px; background:linear-gradient(90deg,var(--esmeralda),var(--pago))}
-.mini{display:flex; align-items:flex-end; gap:6px; height:58px; margin-top:10px}
-.mini span{flex:1; border-radius:5px 5px 2px 2px; background:rgba(15,76,58,.16)}
+.mini{display:flex; align-items:flex-end; gap:6px; height:58px; margin-top:10px; transition:height .3s ease}
+.mini span{flex:1; border-radius:5px 5px 2px 2px; background:rgba(15,76,58,.16); transition:height .3s ease, background .3s ease}
 .mini span.alto{background:var(--esmeralda)}
+.mini span.actual-ok{background:var(--pago)}
+.btn:disabled{background:rgba(15,76,58,.08)!important; color:var(--tinta-fraca)!important; box-shadow:none!important; cursor:not-allowed}
+
+.alerta-atraso{background:rgba(231,76,60,.08); border:1px solid rgba(231,76,60,.25); border-radius:14px;
+  padding:13px; margin-top:14px; display:flex; flex-direction:column; gap:10px; transition:opacity .2s ease}
+.alerta-atraso-topo{font-size:13.5px; color:var(--tinta); line-height:1.4}
+.alerta-atraso-topo b{color:#C0392B}
+
+.celebracao{position:absolute; inset:0; background:rgba(8,37,28,.72); display:flex; align-items:center; justify-content:center; overflow:hidden}
+.confete{position:absolute; top:-24px; width:8px; height:14px; border-radius:2px; opacity:.95;
+  animation-name:cair; animation-timing-function:ease-in; animation-iteration-count:1; animation-fill-mode:forwards}
+@keyframes cair{to{transform:translateY(780px) rotate(720deg); opacity:0}}
+@media (prefers-reduced-motion:reduce){.confete{animation:none; opacity:.6}}
+.celebracao-cartao{position:relative; z-index:2; background:#fff; border-radius:20px; padding:26px 22px; text-align:center;
+  display:flex; flex-direction:column; align-items:center; gap:8px; width:270px; box-shadow:0 24px 60px -20px rgba(0,0,0,.5)}
+.celebracao-check{width:52px;height:52px;border-radius:50%;background:var(--pago);color:#fff;font-size:24px;display:grid;place-items:center;margin-bottom:2px}
 .tabs{display:flex; border-top:1px solid rgba(15,76,58,.1); background:#fff; flex:none}
 .tabs button{flex:1; background:none; border:0; padding:11px 0 16px; font-family:var(--ui); font-size:11px;
   color:var(--tinta-fraca); cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:3px}
@@ -144,6 +160,8 @@ header.capa h1 em{font-style:normal; color:var(--dourado)}
 .tabs button[aria-selected="true"]{color:var(--esmeralda); font-weight:600}
 #modal{display:flex}
 #modal[hidden]{display:none}
+#pc-celebracao[hidden]{display:none}
+#pc-alerta[hidden]{display:none}
 .relogio{display:flex; gap:8px; margin-top:12px}
 .relogio div{flex:1; background:rgba(255,255,255,.12); border-radius:11px; padding:7px 4px; text-align:center}
 .relogio b{font-family:var(--display); font-size:19px; display:block}
@@ -367,14 +385,25 @@ footer{padding:56px 0 80px; border-top:1px solid var(--linha); color:var(--musgo
                 <button class="btn btn-cta" style="margin-top:14px" data-modal="abrir">Confirmar entrega</button>
               </div>
 
-              <div class="cartao">
-                <div class="linha"><div class="rot">Estatísticas</div><b class="tnum" style="color:var(--esmeralda)">95%</b></div>
-                <div class="mini" aria-hidden="true">
+              <div class="cartao" id="pc-painel">
+                <div class="linha"><div class="rot">Contribuições</div><b class="tnum" id="pc-pct" style="color:var(--esmeralda)">80%</b></div>
+                <div class="mini" aria-hidden="true" id="pc-barras">
                   <span style="height:40%"></span><span style="height:62%"></span><span style="height:55%"></span>
-                  <span style="height:78%"></span><span style="height:70%"></span><span class="alto" style="height:95%"></span>
+                  <span style="height:78%"></span><span style="height:70%"></span>
+                  <span class="alto" id="pc-barra-actual" style="height:80%"></span>
                 </div>
-                <div class="barra" style="margin-top:12px"><i style="width:95%"></i></div>
-                <p style="font-size:12.5px; color:var(--tinta-fraca); margin-top:8px">19 de 20 membros em dia esta semana.</p>
+                <div class="barra" style="margin-top:12px"><i id="pc-progresso" style="width:80%"></i></div>
+                <p style="font-size:12.5px; color:var(--tinta-fraca); margin-top:8px" id="pc-legenda">4 de 5 membros pagos nesta ronda.</p>
+
+                <div class="alerta-atraso" id="pc-alerta">
+                  <div class="alerta-atraso-topo">⚠️ <b>João Baptista</b> está em atraso há 3 dias</div>
+                  <div class="grelha2">
+                    <button class="btn btn-fant" id="pc-lembrar" style="font-size:13px; padding:10px">Lembrar via WhatsApp</button>
+                    <button class="btn btn-ouro" id="pc-marcar-pago" style="font-size:13px; padding:10px">Marcar como pago</button>
+                  </div>
+                </div>
+
+                <button class="btn btn-cta" id="pc-finalizar" disabled style="margin-top:14px">Finalizar ciclo</button>
               </div>
 
               <div class="cartao">
@@ -385,7 +414,7 @@ footer{padding:56px 0 80px; border-top:1px solid var(--linha); color:var(--musgo
 
               <div class="rot">🔥 Acções rápidas</div>
               <div class="grelha2">
-                <button class="btn btn-fant">Lembrar atrasados</button>
+                <button class="btn btn-fant" id="pc-atalho-lembrar">Lembrar atrasados</button>
                 <button class="btn btn-fant" data-ir="novogrupo">Novo grupo</button>
               </div>
               <button class="btn btn-fant">Exportar relatório PDF</button>
@@ -581,6 +610,17 @@ footer{padding:56px 0 80px; border-top:1px solid var(--linha); color:var(--musgo
               <button class="pagamento"><span class="ponto" style="background:#8A6D10"></span><span><b>Pagamento em dinheiro</b><br><small style="color:var(--tinta-fraca)">Registo manual com recibo</small></span></button>
               <button class="btn btn-cta" data-modal="fechar">Confirmar</button>
               <button class="btn btn-fant" data-modal="fechar">Cancelar</button>
+            </div>
+          </div>
+
+          <!-- celebração de fim de ciclo -->
+          <div id="pc-celebracao" hidden class="celebracao">
+            <div id="pc-confete-zona" style="position:absolute; inset:0; overflow:hidden"></div>
+            <div class="celebracao-cartao">
+              <div class="celebracao-check">✓</div>
+              <div style="font-family:var(--display); font-size:22px; font-weight:600">Ciclo concluído!</div>
+              <p style="font-size:14px; color:var(--tinta-fraca); margin:0">500.000 Kz arrecadados de 5 membros.</p>
+              <button class="btn btn-ouro" id="pc-fechar-celebracao">Fechar</button>
             </div>
           </div>
         </div>
@@ -830,5 +870,83 @@ footer{padding:56px 0 80px; border-top:1px solid var(--linha); color:var(--musgo
   function reiniciarNovoGrupo(){
     ngIrPara('1');
   }
+
+  // ---- Painel de contribuições (dashboard) --------------------------------
+  var pcMembros = [
+    { nome: 'Rosa Manuel', pago: true },
+    { nome: 'Manuel Cabral', pago: true },
+    { nome: 'Ana Ferreira', pago: true },
+    { nome: 'João Baptista', pago: false, atrasoDias: 3 },
+    { nome: 'Isabel Sumbo', pago: true },
+  ];
+  function pcAtualizar(){
+    var total = pcMembros.length;
+    var pagos = pcMembros.filter(function(m){ return m.pago; }).length;
+    var progresso = Math.round((pagos / total) * 100);
+    var tudoPago = pagos === total;
+    var atrasado = pcMembros.find(function(m){ return !m.pago; });
+
+    document.getElementById('pc-pct').textContent = progresso + '%';
+    document.getElementById('pc-progresso').style.width = progresso + '%';
+    document.getElementById('pc-legenda').textContent = pagos + ' de ' + total + ' membros pagos nesta ronda.';
+
+    var barraActual = document.getElementById('pc-barra-actual');
+    barraActual.style.height = Math.max(progresso, 4) + '%';
+    barraActual.classList.toggle('actual-ok', tudoPago);
+
+    var alerta = document.getElementById('pc-alerta');
+    alerta.hidden = !atrasado;
+    if (atrasado) {
+      alerta.querySelector('.alerta-atraso-topo').innerHTML =
+        '⚠️ <b>' + atrasado.nome + '</b> está em atraso há ' + atrasado.atrasoDias + ' dias';
+    }
+
+    document.getElementById('pc-finalizar').disabled = !tudoPago;
+  }
+
+  document.getElementById('pc-lembrar').addEventListener('click', function(){
+    this.textContent = 'Lembrete enviado ✓';
+  });
+
+  document.getElementById('pc-marcar-pago').addEventListener('click', function(){
+    var atrasado = pcMembros.find(function(m){ return !m.pago; });
+    if (atrasado) atrasado.pago = true;
+    pcAtualizar();
+  });
+
+  document.getElementById('pc-atalho-lembrar').addEventListener('click', function(){
+    var alerta = document.getElementById('pc-alerta');
+    if (alerta.hidden) return;
+    alerta.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    document.getElementById('pc-lembrar').click();
+  });
+
+  document.getElementById('pc-finalizar').addEventListener('click', function(){
+    if (this.disabled) return;
+    pcMostrarCelebracao();
+  });
+
+  document.getElementById('pc-fechar-celebracao').addEventListener('click', function(){
+    document.getElementById('pc-celebracao').hidden = true;
+  });
+
+  function pcMostrarCelebracao(){
+    var zona = document.getElementById('pc-confete-zona');
+    zona.innerHTML = '';
+    var cores = ['#D4AF37', '#0F4C3A', '#E85D26', '#F8F9FA'];
+    for (var i = 0; i < 36; i++) {
+      var c = document.createElement('span');
+      c.className = 'confete';
+      c.style.left = ((i * 2.77) % 100) + '%';
+      c.style.background = cores[i % cores.length];
+      c.style.animationDelay = (((i % 12) * 0.09)) + 's';
+      c.style.animationDuration = (2.2 + (i % 5) * 0.35) + 's';
+      c.style.transform = 'rotate(' + ((i * 47) % 360) + 'deg)';
+      zona.appendChild(c);
+    }
+    document.getElementById('pc-celebracao').hidden = false;
+  }
+
+  pcAtualizar();
 })();
 </script>
