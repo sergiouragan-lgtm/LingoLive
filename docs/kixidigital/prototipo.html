@@ -1,0 +1,639 @@
+<title>KixiDigital</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Inter:wght@300;400;500;600;700&display=swap">
+<style>
+:root{
+  --esmeralda:#0F4C3A; --esmeralda-fundo:#08251C; --esmeralda-palco:#0B3227;
+  --dourado:#D4AF37; --gelo:#F8F9FA; --cta:#E85D26;
+  --pago:#2ECC71; --atraso:#E74C3C; --pendente:#D4AF37;
+  --musgo:#8FA79C; --musgo-fraco:#5D7A6F; --linha:rgba(212,175,55,.18);
+  --tinta:#0C1B16; --tinta-fraca:#5A6B64;
+  --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --ui:"Inter",-apple-system,"Segoe UI",Roboto,sans-serif;
+  --r:18px;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--esmeralda-fundo); color:var(--gelo);
+  font-family:var(--ui); font-size:16px; line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1080px; margin:0 auto; padding:0 24px}
+h1,h2,h3{font-family:var(--display); text-wrap:balance; margin:0; line-height:1.08; font-weight:600}
+.eyebrow{font-size:12px; letter-spacing:.16em; text-transform:uppercase; color:var(--dourado); font-weight:600}
+p{margin:0}
+section{padding:72px 0; border-top:1px solid var(--linha)}
+.sec-head{display:flex; flex-direction:column; gap:10px; margin-bottom:36px; max-width:60ch}
+.sec-head h2{font-size:clamp(28px,4vw,40px)}
+.sec-head p{color:var(--musgo)}
+.tnum{font-variant-numeric:tabular-nums}
+
+/* ---------- capa ---------- */
+header.capa{padding:88px 0 76px; position:relative; overflow:hidden}
+header.capa::after{content:""; position:absolute; inset:auto -10% -60% 40%; height:520px;
+  background:radial-gradient(closest-side,rgba(212,175,55,.16),transparent 70%); pointer-events:none}
+.lockup{display:flex; align-items:center; gap:14px; margin-bottom:34px}
+.marca{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;
+  background:linear-gradient(145deg,var(--dourado),#9C7C1E); color:#08251C;
+  font-family:var(--display); font-weight:800; font-size:22px}
+.lockup b{font-family:var(--display); font-size:21px; font-weight:600; letter-spacing:-.01em}
+.lockup span{color:var(--musgo-fraco); font-size:13px; margin-left:2px}
+header.capa h1{font-size:clamp(38px,6.4vw,68px); font-weight:600; letter-spacing:-.025em; max-width:16ch}
+header.capa h1 em{font-style:normal; color:var(--dourado)}
+.sub{margin-top:22px; max-width:52ch; color:var(--musgo); font-size:18px}
+.meta{display:flex; flex-wrap:wrap; gap:10px; margin-top:32px}
+.chip{border:1px solid var(--linha); border-radius:999px; padding:7px 15px; font-size:13px; color:var(--musgo)}
+
+/* ---------- design system ---------- */
+.grelha{display:grid; gap:20px}
+.cores{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.cor{border:1px solid var(--linha); border-radius:14px; overflow:hidden; background:rgba(255,255,255,.03)}
+.cor .amostra{height:82px}
+.cor .info{padding:12px 14px}
+.cor b{display:block; font-size:14px; font-weight:600}
+.cor code{font-size:12px; color:var(--musgo-fraco); font-family:var(--ui); letter-spacing:.04em}
+.cor small{display:block; margin-top:6px; font-size:12px; color:var(--musgo)}
+
+.tipo{grid-template-columns:1fr 1fr; align-items:start}
+.painel{border:1px solid var(--linha); border-radius:var(--r); padding:26px; background:rgba(255,255,255,.03)}
+.amostra-tipo{border-bottom:1px dashed rgba(143,167,156,.22); padding:14px 0}
+.amostra-tipo:last-child{border:0; padding-bottom:0}
+.amostra-tipo .rot{font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--musgo-fraco)}
+.regras li{color:var(--musgo); margin-bottom:12px}
+.regras b{color:var(--gelo); font-weight:600}
+.regras{padding-left:18px; margin:0}
+
+/* ---------- protótipo ---------- */
+.palco{display:grid; grid-template-columns:minmax(0,1fr) 390px; gap:44px; align-items:start}
+.nav-ecras{display:flex; flex-direction:column; gap:8px}
+.nav-ecras button{
+  display:flex; gap:14px; align-items:flex-start; text-align:left; width:100%;
+  background:transparent; border:1px solid transparent; border-left:2px solid rgba(143,167,156,.25);
+  color:var(--musgo); padding:12px 16px; border-radius:0 12px 12px 0; cursor:pointer;
+  font-family:var(--ui); font-size:14px; transition:all .2s ease;
+}
+.nav-ecras button:hover{background:rgba(255,255,255,.04); color:var(--gelo)}
+.nav-ecras button[aria-selected="true"]{border-left-color:var(--dourado); background:rgba(212,175,55,.08); color:var(--gelo)}
+.nav-ecras .n{font-family:var(--display); color:var(--dourado); font-size:13px; padding-top:1px; min-width:22px}
+.nav-ecras b{display:block; font-weight:600}
+.nav-ecras em{font-style:normal; font-size:12.5px; color:var(--musgo-fraco); display:block; margin-top:2px}
+.notas{margin-top:28px; border:1px solid var(--linha); border-radius:var(--r); padding:22px; background:rgba(255,255,255,.03)}
+.notas h3{font-size:15px; margin-bottom:12px}
+.notas ul{margin:0; padding-left:18px; color:var(--musgo); font-size:14.5px}
+.notas li{margin-bottom:9px}
+.notas li b{color:var(--gelo); font-weight:600}
+
+/* telemóvel */
+.telemovel{position:sticky; top:24px; width:390px; border-radius:44px; padding:11px;
+  background:linear-gradient(160deg,#1d3a30,#08251C); border:1px solid rgba(212,175,55,.22);
+  box-shadow:0 40px 80px -30px rgba(0,0,0,.8)}
+.ecra{position:relative; height:780px; border-radius:34px; overflow:hidden; background:var(--gelo);
+  color:var(--tinta); display:flex; flex-direction:column; font-size:15px}
+.barra-sis{display:flex; justify-content:space-between; padding:12px 22px 4px; font-size:12px; font-weight:600; color:var(--tinta); flex:none}
+.corpo{flex:1; overflow-y:auto; padding:8px 18px 18px; display:flex; flex-direction:column; gap:14px}
+.corpo::-webkit-scrollbar{width:0}
+.vista{display:none; flex-direction:column; gap:14px; animation:entra .2s ease}
+.vista.on{display:flex}
+@keyframes entra{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+
+.cartao{background:#fff; border-radius:var(--r); padding:18px; box-shadow:0 2px 10px rgba(15,76,58,.07)}
+.vidro{background:rgba(255,255,255,.62); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  border:1px solid rgba(255,255,255,.7)}
+.rot{font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--tinta-fraca); font-weight:600}
+.saldo{background:linear-gradient(150deg,var(--esmeralda),#0A3328); color:var(--gelo); position:relative; overflow:hidden}
+.saldo::after{content:""; position:absolute; right:-30px; top:-40px; width:150px; height:150px;
+  border-radius:50%; background:radial-gradient(closest-side,rgba(212,175,55,.34),transparent)}
+.saldo .rot{color:rgba(248,249,250,.62)}
+.saldo .val{font-family:var(--display); font-size:36px; font-weight:600; letter-spacing:-.02em; margin-top:4px}
+.delta{color:var(--pago); font-size:13px; font-weight:600}
+.topo{display:flex; justify-content:space-between; align-items:center; padding:6px 0 2px}
+.topo h4{font-family:var(--display); font-size:22px; margin:0; font-weight:600}
+.topo .icones{display:flex; gap:8px}
+.icone{width:36px;height:36px;border-radius:12px;border:1px solid rgba(15,76,58,.12);background:#fff;
+  display:grid;place-items:center;font-size:15px;cursor:pointer}
+.linha{display:flex; justify-content:space-between; align-items:center; gap:10px}
+.btn{border:0; border-radius:14px; padding:14px 18px; font-family:var(--ui); font-weight:600; font-size:15px;
+  cursor:pointer; width:100%; transition:transform .2s ease, filter .2s ease}
+.btn:active{transform:scale(.98)}
+.btn:focus-visible{outline:3px solid var(--dourado); outline-offset:2px}
+.btn-cta{background:var(--cta); color:#fff; box-shadow:0 8px 18px -8px rgba(232,93,38,.9)}
+.btn-ouro{background:linear-gradient(120deg,var(--esmeralda),var(--dourado)); color:#fff}
+.btn-fant{background:#fff; color:var(--esmeralda); border:1px solid rgba(15,76,58,.18)}
+.pulsa{animation:pulsa 2s ease-in-out infinite}
+@keyframes pulsa{0%,100%{box-shadow:0 0 0 0 rgba(232,93,38,.45)}50%{box-shadow:0 0 0 12px rgba(232,93,38,0)}}
+.selo{font-size:11.5px; font-weight:700; padding:4px 10px; border-radius:999px; white-space:nowrap}
+.s-pago{background:rgba(46,204,113,.14); color:#1E8449}
+.s-atraso{background:rgba(231,76,60,.13); color:#C0392B}
+.s-pend{background:rgba(212,175,55,.18); color:#8A6D10}
+.membro{display:flex; align-items:center; gap:12px; padding:11px 0; border-bottom:1px solid rgba(15,76,58,.07)}
+.membro:last-child{border:0}
+.av{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;font-weight:700;font-size:13px;
+  background:rgba(15,76,58,.1); color:var(--esmeralda); flex:none}
+.membro b{font-size:14.5px; font-weight:600; display:block}
+.membro small{color:var(--tinta-fraca); font-size:12.5px}
+.barra{height:9px; border-radius:99px; background:rgba(15,76,58,.1); overflow:hidden}
+.barra i{display:block; height:100%; border-radius:99px; background:linear-gradient(90deg,var(--esmeralda),var(--pago))}
+.mini{display:flex; align-items:flex-end; gap:6px; height:58px; margin-top:10px}
+.mini span{flex:1; border-radius:5px 5px 2px 2px; background:rgba(15,76,58,.16)}
+.mini span.alto{background:var(--esmeralda)}
+.tabs{display:flex; border-top:1px solid rgba(15,76,58,.1); background:#fff; flex:none}
+.tabs button{flex:1; background:none; border:0; padding:11px 0 16px; font-family:var(--ui); font-size:11px;
+  color:var(--tinta-fraca); cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:3px}
+.tabs button span{font-size:17px}
+.tabs button[aria-selected="true"]{color:var(--esmeralda); font-weight:600}
+.relogio{display:flex; gap:8px; margin-top:12px}
+.relogio div{flex:1; background:rgba(255,255,255,.12); border-radius:11px; padding:7px 4px; text-align:center}
+.relogio b{font-family:var(--display); font-size:19px; display:block}
+.relogio small{font-size:10px; text-transform:uppercase; letter-spacing:.08em; opacity:.7}
+.sinc{display:flex; align-items:center; gap:7px; font-size:12px; color:#1E8449; font-weight:600}
+.grelha2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+.hist{font-size:13.5px; display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid rgba(15,76,58,.07)}
+.hist:last-child{border:0}
+.hist small{color:var(--tinta-fraca)}
+.perfil{border:1px solid rgba(15,76,58,.14); border-radius:var(--r); padding:20px; text-align:center; cursor:pointer;
+  background:#fff; transition:all .2s ease}
+.perfil:hover,.perfil.sel{border-color:var(--dourado); box-shadow:0 8px 22px -12px rgba(212,175,55,.9)}
+.perfil .g{font-size:30px}
+.perfil b{display:block; margin-top:8px; font-size:15px}
+.perfil small{color:var(--tinta-fraca); font-size:12.5px}
+.campo{width:100%; border:1px solid rgba(15,76,58,.2); border-radius:14px; padding:15px 16px;
+  font-family:var(--ui); font-size:19px; font-weight:600; letter-spacing:.02em; color:var(--tinta); background:#fff}
+.campo:focus{outline:2px solid var(--esmeralda); outline-offset:1px}
+.toast{background:rgba(12,27,22,.92); color:var(--gelo); font-size:12.5px; padding:10px 14px; border-radius:12px}
+.centro{display:flex; flex-direction:column; align-items:center; text-align:center; gap:6px; padding:14px 0}
+.ilustra{width:150px;height:150px;border-radius:50%;display:grid;place-items:center;font-size:60px;
+  background:radial-gradient(closest-side,rgba(212,175,55,.28),rgba(15,76,58,.08)); margin-bottom:6px}
+.pagamento{display:flex; align-items:center; gap:12px; border:1px solid rgba(15,76,58,.14); border-radius:14px;
+  padding:13px 15px; background:#fff; cursor:pointer; transition:all .2s ease; width:100%; font-family:var(--ui); font-size:14.5px; text-align:left}
+.pagamento:hover{transform:translateX(3px)}
+.pagamento.sel{border-color:var(--esmeralda); background:rgba(15,76,58,.05)}
+.ponto{width:11px;height:11px;border-radius:50%; flex:none}
+.badge{display:flex; align-items:center; gap:8px; background:linear-gradient(120deg,rgba(212,175,55,.18),rgba(212,175,55,.05));
+  border:1px solid rgba(212,175,55,.4); border-radius:12px; padding:10px 13px; font-size:13px; font-weight:600; color:#8A6D10}
+
+/* ---------- monetização ---------- */
+.calc{display:grid; grid-template-columns:1fr 1fr; gap:26px; align-items:start}
+.calc input[type=range]{width:100%; accent-color:var(--dourado)}
+.valor-grande{font-family:var(--display); font-size:44px; font-weight:600; letter-spacing:-.02em}
+.split{display:flex; flex-direction:column; gap:2px; margin-top:20px}
+.split .l{display:flex; justify-content:space-between; align-items:center; padding:13px 0; border-bottom:1px solid var(--linha)}
+.split .l:last-child{border:0}
+.split .l b{font-weight:600; font-size:15px}
+.split .l small{display:block; color:var(--musgo-fraco); font-size:12.5px; font-weight:400}
+.split .l .v{font-family:var(--display); font-size:20px; color:var(--dourado)}
+table{width:100%; border-collapse:collapse; font-size:14.5px}
+.tabela-scroll{overflow-x:auto}
+th{text-align:left; font-size:11.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--musgo-fraco);
+  font-weight:600; padding:0 16px 12px 0; border-bottom:1px solid var(--linha); white-space:nowrap}
+td{padding:14px 16px 14px 0; border-bottom:1px solid rgba(143,167,156,.12); color:var(--musgo); vertical-align:top}
+td b{color:var(--gelo); font-weight:600}
+tr:last-child td{border:0}
+.planos{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.plano{border:1px solid var(--linha); border-radius:var(--r); padding:24px; background:rgba(255,255,255,.03); display:flex; flex-direction:column; gap:12px}
+.plano.destaque{border-color:var(--dourado); background:linear-gradient(170deg,rgba(212,175,55,.1),rgba(255,255,255,.02))}
+.plano h3{font-size:20px}
+.plano .preco{font-family:var(--display); font-size:30px; color:var(--dourado)}
+.plano ul{margin:0; padding-left:18px; color:var(--musgo); font-size:14px}
+.plano li{margin-bottom:7px}
+footer{padding:56px 0 80px; border-top:1px solid var(--linha); color:var(--musgo-fraco); font-size:13.5px}
+
+@media (max-width:980px){
+  .palco{grid-template-columns:1fr} .telemovel{position:static; margin:0 auto; max-width:100%}
+  .tipo,.calc{grid-template-columns:1fr}
+}
+@media (max-width:420px){ .telemovel{width:100%; padding:8px} .ecra{height:700px} }
+</style>
+
+<header class="capa">
+  <div class="wrap">
+    <div class="lockup">
+      <div class="marca">K</div>
+      <div><b>KixiDigital</b><br><span>Mock premium · v1 · Luanda</span></div>
+    </div>
+    <h1>A sua kixikila, agora na <em>palma da mão</em>.</h1>
+    <p class="sub">Poupe em grupo, receba em tempo real, e ganhe confiança digital. Este documento é o protótipo clicável: cada ecrã abaixo é operável, com o design system, o fluxo completo e o modelo de receita da plataforma.</p>
+    <div class="meta">
+      <span class="chip">5 ecrãs interativos</span>
+      <span class="chip">Mobile-first · 390×844</span>
+      <span class="chip">KWiK · Unitel Money · Multicaixa Express</span>
+      <span class="chip">Offline-first</span>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">Design system</span>
+      <h2>Uma paleta que fala de dinheiro guardado entre pessoas</h2>
+      <p>Esmeralda para a confiança do grupo, dourado para o valor que ele acumula, laranja reservado exclusivamente à acção que move dinheiro. O estado nunca é comunicado só por cor — leva sempre selo e texto.</p>
+    </div>
+    <div class="grelha cores">
+      <div class="cor"><div class="amostra" style="background:#0F4C3A"></div><div class="info"><b>Esmeralda</b><code>#0F4C3A</code><small>Primária · confiança e prosperidade</small></div></div>
+      <div class="cor"><div class="amostra" style="background:#D4AF37"></div><div class="info"><b>Dourado Champanhe</b><code>#D4AF37</code><small>Secundária · valor premium</small></div></div>
+      <div class="cor"><div class="amostra" style="background:#F8F9FA"></div><div class="info"><b>Cinza Gelo</b><code>#F8F9FA</code><small>Fundo · cartões a branco puro</small></div></div>
+      <div class="cor"><div class="amostra" style="background:#E85D26"></div><div class="info"><b>Laranja Vibrante</b><code>#E85D26</code><small>CTA · só para pagar e confirmar</small></div></div>
+      <div class="cor"><div class="amostra" style="background:#2ECC71"></div><div class="info"><b>Verde Pago</b><code>#2ECC71</code><small>Estado · contribuição liquidada</small></div></div>
+      <div class="cor"><div class="amostra" style="background:#E74C3C"></div><div class="info"><b>Vermelho Atraso</b><code>#E74C3C</code><small>Estado · prazo ultrapassado</small></div></div>
+    </div>
+
+    <div class="grelha tipo" style="margin-top:24px">
+      <div class="painel">
+        <div class="amostra-tipo"><div class="rot">Título · SF Pro Display / Roboto Bold</div>
+          <div style="font-family:var(--display); font-size:30px; font-weight:600; letter-spacing:-.02em">500.000 Kz</div></div>
+        <div class="amostra-tipo"><div class="rot">Corpo · Inter Regular 16</div>
+          <div style="font-size:16px">Rosa Manuel recebe a kixikila a 24 de Agosto.</div></div>
+        <div class="amostra-tipo"><div class="rot">Legenda · Inter Light 12</div>
+          <div style="font-size:12px; font-weight:300; color:var(--musgo)">Sincronizado há 2 minutos · dados guardados no telemóvel</div></div>
+      </div>
+      <div class="painel">
+        <ul class="regras">
+          <li><b>Glassmorphism com moderação.</b> Só o cartão de grupo e a barra de sincronização usam vidro fosco; o resto é branco sólido para legibilidade sob sol de Luanda.</li>
+          <li><b>Micro-animações de 200ms.</b> Toda a transição de ecrã e feedback táctil; desactivadas quando o sistema pede menos movimento.</li>
+          <li><b>Ícones Material Design</b> no Android e SF Symbols no iOS, nunca misturados no mesmo build.</li>
+          <li><b>Modo offline.</b> Nuvem com visto verde quando os dados subiram; relógio âmbar quando estão em fila.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">Protótipo clicável</span>
+      <h2>Cinco ecrãs, dois perfis, um fluxo de dinheiro</h2>
+      <p>Escolha um ecrã à esquerda ou use a barra de navegação do telemóvel. Os botões funcionam: marque um membro como pago, abra o modal de entrega de fundos, escolha o método de pagamento.</p>
+    </div>
+    <div class="palco">
+      <div>
+        <div class="nav-ecras" role="tablist" aria-label="Ecrãs do protótipo">
+          <button role="tab" aria-selected="true" data-ecra="onb1"><span class="n">1</span><span><b>Boas-vindas</b><em>Onboarding, passo 1 de 3</em></span></button>
+          <button role="tab" aria-selected="false" data-ecra="onb2"><span class="n">2</span><span><b>Escolha de perfil</b><em>Mãe da Kixikila ou membro</em></span></button>
+          <button role="tab" aria-selected="false" data-ecra="onb3"><span class="n">3</span><span><b>Verificação por SMS</b><em>+244 · código OTP de 4 dígitos</em></span></button>
+          <button role="tab" aria-selected="false" data-ecra="admin"><span class="n">4</span><span><b>Dashboard da Mãe</b><em>Saldo, contagem e acções rápidas</em></span></button>
+          <button role="tab" aria-selected="false" data-ecra="grupo"><span class="n">5</span><span><b>Gestão de grupo</b><em>Rodízio, membros, cobrança</em></span></button>
+          <button role="tab" aria-selected="false" data-ecra="membro"><span class="n">6</span><span><b>Painel do membro</b><em>Contribuição, histórico, badges</em></span></button>
+        </div>
+        <div class="notas">
+          <h3 id="nota-titulo">Recursos deste ecrã</h3>
+          <ul id="nota-lista"></ul>
+        </div>
+      </div>
+
+      <div class="telemovel">
+        <div class="ecra">
+          <div class="barra-sis"><span>09:41</span><span>◕ ▲ ▮</span></div>
+          <div class="corpo">
+
+            <!-- 1 boas-vindas -->
+            <div class="vista on" id="v-onb1">
+              <div class="centro">
+                <div class="ilustra">🤝</div>
+                <div style="font-family:var(--display); font-size:27px; font-weight:600; letter-spacing:-.02em; line-height:1.15">A sua kixikila,<br>agora na palma da mão.</div>
+                <p style="color:var(--tinta-fraca); font-size:14.5px; max-width:30ch">Poupe em grupo, receba em tempo real, e ganhe confiança digital.</p>
+              </div>
+              <div style="display:flex; gap:6px; justify-content:center">
+                <i style="width:22px;height:5px;border-radius:9px;background:var(--esmeralda)"></i>
+                <i style="width:6px;height:5px;border-radius:9px;background:rgba(15,76,58,.2)"></i>
+                <i style="width:6px;height:5px;border-radius:9px;background:rgba(15,76,58,.2)"></i>
+              </div>
+              <button class="btn btn-ouro" data-ir="onb2">Começar</button>
+              <p style="text-align:center; font-size:12px; color:var(--tinta-fraca)">Ao continuar aceita os termos e a política de dados (Lei n.º 22/11).</p>
+            </div>
+
+            <!-- 2 perfil -->
+            <div class="vista" id="v-onb2">
+              <div style="font-family:var(--display); font-size:24px; font-weight:600; padding-top:8px">Como quer usar a KixiDigital?</div>
+              <button class="perfil sel" data-perfil="mae"><div class="g">👑</div><b>Sou a Mãe da Kixikila</b><small>Crio o grupo, defino o rodízio e confirmo as entregas.</small></button>
+              <button class="perfil" data-perfil="membro"><div class="g">🙋</div><b>Sou Membro</b><small>Contribuo todas as semanas e recebo na minha vez.</small></button>
+              <div class="toast">Pode alterar o perfil mais tarde nas definições.</div>
+              <button class="btn btn-ouro" data-ir="onb3">Continuar</button>
+            </div>
+
+            <!-- 3 OTP -->
+            <div class="vista" id="v-onb3">
+              <div style="font-family:var(--display); font-size:24px; font-weight:600; padding-top:8px">Verifique o seu telemóvel</div>
+              <p style="color:var(--tinta-fraca); font-size:14.5px">Enviamos um código de 4 dígitos por SMS. Funciona em qualquer operadora angolana.</p>
+              <label class="rot" for="tel">Número de telemóvel</label>
+              <input class="campo tnum" id="tel" type="tel" value="+244 923 456 789" aria-label="Número de telemóvel">
+              <button class="btn btn-cta" id="btn-otp">Enviar código</button>
+              <div id="zona-otp" hidden>
+                <div class="rot" style="margin-bottom:8px">Código recebido</div>
+                <div style="display:flex; gap:10px">
+                  <span class="campo tnum" style="text-align:center">4</span><span class="campo tnum" style="text-align:center">8</span>
+                  <span class="campo tnum" style="text-align:center">1</span><span class="campo tnum" style="text-align:center">6</span>
+                </div>
+                <p style="font-size:12.5px; color:var(--tinta-fraca); margin-top:10px">Código preenchido automaticamente. Reenviar em 00:24.</p>
+                <button class="btn btn-ouro" data-ir="admin" style="margin-top:12px">Entrar na KixiDigital</button>
+              </div>
+            </div>
+
+            <!-- 4 dashboard admin -->
+            <div class="vista" id="v-admin">
+              <div class="topo">
+                <h4>👋 Olá, Dona Maria!</h4>
+                <div class="icones"><span class="icone">🔔</span><span class="icone">⚙️</span></div>
+              </div>
+              <div class="sinc">☁️✓ Sincronizado há 2 min</div>
+
+              <div class="cartao saldo">
+                <div class="rot">Saldo do grupo</div>
+                <div class="val tnum">500.000 Kz</div>
+                <div class="delta">▲ +12% vs. mês passado</div>
+                <div class="relogio tnum">
+                  <div><b>03</b><small>dias</small></div><div><b>11</b><small>horas</small></div><div><b>42</b><small>min</small></div>
+                </div>
+              </div>
+
+              <div class="cartao">
+                <div class="rot">Próximo pagamento</div>
+                <div class="linha" style="margin-top:10px">
+                  <div class="membro" style="padding:0; border:0">
+                    <div class="av">RM</div>
+                    <div><b>Rosa Manuel</b><small>24/08/2026 · 8.ª posição</small></div>
+                  </div>
+                  <div class="tnum" style="font-family:var(--display); font-size:19px">500.000 Kz</div>
+                </div>
+                <button class="btn btn-cta" style="margin-top:14px" data-modal="abrir">Confirmar entrega</button>
+              </div>
+
+              <div class="cartao">
+                <div class="linha"><div class="rot">Estatísticas</div><b class="tnum" style="color:var(--esmeralda)">95%</b></div>
+                <div class="mini" aria-hidden="true">
+                  <span style="height:40%"></span><span style="height:62%"></span><span style="height:55%"></span>
+                  <span style="height:78%"></span><span style="height:70%"></span><span class="alto" style="height:95%"></span>
+                </div>
+                <div class="barra" style="margin-top:12px"><i style="width:95%"></i></div>
+                <p style="font-size:12.5px; color:var(--tinta-fraca); margin-top:8px">19 de 20 membros em dia esta semana.</p>
+              </div>
+
+              <div class="cartao">
+                <div class="rot">Feed de actividade</div>
+                <div class="hist"><span>João pagou 25.000 Kz</span><small>há 4 min</small></div>
+                <div class="hist"><span>Ana Ferreira entrou no grupo</span><small>ontem</small></div>
+              </div>
+
+              <div class="rot">🔥 Acções rápidas</div>
+              <div class="grelha2">
+                <button class="btn btn-fant">Lembrar atrasados</button>
+                <button class="btn btn-fant">Novo grupo</button>
+              </div>
+              <button class="btn btn-fant">Exportar relatório PDF</button>
+            </div>
+
+            <!-- 5 grupo -->
+            <div class="vista" id="v-grupo">
+              <div class="topo"><h4>Mercado do Povo</h4><span class="icone">⋯</span></div>
+              <div class="cartao vidro">
+                <div class="linha"><div><b>📁 20 membros</b><br><small style="color:var(--tinta-fraca)">25.000 Kz por semana</small></div>
+                  <div class="tnum" style="font-family:var(--display); font-size:19px; color:var(--esmeralda)">500.000 Kz</div></div>
+              </div>
+
+              <div class="cartao">
+                <div class="rot">Rodízio próximo</div>
+                <div class="membro"><div class="av">1</div><div style="flex:1"><b>Rosa Manuel</b><small>24/08 · recebe</small></div><span class="selo s-pago">Paga ✓</span></div>
+                <div class="membro"><div class="av">2</div><div style="flex:1"><b>João Baptista</b><small>31/08 · em falta há 3 dias</small></div><span class="selo s-atraso">Atrasado</span></div>
+                <div class="membro"><div class="av">3</div><div style="flex:1"><b>Ana Ferreira</b><small>07/09 · prazo aberto</small></div><span class="selo s-pend">Pendente</span></div>
+              </div>
+
+              <div class="cartao">
+                <div class="linha"><div class="rot">Membros</div><small style="color:var(--tinta-fraca)">Toque para marcar pago</small></div>
+                <div id="lista-membros">
+                  <div class="membro" data-pago="0"><div class="av">JB</div><div style="flex:1"><b>João Baptista</b><small>25.000 Kz em dívida</small></div><span class="selo s-atraso">Atrasado</span></div>
+                  <div class="membro" data-pago="0"><div class="av">AF</div><div style="flex:1"><b>Ana Ferreira</b><small>25.000 Kz esta semana</small></div><span class="selo s-pend">Pendente</span></div>
+                  <div class="membro" data-pago="1"><div class="av">MC</div><div style="flex:1"><b>Manuel Cabral</b><small>Pago a 10/08 via KWiK</small></div><span class="selo s-pago">Pago ✓</span></div>
+                </div>
+                <button class="btn btn-fant" style="margin-top:12px">Lembrar via WhatsApp</button>
+              </div>
+
+              <div class="cartao" style="text-align:center">
+                <div class="rot">QR Code de cobrança</div>
+                <div style="width:110px;height:110px;margin:12px auto;border-radius:14px;
+                  background:repeating-conic-gradient(var(--esmeralda) 0 25%, #fff 0 50%) 0 0/22px 22px; border:5px solid #fff; box-shadow:0 0 0 1px rgba(15,76,58,.15)"></div>
+                <small style="color:var(--tinta-fraca)">O membro aponta a câmara e paga 25.000 Kz.</small>
+              </div>
+
+              <button class="btn btn-fant">+ Adicionar membro</button>
+              <button class="btn btn-cta" data-modal="abrir">💸 Confirmar entrega</button>
+            </div>
+
+            <!-- 6 membro -->
+            <div class="vista" id="v-membro">
+              <div class="topo"><h4>Olá, João! 👋</h4><span class="icone">🔔</span></div>
+              <div class="sinc">☁️✓ Sincronizado agora</div>
+
+              <div class="cartao saldo">
+                <div class="rot">A minha contribuição</div>
+                <div class="val tnum">4 de 5 pagas</div>
+                <div class="barra" style="margin-top:12px; background:rgba(255,255,255,.18)"><i style="width:80%; background:var(--dourado)"></i></div>
+                <p style="font-size:13px; margin-top:10px; opacity:.8">Próximo recebimento: 07/09 · <b class="tnum">500.000 Kz</b></p>
+              </div>
+
+              <button class="btn btn-cta pulsa" data-modal="abrir">Pagar agora · 25.000 Kz</button>
+
+              <div class="badge">🥇 Pagador Ouro — 12 pagamentos seguidos em dia</div>
+
+              <div class="cartao">
+                <div class="rot">Histórico</div>
+                <div class="hist"><span>10/08 · 25.000 Kz</span><small>Pago (KWiK)</small></div>
+                <div class="hist"><span>03/08 · 25.000 Kz</span><small>Pago (Dinheiro)</small></div>
+                <div class="hist"><span>27/07 · 25.000 Kz</span><small>Pago (KWiK)</small></div>
+              </div>
+
+              <div class="cartao">
+                <div class="rot">🎉 Notificações</div>
+                <p style="font-size:14px; margin-top:8px">Rosa recebeu a kixikila de <b>500.000 Kz</b>!</p>
+              </div>
+
+              <div class="cartao">
+                <div class="rot">Convide e ganhe</div>
+                <p style="font-size:14px; margin-top:8px">Ganhe <b>500 Kz</b> por cada amigo que se junte a um grupo.</p>
+                <button class="btn btn-fant" style="margin-top:12px">Partilhar convite</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="tabs" role="tablist" aria-label="Navegação do telemóvel">
+            <button role="tab" aria-selected="true" data-ecra="admin"><span>🏠</span>Início</button>
+            <button role="tab" aria-selected="false" data-ecra="grupo"><span>📁</span>Grupos</button>
+            <button role="tab" aria-selected="false" data-ecra="membro"><span>👥</span>Membros</button>
+            <button role="tab" aria-selected="false" data-ecra="onb2"><span>👤</span>Perfil</button>
+          </div>
+
+          <!-- modal pagamento -->
+          <div id="modal" hidden style="position:absolute; inset:0; background:rgba(8,37,28,.55); backdrop-filter:blur(3px); display:flex; align-items:flex-end">
+            <div style="background:var(--gelo); border-radius:26px 26px 34px 34px; padding:22px 18px; width:100%; display:flex; flex-direction:column; gap:12px">
+              <div style="width:42px;height:4px;border-radius:9px;background:rgba(15,76,58,.2); margin:0 auto 4px"></div>
+              <div style="font-family:var(--display); font-size:20px; font-weight:600">💸 Entregar fundos</div>
+              <div class="cartao linha">
+                <div><small style="color:var(--tinta-fraca)">Destinatário</small><br><b>Rosa Manuel</b></div>
+                <div class="tnum" style="font-family:var(--display); font-size:20px">500.000 Kz</div>
+              </div>
+              <div class="rot">Métodos de pagamento</div>
+              <button class="pagamento sel"><span class="ponto" style="background:#2ECC71"></span><span><b>KWiK</b><br><small style="color:var(--tinta-fraca)">Abre a app com o valor preenchido</small></span></button>
+              <button class="pagamento"><span class="ponto" style="background:#E85D26"></span><span><b>Unitel Money</b><br><small style="color:var(--tinta-fraca)">Confirmação automática</small></span></button>
+              <button class="pagamento"><span class="ponto" style="background:#2D6CDF"></span><span><b>Multicaixa Express</b><br><small style="color:var(--tinta-fraca)">Referência gerada na hora</small></span></button>
+              <button class="pagamento"><span class="ponto" style="background:#8A6D10"></span><span><b>Pagamento em dinheiro</b><br><small style="color:var(--tinta-fraca)">Registo manual com recibo</small></span></button>
+              <button class="btn btn-cta" data-modal="fechar">Confirmar</button>
+              <button class="btn btn-fant" data-modal="fechar">Cancelar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">Monetização</span>
+      <h2>Grátis para começar, comissão quando o dinheiro se move</h2>
+      <p>O grupo pequeno entra sem pagar nada — é o que garante a adopção no mercado. A receita chega quando o pagamento passa a ser digital, e a Mãe da Kixikila ganha uma parte, porque é ela quem traz e mantém o grupo.</p>
+    </div>
+
+    <div class="grelha planos">
+      <div class="plano">
+        <h3>Gratuito</h3><div class="preco">0 Kz</div>
+        <small style="color:var(--musgo-fraco)">Grupos até 10 membros</small>
+        <ul><li>Gestão de grupo e rodízio</li><li>Lembretes por SMS</li><li>Pagamentos registados manualmente</li><li>Sem integração KWiK</li></ul>
+      </div>
+      <div class="plano destaque">
+        <h3>Premium</h3><div class="preco">5.000 Kz<span style="font-size:15px; color:var(--musgo)">/mês por grupo</span></div>
+        <small style="color:var(--musgo-fraco)">Grupos de 50+ membros</small>
+        <ul><li>Integração nativa KWiK e Unitel Money</li><li>Relatórios em PDF e Excel</li><li>Penalização automática por atraso</li><li>Suporte prioritário por WhatsApp</li></ul>
+      </div>
+      <div class="plano">
+        <h3>Taxa por transação</h3><div class="preco">1%</div>
+        <small style="color:var(--musgo-fraco)">Sobre pagamentos digitais</small>
+        <ul><li>Aplicada só a KWiK e Unitel Money</li><li>Partilhada com a operadora</li><li>Pagamento em dinheiro fica isento</li></ul>
+      </div>
+    </div>
+
+    <div class="painel calc" style="margin-top:32px">
+      <div>
+        <div class="rot" style="color:var(--musgo-fraco)">Simulador de comissões</div>
+        <div class="valor-grande tnum"><span id="valor">25.000</span> Kz</div>
+        <p style="color:var(--musgo); font-size:14px">Contribuição de um membro paga via KWiK.</p>
+        <input type="range" id="slider" min="5000" max="200000" step="5000" value="25000" aria-label="Valor da contribuição em kwanzas" style="margin-top:18px">
+        <div class="linha tnum" style="color:var(--musgo-fraco); font-size:12px"><span>5.000 Kz</span><span>200.000 Kz</span></div>
+      </div>
+      <div class="split">
+        <div class="l"><div><b>KixiDigital</b><small>Taxa de transação · 1%</small></div><div class="v tnum" id="c-plat">250 Kz</div></div>
+        <div class="l"><div><b>Mãe da Kixikila</b><small>Comissão de gestão · 0,5%</small></div><div class="v tnum" id="c-mae">125 Kz</div></div>
+        <div class="l"><div><b>Operadora</b><small>Processamento KWiK/Unitel · 0,5%</small></div><div class="v tnum" id="c-op">125 Kz</div></div>
+        <div class="l"><div><b>Chega ao grupo</b><small>Valor líquido creditado</small></div><div class="v tnum" id="c-liq" style="color:var(--pago)">24.500 Kz</div></div>
+      </div>
+    </div>
+
+    <div class="tabela-scroll" style="margin-top:40px">
+      <table>
+        <caption style="text-align:left; color:var(--musgo); font-size:14px; padding-bottom:16px">Receitas adicionais, inspiradas em operadores já activos no mercado angolano.</caption>
+        <thead><tr><th>Linha de receita</th><th>Modelo</th><th>Margem</th><th>Requisitos</th></tr></thead>
+        <tbody>
+          <tr><td><b>Programa de agentes</b></td><td>Venda de recargas Unitel e Movicel</td><td>3% a 6,5%</td><td>Agente registado, float pré-pago</td></tr>
+          <tr><td><b>Giftcards</b></td><td>Recargas NetKuya</td><td>8%</td><td>Contrato de revenda</td></tr>
+          <tr><td><b>Revenue share B2B</b></td><td>Escolas, cooperativas e empresas</td><td>15% para a plataforma (80% dono do conteúdo, 5% agente)</td><td>NIF, IBAN, registo na AGT</td></tr>
+          <tr><td><b>Afiliados</b></td><td>Referência de novos grupos</td><td>10% da mensalidade Premium</td><td>500 Kz por Mãe da Kixikila convidada</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">Execução</span>
+      <h2>Três fases, da adopção à receita recorrente</h2>
+    </div>
+    <div class="tabela-scroll">
+      <table>
+        <thead><tr><th>Fase</th><th>Foco</th><th>Origem da receita</th><th>Métrica que decide</th></tr></thead>
+        <tbody>
+          <tr><td><b>1 · Lançamento</b></td><td>Grupos pequenos, plano gratuito</td><td>Nenhuma — aquisição</td><td>Grupos activos após 4 semanas</td></tr>
+          <tr><td><b>2 · 3 a 6 meses</b></td><td>Conversão para Premium</td><td>50% assinaturas, 50% comissões</td><td>Pagamentos digitais processados</td></tr>
+          <tr><td><b>3 · 1 ano+</b></td><td>Agentes e parcerias B2B</td><td>30% assinaturas, 70% comissões</td><td>Retenção de grupos ao 6.º mês</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="grelha" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); margin-top:32px">
+      <div class="painel"><h3 style="font-size:17px">Registo na AGT</h3><p style="color:var(--musgo); font-size:14px; margin-top:8px">Necessário para emitir facturas certificadas sobre mensalidades e comissões.</p></div>
+      <div class="painel"><h3 style="font-size:17px">NIF e IBAN dos parceiros</h3><p style="color:var(--musgo); font-size:14px; margin-top:8px">Obrigatórios antes de qualquer pagamento de comissão a Mães da Kixikila e agentes.</p></div>
+      <div class="painel"><h3 style="font-size:17px">Lei n.º 22/11</h3><p style="color:var(--musgo); font-size:14px; margin-top:8px">Protecção de dados: consentimento explícito, dados no telemóvel cifrados, direito a eliminação.</p></div>
+      <div class="painel"><h3 style="font-size:17px">Piloto</h3><p style="color:var(--musgo); font-size:14px; margin-top:8px">3 a 5 grupos no Mercado do Povo, em Luanda, com o MVP: gestão de grupo + KWiK.</p></div>
+    </div>
+  </div>
+</section>
+
+<footer><div class="wrap">KixiDigital · mock premium de UI/UX · protótipo não transacional, valores ilustrativos.</div></footer>
+
+<script>
+(function(){
+  var notas = {
+    onb1:["Ilustração de mãos entrelaçadas — a metáfora de confiança que sustenta a kixikila.","Botão <b>Começar</b> em gradiente verde-dourado, o único gradiente de acção da app.","Aviso legal já no primeiro ecrã, exigido pela Lei n.º 22/11."],
+    onb2:["Dois cartões grandes, alvos de toque com 44px mínimos.","O perfil escolhido muda a app inteira, não só o menu.","Toast persistente: <b>pode alterar o perfil mais tarde</b>."],
+    onb3:["Máscara <b>+244 9XX XXX XXX</b> aplicada enquanto escreve.","Toque em <b>Enviar código</b> para ver o preenchimento automático do OTP.","Reenvio bloqueado 30 segundos para travar abuso de SMS."],
+    admin:["<b>Relógio de contagem</b> para a próxima entrega, dentro do cartão de saldo.","Feed de actividade em tempo real: <i>João pagou 25.000 Kz</i>.","Indicador de sincronização offline no topo, sempre visível.","Barra de 95%: quem está em dia contra quem está em atraso."],
+    grupo:["Cartão do grupo com efeito de vidro fosco sobre o fundo gelo.","<b>Toque num membro</b> na lista para o marcar como pago — no telemóvel é um swipe para a direita.","QR Code de cobrança gerado com o valor da semana.","Exportação em PDF com assinaturas digitais para auditoria."],
+    membro:["Botão <b>Pagar agora</b> pulsa até a contribuição da semana estar liquidada.","Badge <b>Pagador Ouro</b> ganho por 12 pagamentos seguidos em dia.","Programa de referência: 500 Kz por amigo que se junte."]
+  };
+  var vistas = document.querySelectorAll('.vista');
+  var navs = document.querySelectorAll('[data-ecra]');
+  function mostrar(id){
+    vistas.forEach(function(v){ v.classList.toggle('on', v.id === 'v'+'-'+id); });
+    navs.forEach(function(b){ b.setAttribute('aria-selected', String(b.dataset.ecra === id)); });
+    var lista = notas[id] || [];
+    document.getElementById('nota-lista').innerHTML = lista.map(function(t){ return '<li>'+t+'</li>'; }).join('');
+    document.querySelector('.corpo').scrollTop = 0;
+  }
+  navs.forEach(function(b){ b.addEventListener('click', function(){ mostrar(b.dataset.ecra); }); });
+  document.querySelectorAll('[data-ir]').forEach(function(b){ b.addEventListener('click', function(){ mostrar(b.dataset.ir); }); });
+  mostrar('onb1');
+
+  document.getElementById('btn-otp').addEventListener('click', function(){
+    document.getElementById('zona-otp').hidden = false; this.textContent = 'Código enviado ✓';
+  });
+  document.querySelectorAll('[data-perfil]').forEach(function(p){
+    p.addEventListener('click', function(){
+      document.querySelectorAll('[data-perfil]').forEach(function(o){ o.classList.remove('sel'); });
+      p.classList.add('sel');
+    });
+  });
+  document.querySelectorAll('#lista-membros .membro').forEach(function(m){
+    m.style.cursor = 'pointer';
+    m.addEventListener('click', function(){
+      var pago = m.dataset.pago === '1';
+      m.dataset.pago = pago ? '0' : '1';
+      var selo = m.querySelector('.selo');
+      selo.className = 'selo ' + (pago ? 's-pend' : 's-pago');
+      selo.textContent = pago ? 'Pendente' : 'Pago ✓';
+    });
+  });
+  var modal = document.getElementById('modal');
+  document.querySelectorAll('[data-modal]').forEach(function(b){
+    b.addEventListener('click', function(){ modal.hidden = b.dataset.modal !== 'abrir'; });
+  });
+  document.querySelectorAll('.pagamento').forEach(function(p){
+    p.addEventListener('click', function(){
+      document.querySelectorAll('.pagamento').forEach(function(o){ o.classList.remove('sel'); });
+      p.classList.add('sel');
+    });
+  });
+
+  var fmt = new Intl.NumberFormat('pt-AO');
+  var slider = document.getElementById('slider');
+  function calcular(){
+    var v = Number(slider.value);
+    document.getElementById('valor').textContent = fmt.format(v);
+    document.getElementById('c-plat').textContent = fmt.format(Math.round(v*0.01)) + ' Kz';
+    document.getElementById('c-mae').textContent = fmt.format(Math.round(v*0.005)) + ' Kz';
+    document.getElementById('c-op').textContent = fmt.format(Math.round(v*0.005)) + ' Kz';
+    document.getElementById('c-liq').textContent = fmt.format(Math.round(v*0.98)) + ' Kz';
+  }
+  slider.addEventListener('input', calcular);
+  calcular();
+})();
+</script>
