@@ -71,6 +71,8 @@ interface Exercise {
   type: "multiple-choice" | "true-false" | "fill-in-blanks" | "translation" | "pronunciation";
   tags: string[];
   createdAt: string;
+  status?: "Draft" | "In Review" | "Approved" | "Published";
+  source?: "gemini" | "manual";
 }
 
 interface VersionLog {
@@ -163,321 +165,52 @@ export const EducationalCMS: React.FC = () => {
   const isTeacher = role === "TEACHER" || role === "teacher" || role === "Educator";
   const isAdminUser = role === "SUPER_ADMIN" || role === "PLATFORM_ADMIN" || role === "SCHOOL_ADMIN" || role === "school_admin" || role === "Admin" || user?.email === "sergio.uragan@gmail.com";
 
-  // Mock static data for immediate fallback
-  const mockCourses: Course[] = [
-    {
-      id: "course_1",
-      title: "Iniciação ao Português de Angola (Kimbundu & Gírias)",
-      description: "Curso focado na fluência falada com expressões populares de Luanda como 'kamba', 'fixe' e 'bazar'.",
-      language: "Português (Angola)",
-      cefrLevel: "A1",
-      ageGroup: "Teens",
-      tags: ["Cultura", "Gírias", "Conversação"],
-      author: "Professora Maria Antónia",
-      authorEmail: "maria.antonia@lingolive.ao",
-      version: "1.2",
-      status: "Published",
-      createdAt: "2026-05-01T10:00:00Z",
-      updatedAt: "2026-07-10T14:30:00Z"
-    },
-    {
-      id: "course_2",
-      title: "Inglês Instrumental para Negócios Tecnológicos",
-      description: "Vocabulário de design de produto, metodologias ágeis e compliance legal no mercado internacional.",
-      language: "Inglês",
-      cefrLevel: "B1",
-      ageGroup: "Teens",
-      tags: ["Business", "Tech", "Product Management"],
-      author: "Sérgio Uragan",
-      authorEmail: "sergio.uragan@gmail.com",
-      version: "1.0",
-      status: "Published",
-      createdAt: "2026-06-15T09:00:00Z",
-      updatedAt: "2026-06-15T09:00:00Z"
-    },
-    {
-      id: "course_3",
-      title: "Cultura Angolana e Tradições Orais",
-      description: "Aprofunde-se no folclore, gastronomia (calulu, funge) e na rica história das províncias angolanas.",
-      language: "Português (Angola)",
-      cefrLevel: "C1",
-      ageGroup: "PreTeens",
-      tags: ["História", "Cultura", "Tradições"],
-      author: "Professor João Baptista",
-      authorEmail: "joao.baptista@lingolive.ao",
-      version: "0.9",
-      status: "In Review",
-      createdAt: "2026-07-01T11:00:00Z",
-      updatedAt: "2026-07-12T16:45:00Z"
-    }
-  ];
-
-  const mockLessons: Lesson[] = [
-    {
-      id: "lesson_1_1",
-      courseId: "course_1",
-      title: "O que é um 'Kamba'? Expressões de Amizade",
-      description: "Aprenda a saudar os seus amigos em Luanda usando termos afetuosos da nossa cultura.",
-      order: 1,
-      duration: "10 min",
-      contentMarkdown: "# O Kamba\nEm Angola, 'kamba' significa amigo ou companheiro. \n\n## Exemplo:\n'Aquele mambo correu bem, o meu kamba ajudou-me!'",
-      status: "Published",
-      version: "1.1",
-      author: "Professora Maria Antónia",
-      createdAt: "2026-05-01T10:30:00Z"
-    },
-    {
-      id: "lesson_1_2",
-      courseId: "course_1",
-      title: "Bazar e Ficar Fixe: Verbos de Movimento e Estado",
-      description: "Aprenda a expressar despedidas e concordância coloquial luandense de forma natural.",
-      order: 2,
-      duration: "12 min",
-      contentMarkdown: "# Bazar e Ficar Fixe\n'Bazar' significa ir embora ou sair rapidamente.\n'Fixe' indica que tudo está excelente, legal ou de acordo.",
-      status: "Published",
-      version: "1.0",
-      author: "Professora Maria Antónia",
-      createdAt: "2026-05-02T11:00:00Z"
-    },
-    {
-      id: "lesson_3_1",
-      courseId: "course_3",
-      title: "A preparação tradicional do Funge de Bombo",
-      description: "Abordagem linguística sobre termos culinários, rituais e expressões de mesa.",
-      order: 1,
-      duration: "20 min",
-      contentMarkdown: "# O Funge de Bombo\nAprenda o vocabulário por trás do prato nacional. A mandioca pilada cozida ao ponto ideal.",
-      status: "In Review",
-      version: "1.0",
-      author: "Professor João Baptista",
-      createdAt: "2026-07-01T11:30:00Z"
-    }
-  ];
-
-  const mockMedia: MediaAsset[] = [
-    {
-      id: "media_1",
-      title: "Ilustração Infográfico do Funge",
-      fileName: "infografico_funge_bom_apetite.png",
-      type: "image",
-      size: "1.4 MB",
-      tags: ["funge", "gastronomia", "angola"],
-      url: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=400",
-      whisperTranscript: "[OCR Vision AI]: Infográfico colorido descrevendo os ingredientes principais e a preparação do funge em Angola, acompanhado de peixe seco.",
-      author: "Professor João Baptista",
-      status: "active",
-      createdAt: "2026-07-01T12:00:00Z"
-    },
-    {
-      id: "media_2",
-      title: "Pronúncia do Kamba de Angola (Áudio)",
-      fileName: "pronuncia_luanda_kamba.mp3",
-      type: "audio",
-      size: "3.2 MB",
-      tags: ["pronuncia", "kamba", "gírias"],
-      url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-      whisperTranscript: "[Whisper API Transcrição]: Olá! Para falar corretamente 'kamba' com sotaque angolano, abra a primeira vogal. Diga: KAHM-bah. Significa o meu querido amigo.",
-      author: "Professora Maria Antónia",
-      status: "active",
-      createdAt: "2026-05-01T11:00:00Z"
-    },
-    {
-      id: "media_3",
-      title: "Guia PDF de Compliance Legal e Contratos",
-      fileName: "compliance_legal_international_v2.pdf",
-      type: "pdf",
-      size: "5.8 MB",
-      tags: ["legal", "business", "compliance"],
-      url: "https://example.com/compliance_sample.pdf",
-      whisperTranscript: "[PDF Extractor]: Este manual detalha as cláusulas padrão de privacidade, leis de exportação de tecnologia e licenciamento corporativo de softwares na União Europeia.",
-      author: "Sérgio Uragan",
-      status: "active",
-      createdAt: "2026-06-15T09:15:00Z"
-    }
-  ];
-
-  const mockExercises: Exercise[] = [
-    {
-      id: "ex_1",
-      question: "O que significa dizer que alguém é seu 'kamba' em Angola?",
-      options: [
-        "Significa que é seu colega de trabalho formal.",
-        "Significa que é seu amigo ou companheiro próximo.",
-        "Significa que é um turista estrangeiro.",
-        "Significa que é um chefe de cozinha tradicional."
-      ],
-      answer: "Significa que é seu amigo ou companheiro próximo.",
-      explanation: "Kamba é uma das gírias e empréstimos linguísticos do Kimbundu mais populares em Angola para designar um amigo de confiança.",
-      difficulty: "Beginner",
-      language: "Português (Angola)",
-      topic: "Expressões de Amizade",
-      type: "multiple-choice",
-      tags: ["gírias", "vocabulário"],
-      createdAt: "2026-05-01T12:00:00Z"
-    },
-    {
-      id: "ex_2",
-      question: "Como se conjuga o verbo 'bazar' na primeira pessoa do plural do presente do indicativo?",
-      options: [
-        "Nós bazamos.",
-        "Nós bazamos-nos.",
-        "Nós bazam.",
-        "Nós bazo."
-      ],
-      answer: "Nós bazamos.",
-      explanation: "O verbo 'bazar' é regular do primeiro grupo (-ar) e segue as desinências padrão da conjugação informal angolana.",
-      difficulty: "Intermediate",
-      language: "Português (Angola)",
-      topic: "Verbos Coloquiais",
-      type: "multiple-choice",
-      tags: ["verbos", "gramática"],
-      createdAt: "2026-05-02T12:00:00Z"
-    }
-  ];
-
-  const mockApprovalRequests: ApprovalRequest[] = [
-    {
-      id: "req_1",
-      entityId: "course_3",
-      entityType: "course",
-      entityTitle: "Cultura Angolana e Tradições Orais",
-      authorName: "Professor João Baptista",
-      authorEmail: "joao.baptista@lingolive.ao",
-      status: "Pending",
-      createdAt: "2026-07-12T17:00:00Z"
-    }
-  ];
-
-  const mockLogs: VersionLog[] = [
-    {
-      id: "log_1",
-      entityId: "course_1",
-      entityType: "course",
-      version: "1.2",
-      changeSummary: "Atualização de termos e adição do módulo de gírias modernas.",
-      author: "Professora Maria Antónia",
-      createdAt: "2026-07-10T14:30:00Z",
-      dataSnapshot: JSON.stringify(mockCourses[0])
-    },
-    {
-      id: "log_2",
-      entityId: "lesson_1_1",
-      entityType: "lesson",
-      version: "1.1",
-      changeSummary: "Adicionado exemplo de frase idiomática em Kimbundu.",
-      author: "Professora Maria Antónia",
-      createdAt: "2026-05-05T09:00:00Z"
-    }
-  ];
-
-  // Load Content (Firestore + Cache Splicing)
+  // Load content from persistent collections. Empty collections remain empty.
   useEffect(() => {
     const loadCmsData = async () => {
       setLoading(true);
       setIsFirebaseSyncing(true);
-
-      // Check for locally cached CMS changes so the user keeps state on reload
-      const cachedCms = localStorage.getItem("lingolive_cms_cache");
-      let localCourses = [...mockCourses];
-      let localLessons = [...mockLessons];
-      let localMedia = [...mockMedia];
-      let localExercises = [...mockExercises];
-      let localApprovals = [...mockApprovalRequests];
-      let localLogs = [...mockLogs];
-
-      if (cachedCms) {
-        try {
-          const parsedCache = JSON.parse(cachedCms);
-          if (parsedCache.courses) localCourses = parsedCache.courses;
-          if (parsedCache.lessons) localLessons = parsedCache.lessons;
-          if (parsedCache.mediaAssets) localMedia = parsedCache.mediaAssets;
-          if (parsedCache.exercises) localExercises = parsedCache.exercises;
-          if (parsedCache.approvalRequests) localApprovals = parsedCache.approvalRequests;
-          if (parsedCache.versionLogs) localLogs = parsedCache.versionLogs;
-        } catch (e) {
-          console.warn("Failed parsing local CMS cache", e);
-        }
-      }
-
-      // Sincronizar com Firestore se logado
       try {
-        const coursesSnap = await getDocs(collection(db, "courses"));
-        if (!coursesSnap.empty) {
-          const fsCourses: Course[] = [];
-          coursesSnap.forEach((doc) => {
-            fsCourses.push({ id: doc.id, ...doc.data() } as Course);
-          });
-          // Merge unique Firestore items with our cache
-          fsCourses.forEach(fsc => {
-            const index = localCourses.findIndex(lc => lc.id === fsc.id);
-            if (index !== -1) localCourses[index] = fsc;
-            else localCourses.unshift(fsc);
-          });
-        }
-      } catch (err: any) {
-        console.warn("Firestore collection 'courses' not fully accessible or empty. Falling back gracefully.", err.message);
+        const [coursesSnap, lessonsSnap, mediaSnap, exercisesSnap, approvalsSnap, logsSnap] = await Promise.all([
+          getDocs(collection(db, "courses")),
+          getDocs(collection(db, "lessons")),
+          getDocs(collection(db, "media_assets")),
+          getDocs(collection(db, "exercises")),
+          getDocs(collection(db, "approval_requests")),
+          getDocs(collection(db, "version_logs")),
+        ]);
+        const toList = <T,>(snapshot: any): T[] =>
+          snapshot.docs.map((item: any) => ({ id: item.id, ...item.data() } as T));
+
+        const persistedCourses = toList<Course>(coursesSnap)
+          .sort((a, b) => (b.updatedAt || b.createdAt).localeCompare(a.updatedAt || a.createdAt));
+        const persistedLessons = toList<Lesson>(lessonsSnap);
+        const persistedMedia = toList<MediaAsset>(mediaSnap);
+        const persistedExercises = toList<Exercise>(exercisesSnap);
+        const persistedApprovals = toList<ApprovalRequest>(approvalsSnap);
+        const persistedLogs = toList<VersionLog>(logsSnap);
+
+        setCourses(persistedCourses);
+        setLessons(persistedLessons);
+        setMediaAssets(persistedMedia);
+        setExercises(persistedExercises);
+        setApprovalRequests(persistedApprovals);
+        setVersionLogs(persistedLogs);
+        updateCache({
+          courses: persistedCourses,
+          lessons: persistedLessons,
+          mediaAssets: persistedMedia,
+          exercises: persistedExercises,
+          approvalRequests: persistedApprovals,
+          versionLogs: persistedLogs,
+        });
+      } catch (error: any) {
+        console.warn("Não foi possível carregar as coleções reais do CMS.", error.message);
         setFirebaseWarning(true);
+      } finally {
+        setIsFirebaseSyncing(false);
+        setLoading(false);
       }
-
-      // Try loading media_assets
-      try {
-        const mediaSnap = await getDocs(collection(db, "media_assets"));
-        if (!mediaSnap.empty) {
-          const fsMedia: MediaAsset[] = [];
-          mediaSnap.forEach((doc) => {
-            fsMedia.push({ id: doc.id, ...doc.data() } as MediaAsset);
-          });
-          fsMedia.forEach(fsm => {
-            const index = localMedia.findIndex(lm => lm.id === fsm.id);
-            if (index !== -1) localMedia[index] = fsm;
-            else localMedia.unshift(fsm);
-          });
-        }
-      } catch (e) {
-        console.log("Firestore media_assets not readable, using cache/mock.");
-      }
-
-      // Try loading exercises
-      try {
-        const exSnap = await getDocs(collection(db, "exercises"));
-        if (!exSnap.empty) {
-          const fsEx: Exercise[] = [];
-          exSnap.forEach((doc) => {
-            fsEx.push({ id: doc.id, ...doc.data() } as Exercise);
-          });
-          fsEx.forEach(fse => {
-            const index = localExercises.findIndex(le => le.id === fse.id);
-            if (index !== -1) localExercises[index] = fse;
-            else localExercises.unshift(fse);
-          });
-        }
-      } catch (e) {
-        console.log("Firestore exercises not readable, using cache/mock.");
-      }
-
-      // Sort courses by status (Published, In Review, Draft) and updatedAt/createdAt
-      localCourses.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-
-      // Commit combined state to react
-      setCourses(localCourses);
-      setLessons(localLessons);
-      setMediaAssets(localMedia);
-      setExercises(localExercises);
-      setApprovalRequests(localApprovals);
-      setVersionLogs(localLogs);
-
-      // Save merged to LocalStorage
-      updateCache({
-        courses: localCourses,
-        lessons: localLessons,
-        mediaAssets: localMedia,
-        exercises: localExercises,
-        approvalRequests: localApprovals,
-        versionLogs: localLogs
-      });
-
-      setIsFirebaseSyncing(false);
-      setLoading(false);
     };
 
     loadCmsData();
@@ -866,9 +599,14 @@ export const EducationalCMS: React.FC = () => {
     addToast("Chamando o modelo de linguagem Gemini AI para formular exercícios premium...", "info");
 
     try {
+      const idToken = await auth.currentUser?.getIdToken();
+      if (!idToken) throw new Error("Sessão autenticada necessária.");
       const response = await fetch("/api/cms/generate-exercise", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`,
+        },
         body: JSON.stringify({
           language: aiGenLanguage,
           proficiency: aiGenLevel,
@@ -878,16 +616,10 @@ export const EducationalCMS: React.FC = () => {
       });
 
       const data = await response.json();
+      if (!response.ok) throw new Error(data.message || data.error || "Falha na geração real de exercícios.");
 
       if (data.exercises && data.exercises.length > 0) {
-        // Map unique IDs
-        const newExercises: Exercise[] = data.exercises.map((ex: any, idx: number) => ({
-          ...ex,
-          id: `ex_ai_${Date.now()}_${idx}`,
-          language: aiGenLanguage,
-          topic: aiGenTopic,
-          createdAt: new Date().toISOString()
-        }));
+        const newExercises: Exercise[] = data.exercises;
 
         const merged = [...newExercises, ...exercises];
         setExercises(merged);
@@ -900,18 +632,13 @@ export const EducationalCMS: React.FC = () => {
           versionLogs
         });
 
-        // Try persisting to Firestore
-        for (const ex of newExercises) {
-          await handleSave("exercises", ex.id, ex, "Exercício de IA catalogado");
-        }
-
-        addToast(`Sucesso! Foram gerados ${newExercises.length} exercícios premium pelo Gemini AI.`, "success");
+        addToast(`Sucesso! ${newExercises.length} exercícios reais foram validados e guardados como rascunho.`, "success");
       } else {
         addToast("A API do Gemini retornou uma resposta sem exercícios formatados.", "error");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      addToast("Erro crítico ao conectar com o gerador cognitivo Gemini.", "error");
+      addToast(err.message || "Erro crítico ao conectar com o gerador cognitivo Gemini.", "error");
     } finally {
       setGeneratingAI(false);
     }

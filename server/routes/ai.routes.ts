@@ -19,6 +19,7 @@ import {
 import { getExplanationPrompt, getFeedbackPrompt } from "../services/aiPrompts.service";
 import { AIEngineOrchestrator } from "../services/learning/AIEngineOrchestrator";
 import { scoreAssessment, validateGeneratedQuestions } from "../services/assessmentScoring.service";
+import { validateCmsExerciseRequest, validateGeneratedCmsExercises } from "../services/cmsExercise.service";
 
 const router = Router();
 const phraseCache = new LRUCache<string, any>({ max: 500 });
@@ -694,12 +695,9 @@ Responda APENAS em formato JSON, exatamente assim:
 });
 
 // CMS AI Generator Route - Generates high-quality language learning exercises
-router.post("/cms/generate-exercise", async (req: any, res) => {
+router.post("/cms/generate-exercise", requireAuth, async (req: any, res) => {
   try {
-    const { language, proficiency, topic, type } = req.body;
-    if (!language || !proficiency || !topic || !type) {
-      return res.status(400).json({ error: "Language, proficiency, topic, and type are required." });
-    }
+    const { language, proficiency, topic, type } = validateCmsExerciseRequest(req.body);
 
     const systemInstruction = `You are an expert language content developer. Generate language learning exercises.
 Return a JSON array containing 3 distinct exercises.
@@ -733,62 +731,34 @@ Type of Question: ${type} (can be: 'multiple-choice', 'true-false', 'fill-in-bla
       });
 
       const parsedJSON = JSON.parse(response.text || "[]");
-      res.status(200).json({ exercises: parsedJSON });
+      const generated = validateGeneratedCmsExercises(parsedJSON, type);
+      const createdAt = new Date().toISOString();
+      const exercises = generated.map((exercise, index) => ({
+        ...exercise,
+        id: `ex_ai_${Date.now()}_${index}_${Math.random().toString(36).substring(2, 7)}`,
+        language,
+        proficiency,
+        topic,
+        type,
+        source: "gemini",
+        status: "Draft",
+        createdBy: req.user.uid,
+        createdAt,
+      }));
+      for (const exercise of exercises) await safeSetDoc("exercises", exercise.id, exercise);
+      res.status(200).json({ exercises });
     } catch (apiError: any) {
-      console.warn("Gemini call for CMS exercise generation failed. Using premium local simulation database fallback:", apiError.message);
-      
-      // Smart Fallback Questions
-      const simulatedFallbacks: Record<string, any[]> = {
-        "multiple-choice": [
-          {
-            "id": "mc_local_1",
-            "question": `Qual é a opção que traduz corretamente '${topic}' para ${language}?`,
-            "options": ["Opção Correta", "Opção Incorreta A", "Opção Incorreta B", "Opção Incorreta C"],
-            "answer": "Opção Correta",
-            "explanation": "Explicação pedagógica automática sobre a concordância e vocabulário contextualizado.",
-            "difficulty": proficiency,
-            "tags": [topic.toLowerCase().replace(/\s+/g, '_'), "vocabulary"]
-          },
-          {
-            "id": "mc_local_2",
-            "question": `Completa a frase correspondente ao nível ${proficiency}: "Nós __________ a Angola no próximo mês."`,
-            "options": ["vamos", "ir", "fomos", "iremos"],
-            "answer": "vamos",
-            "explanation": "Em português, a locução de futuro imediato usa o presente do verbo ir + infinitivo.",
-            "difficulty": proficiency,
-            "tags": ["grammar", "verbs"]
-          }
-        ],
-        "true-false": [
-          {
-            "id": "tf_local_1",
-            "question": `A palavra '${topic}' é usada como um termo formal no idioma ${language}?`,
-            "options": ["Verdadeiro", "Falso"],
-            "answer": "Falso",
-            "explanation": "Este termo é comumente classificado como linguagem coloquial ou regional de nível intermédio.",
-            "difficulty": proficiency,
-            "tags": ["vocabulary", "formal-usage"]
-          }
-        ],
-        "fill-in-blanks": [
-          {
-            "id": "fib_local_1",
-            "question": `Preenche o espaço: "O kamba de Angola gosta muito de comer [_____] com peixe seco."`,
-            "options": [],
-            "answer": "funge",
-            "explanation": "O funge é o prato tradicional angolano mais célebre feito de mandioca ou milho.",
-            "difficulty": proficiency,
-            "tags": ["culture", "angola"]
-          }
-        ]
-      };
-
-      const selectedFallback = simulatedFallbacks[type] || simulatedFallbacks["multiple-choice"];
-      res.status(200).json({ exercises: selectedFallback });
+      console.warn("Gemini CMS exercise generation unavailable:", apiError.message);
+      return res.status(503).json({
+        error: "CMS_EXERCISE_GENERATION_UNAVAILABLE",
+        message: "A geração real de exercícios está temporariamente indisponível. Nenhum conteúdo foi criado.",
+        retryable: true,
+      });
     }
   } catch (error: any) {
     console.error("Error in generating CMS exercises:", error);
-    res.status(500).json({ error: "Falha ao gerar exercícios de CMS" });
+    const invalid = String(error?.message || "").startsWith("INVALID_CMS_EXERCISE_REQUEST");
+    res.status(invalid ? 400 : 500).json({ error: invalid ? "Parâmetros de geração inválidos." : "Falha ao gerar exercícios de CMS" });
   }
 });
 
