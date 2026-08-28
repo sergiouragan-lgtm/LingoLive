@@ -212,6 +212,26 @@ export async function safeQueryDocs(
   return results;
 }
 
+export async function safeListDocs(collectionName: string): Promise<any[]> {
+  const results: any[] = [];
+  if (dbAdminUsable()) {
+    try {
+      const snap = await dbAdmin.collection(collectionName).get();
+      snap.forEach((doc: any) => results.push({ id: doc.id, ...doc.data() }));
+    } catch (e: any) {
+      logSandboxWarning(`list on ${collectionName}`, e);
+      if (!shouldFallback(e)) throw e;
+    }
+  }
+  const prefix = `${collectionName}_`;
+  for (const [key, storedValue] of localMemoryDb.entries()) {
+    if (!key.startsWith(prefix)) continue;
+    const id = storedValue.id || key.slice(prefix.length);
+    if (!results.some((item) => item.id === id)) results.push({ id, ...storedValue });
+  }
+  return results;
+}
+
 export async function safeAddDoc(collectionName: string, data: any) {
   const cleanedData = removeUndefinedFields(data);
   if (collectionName === "ai_sessions") {
