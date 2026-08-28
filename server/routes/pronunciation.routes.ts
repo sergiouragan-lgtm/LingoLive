@@ -346,7 +346,28 @@ router.post("/evaluate", requireAuth, async (req: any, res) => {
     // Update list of results in memory database for quick lookup query
     const listKey = `pronunciation_results_list_${userId}`;
     const existingList = localMemoryDb.get(listKey) || [];
-    localMemoryDb.set(listKey, [evaluationResult, ...existingList]);
+    const updatedResults = [evaluationResult, ...existingList];
+    localMemoryDb.set(listKey, updatedResults);
+
+    // Feed only real pronunciation results into the adaptive profile. Recompute
+    // the average from persisted evaluations so retries cannot inflate it.
+    const adaptiveSnapshot = await safeGetDoc("adaptive_profiles", userId);
+    const adaptiveProfile = adaptiveSnapshot.exists ? adaptiveSnapshot.data() : { userId };
+    const speakingScore = Math.round(
+      updatedResults.reduce((sum: number, result: any) => sum + Number(result.overallScore || 0), 0) /
+      updatedResults.length
+    );
+    await safeSetDoc("adaptive_profiles", userId, {
+      ...adaptiveProfile,
+      userId,
+      speakingScore,
+      pronunciationAttempts: updatedResults.length,
+      latestPronunciationScore: evaluationResult.overallScore,
+      latestPronunciationAccuracy: evaluationResult.accuracyScore,
+      latestPronunciationFluency: evaluationResult.fluencyScore,
+      latestPronunciationEvaluatedAt: evaluationResult.timestamp,
+      lastUpdated: evaluationResult.timestamp,
+    });
 
     return res.json(evaluationResult);
 
@@ -381,28 +402,20 @@ router.post("/reports/generate", requireAuth, async (req: any, res) => {
     const results = localMemoryDb.get(listKey) || [];
 
     if (results.length === 0) {
-      // Build a starter sample report
-      const starterReport = {
+      // Honest empty state: no fabricated attempts, scores or trends.
+      return res.json({
         id: `rep_${userId}`,
         userId,
         language: language || "Inglês",
-        averageOverall: 78,
-        averageAccuracy: 80,
-        averageFluency: 76,
-        totalAttempts: 5,
-        commonErrorPhonemes: ["θ (TH)", "ɹ (R)", "ɪ (Short I)"],
-        timelineData: [
-          { date: "Segunda", score: 72 },
-          { date: "Terça", score: 75 },
-          { date: "Quarta", score: 76 },
-          { date: "Quinta", score: 82 },
-          { date: "Sexta", score: 80 }
-        ],
-        feedbackSummary: "O estudante demonstra progresso constante na redução de sotaque e consistência de ritmo. A maior área de oportunidade permanece no posicionamento correto dos fonemas fricativos interdentais.",
+        averageOverall: 0,
+        averageAccuracy: 0,
+        averageFluency: 0,
+        totalAttempts: 0,
+        commonErrorPhonemes: [],
+        timelineData: [],
+        feedbackSummary: "Ainda não existem avaliações reais de pronúncia para gerar este relatório.",
         generatedAt: new Date().toISOString()
-      };
-      await safeSetDoc("pronunciation_reports", starterReport.id, starterReport);
-      return res.json(starterReport);
+      });
     }
 
     // Sum averages
@@ -445,6 +458,9 @@ router.post("/reports/generate", requireAuth, async (req: any, res) => {
     });
 
     const parsedSummary = JSON.parse(summaryResponse.text || "{}");
+    if (!Array.isArray(parsedSummary.commonErrorPhonemes) || typeof parsedSummary.feedbackSummary !== "string") {
+      throw new Error("INVALID_PRONUNCIATION_REPORT_SUMMARY");
+    }
 
     // Construct timeline from results
     const timeline = results.slice(0, 7).reverse().map((r: any) => ({
@@ -460,9 +476,9 @@ router.post("/reports/generate", requireAuth, async (req: any, res) => {
       averageAccuracy: avgAccuracy,
       averageFluency: avgFluency,
       totalAttempts: count,
-      commonErrorPhonemes: parsedSummary.commonErrorPhonemes || ["θ (TH)", "ɹ (R)"],
+      commonErrorPhonemes: parsedSummary.commonErrorPhonemes,
       timelineData: timeline,
-      feedbackSummary: parsedSummary.feedbackSummary || "Apresenta um bom ritmo geral, necessitando de ajustes de aspiração na terminação de palavras consonantais.",
+      feedbackSummary: parsedSummary.feedbackSummary,
       generatedAt: new Date().toISOString()
     };
 
@@ -473,24 +489,25 @@ router.post("/reports/generate", requireAuth, async (req: any, res) => {
 
   } catch (err: any) {
     console.error("[Pronunciation Report] Failed to generate consolidated report:", err);
-    return res.status(500).json({ error: err.message });
+    return res.status(503).json({
+      error: "PRONUNCIATION_REPORT_UNAVAILABLE",
+      message: "Não foi possível gerar um relatório real neste momento.",
+      retryable: true,
+    });
   }
 });
 
 // 4. Get active teacher reports for students
 router.get("/reports/teacher", requireAuth, async (req: any, res) => {
-  // Mock listing reports of students assigned to teacher
-  const sampleTeacherReport = {
+  // No class aggregation is available yet; return an honest empty state.
+  return res.json({
     teacherId: req.user.uid,
-    classId: "turma_A",
-    className: "Turma de Conversação Avançada",
-    averageClassFluency: 82,
-    averageClassAccuracy: 79,
-    activeStudentsScoredCount: 12,
-    criticalPhonemesToWorkOn: ["θ (TH)", "v (V vocalizado)", "æ (Vogal aberta)"],
-    pedagogicalActionPlan: "Dedicar os primeiros 10 minutos da próxima aula síncrona a exercícios de sopro e fricção interdental."
-  };
-  return res.json(sampleTeacherReport);
+    averageClassFluency: 0,
+    averageClassAccuracy: 0,
+    activeStudentsScoredCount: 0,
+    criticalPhonemesToWorkOn: [],
+    pedagogicalActionPlan: "Ainda não existem avaliações reais suficientes para gerar um plano de turma."
+  });
 });
 
 export default router;
