@@ -47,12 +47,17 @@ router.post(
   }
 );
 
-// 2. API endpoint to send test push notifications (supports both real FCM and sandbox fallback)
+// 2. API endpoint to send a real test push notification.
 router.post("/send-test-push", requireAuth, async (req: any, res) => {
   const { userId, title, body } = req.body;
   
   if (!userId) {
     return res.status(400).json({ error: "userId is required" });
+  }
+
+  const privilegedRoles = new Set(["school_admin", "super_admin"]);
+  if (userId !== req.user.uid && !privilegedRoles.has(req.user.role)) {
+    return res.status(403).json({ error: "Não pode enviar notificações para outro usuário." });
   }
 
   try {
@@ -74,25 +79,22 @@ router.post("/send-test-push", requireAuth, async (req: any, res) => {
     const notificationTitle = title || "LingoLive: Teste de Push! 🔔";
     const notificationBody = body || "Suas notificações push estão configuradas e ativas com sucesso!";
 
-    console.log(`[Test Push] Sending push to User ID: ${userId}, Token: ${token}`);
-
     if (token.startsWith("simulated_")) {
-      return res.json({
-        status: "simulated",
-        message: "Notificação simulada disparada com sucesso! Exibiremos o alerta localmente no seu navegador.",
-        title: notificationTitle,
-        body: notificationBody
+      return res.status(422).json({
+        error: "INVALID_FCM_TOKEN",
+        message: "O token registrado não é um token FCM válido. Registre novamente este navegador.",
       });
     }
 
     if (!dbAdmin) {
-      return res.status(500).json({ 
-        error: "Firebase Admin SDK não foi inicializado." 
+      return res.status(503).json({
+        error: "FCM_NOT_CONFIGURED",
+        message: "O serviço de notificações push não está configurado.",
       });
     }
 
     try {
-      await (admin as any).messaging().send({
+      const messageId = await (admin as any).messaging().send({
         token: token,
         notification: {
           title: notificationTitle,
@@ -102,19 +104,27 @@ router.post("/send-test-push", requireAuth, async (req: any, res) => {
           type: "test_notification"
         }
       });
+
+      await safeAddDoc("notification_deliveries", {
+        userId,
+        channel: "fcm",
+        kind: "test_notification",
+        status: "accepted",
+        providerMessageId: messageId,
+        createdAt: new Date().toISOString(),
+      });
       
       res.json({
-        status: "success",
-        message: "Notificação Push Real enviada com sucesso via Firebase Cloud Messaging!"
+        status: "accepted",
+        message: "Notificação aceita pelo Firebase Cloud Messaging.",
+        messageId,
       });
     } catch (fcmErr: any) {
-      console.warn("FCM real send failed, providing simulation fallback:", fcmErr.message);
-      res.status(200).json({
-        status: "simulated",
-        message: `Notificação Push disparada (FCM falhou: ${fcmErr.message}). Utilizando fallback de simulação local no navegador.`,
-        title: notificationTitle,
-        body: notificationBody,
-        fallback: true
+      console.warn("FCM real send failed:", fcmErr.message);
+      res.status(502).json({
+        error: "FCM_DELIVERY_FAILED",
+        message: "O Firebase Cloud Messaging recusou a notificação. Verifique o token e tente novamente.",
+        retryable: true,
       });
     }
   } catch (err: any) {
