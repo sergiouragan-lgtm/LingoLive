@@ -1,13 +1,30 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
+import fs from 'fs';
+import path from 'path';
 import LanguageQuiz, {
   getAssessmentProfileExperience,
   normalizeAssessmentProfile
 } from './LanguageQuiz';
 import { LANGUAGES } from '../../../data';
 import { Language } from '../../../types';
-import { QUIZ_QUESTIONS } from '../../../quizData';
+
+vi.mock('../../../services/adaptiveQuiz.service', () => ({
+  adaptiveQuizService: {
+    generate: vi.fn().mockResolvedValue({
+      sessionId: 'quiz-session-1',
+      questions: Array.from({ length: 5 }, (_, index) => ({
+        id: `question-${index}`,
+        question: `Adaptive question ${index + 1}`,
+        options: ['A', 'B', 'C', 'D'],
+        skill: 'grammar',
+        difficulty: 'A1',
+      })),
+    }),
+    submit: vi.fn(),
+  },
+}));
 
 if (typeof window !== 'undefined' && !window.AudioContext) {
   window.AudioContext = vi.fn().mockImplementation(() => ({
@@ -188,7 +205,7 @@ describe('LanguageQuiz - Adaptive Assessment Profile Contract & Normalization', 
     expect(screen.getByText('Pronto para testar o teu progresso?')).not.toBeNull();
   });
 
-  it('30. clicking start button invokes quiz start exactly once and transitions state', () => {
+  it('30. clicking start button awaits adaptive generation and transitions state', async () => {
     const onCompleteQuiz = vi.fn();
     render(
       <LanguageQuiz
@@ -203,12 +220,14 @@ describe('LanguageQuiz - Adaptive Assessment Profile Contract & Normalization', 
     expect(startBtn).not.toBeNull();
     fireEvent.click(startBtn!);
 
-    expect(document.getElementById('assessment-profile-heading')).toBeNull();
+    await waitFor(() => expect(document.getElementById('assessment-profile-heading')).toBeNull());
+    expect(screen.getByText('Adaptive question 1')).not.toBeNull();
   });
 
-  it('31. preserves questions source and structure intact', () => {
-    expect(Array.isArray(QUIZ_QUESTIONS)).toBe(true);
-    expect(QUIZ_QUESTIONS.length).toBeGreaterThan(0);
+  it('31. no longer imports the static question bank or emergency fallback', () => {
+    const source = fs.readFileSync(path.join(process.cwd(), 'src/components/learning/quiz/LanguageQuiz.tsx'), 'utf8');
+    expect(source).not.toContain('QUIZ_QUESTIONS');
+    expect(source).not.toContain('fallback_q');
   });
 
   it('32. preserves onBack callback (route action)', () => {

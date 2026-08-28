@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { QUIZ_QUESTIONS, QuizQuestion } from "../../../quizData";
+import { QuizQuestion } from "../../../quizData";
 import { Language, SavedWord } from "../../../types";
 import { LANGUAGES } from "../../../data";
 import { 
@@ -25,6 +25,7 @@ import {
   Plus
 } from "lucide-react";
 import { COMMON_PHRASES } from "../biblioteca/commonPhrases";
+import { adaptiveQuizService } from "../../../services/adaptiveQuiz.service";
 
 export type TargetAgeGroup = 'CHILD' | 'TEEN' | 'ADULT';
 
@@ -193,6 +194,11 @@ export default function LanguageQuiz({
   const [isAnswerConfirmed, setIsAnswerConfirmed] = useState(false);
   const [score, setScore] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
+  const [adaptiveSessionId, setAdaptiveSessionId] = useState<string | null>(null);
+  const [adaptiveAnswers, setAdaptiveAnswers] = useState<number[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [quizError, setQuizError] = useState("");
+  const quizStartedAt = React.useRef(0);
 
   // Extra feedback state
   const [feedbackMessage, setFeedbackMessage] = useState("");
@@ -409,63 +415,34 @@ export default function LanguageQuiz({
   };
 
   // Build/filter question list based on parameters
-  const startQuiz = () => {
+  const startQuiz = async () => {
     if (quizMode === "flashcard") {
       startFlashcardQuiz();
       return;
     }
 
-    // Filter questions matching grade, category and language
-    let filtered = QUIZ_QUESTIONS.filter(
-      (q) => q.grade === selectedGrade && 
-             q.category === selectedCategory && 
-             q.languageCode === quizLanguage.code
-    );
+    setIsGenerating(true);
+    setQuizError("");
+    try {
+      const generated = await adaptiveQuizService.generate({ language: quizLanguage.name, ageGroup: activeProfile, grade: selectedGrade });
+      const finalSet: QuizQuestion[] = generated.questions.map(question => ({ ...question, grade: selectedGrade, category: selectedCategory, languageCode: quizLanguage.code as any, correctAnswerIndex: -1, explanation: "" }));
+      setAdaptiveSessionId(generated.sessionId);
+      setAdaptiveAnswers([]);
+      quizStartedAt.current = Date.now();
 
-    // Fallback logic to make sure the child always gets questions
-    if (filtered.length === 0) {
-      // Fallback 1: Try any category for this grade & language
-      filtered = QUIZ_QUESTIONS.filter(
-        (q) => q.grade === selectedGrade && q.languageCode === quizLanguage.code
-      );
-    }
-    if (filtered.length === 0) {
-      // Fallback 2: Try Portuguese version for this grade & category (since we have the most robust bank there!)
-      filtered = QUIZ_QUESTIONS.filter(
-        (q) => q.grade === selectedGrade && q.category === selectedCategory && q.languageCode === "pt"
-      );
-    }
-    if (filtered.length === 0) {
-      // Fallback 3: Try any question for this grade
-      filtered = QUIZ_QUESTIONS.filter((q) => q.grade === selectedGrade);
-    }
-
-    // Shuffle the selected subset slightly if we want, or just limit to a healthy size (e.g., 5 or length)
-    const randomized = [...filtered].sort(() => 0.5 - Math.random());
-    const finalSet = randomized.slice(0, 5); // Max 5 questions for children's focus span
-
-    if (finalSet.length === 0) {
-      // Emergency absolute fallback so the app never crashes
-      finalSet.push({
-        id: "fallback_q",
-        grade: selectedGrade,
-        category: selectedCategory,
-        languageCode: "pt",
-        question: "Qual país estamos a explorar neste momento na nossa jornada de estudos?",
-        options: ["Angola", "Brasil", "França", "China"],
-        correctAnswerIndex: 0,
-        explanation: "Exatamente! Estamos a focar nos estudos com sotaque e cultura de Angola!"
-      });
-    }
-
-    setCurrentQuestions(finalSet);
+      setCurrentQuestions(finalSet);
     setCurrentQuestionIndex(0);
     setSelectedAnswerIndex(null);
     setIsAnswerConfirmed(false);
     setScore(0);
     setIsFinished(false);
     setIsPlaying(true);
-    setFeedbackMessage("");
+      setFeedbackMessage("");
+    } catch (error) {
+      setQuizError(error instanceof Error ? error.message : "Não foi possível gerar o quiz.");
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleSelectOption = (idx: number) => {
@@ -473,28 +450,28 @@ export default function LanguageQuiz({
     setSelectedAnswerIndex(idx);
   };
 
-  const handleConfirmAnswer = () => {
+  const handleConfirmAnswer = async () => {
     if (selectedAnswerIndex === null || isAnswerConfirmed) return;
 
-    const currentQuestion = currentQuestions[currentQuestionIndex];
-    const isCorrect = selectedAnswerIndex === currentQuestion.correctAnswerIndex;
-
-    setIsAnswerConfirmed(true);
-
-    if (isCorrect) {
-      setScore((prev) => prev + 1);
-      playSoundEffect("correct");
-      
-      const praises = [
-        "Incrível! Estás de parabéns! 🌟",
-        "Brilhante! Que memória maravilhosa! 🚀",
-        "Fantástico! Sabes muito bem este assunto! 🎈",
-        "Excelente! Continua assim! 🏆"
-      ];
-      setFeedbackMessage(praises[Math.floor(Math.random() * praises.length)]);
-    } else {
-      playSoundEffect("incorrect");
-      setFeedbackMessage("Oh, quase lá! Vamos ler a explicação para aprender mais! 💡");
+    const nextAnswers = [...adaptiveAnswers, selectedAnswerIndex];
+    setAdaptiveAnswers(nextAnswers);
+    if (currentQuestionIndex + 1 < currentQuestions.length) {
+      setCurrentQuestionIndex(prev => prev + 1);
+      setSelectedAnswerIndex(null);
+      return;
+    }
+    if (!adaptiveSessionId) return;
+    setIsGenerating(true);
+    try {
+      const result = await adaptiveQuizService.submit(adaptiveSessionId, nextAnswers, Math.max(0.1, (Date.now() - quizStartedAt.current) / 60_000));
+      setScore(result.correctAnswers);
+      setIsFinished(true);
+      playSoundEffect("finish");
+      onCompleteQuiz?.({ score: result.score, correctAnswers: result.correctAnswers, totalQuestions: result.totalQuestions, durationMinutes: Math.max(0.1, (Date.now() - quizStartedAt.current) / 60_000) });
+    } catch (error) {
+      setQuizError(error instanceof Error ? error.message : "Não foi possível corrigir o quiz.");
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -842,6 +819,11 @@ export default function LanguageQuiz({
           )}
 
           {/* Action Trigger Button */}
+          {quizError && (
+            <div role="alert" aria-live="assertive" className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-sm text-rose-700">
+              {quizError}
+            </div>
+          )}
           <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="text-xs text-slate-400 font-medium">
               {quizMode === "school" 
@@ -853,7 +835,7 @@ export default function LanguageQuiz({
               const languageSavedWords = (savedWords || []).filter(item => 
                 item.id && item.id.toLowerCase().startsWith(normalizedCode + "_")
               );
-              const disabled = quizMode === "flashcard" && languageSavedWords.length === 0;
+              const disabled = isGenerating || (quizMode === "flashcard" && languageSavedWords.length === 0);
 
               return (
                 <button
@@ -867,7 +849,7 @@ export default function LanguageQuiz({
                   id="btn-start-dynamic-quiz"
                 >
                   <Flame className={`w-5 h-5 ${disabled ? "text-slate-400" : "text-amber-300 fill-amber-300 animate-pulse"}`} />
-                  <span>{profileExp.startActionLabel}</span>
+                  <span>{isGenerating ? "A criar quiz adaptado…" : profileExp.startActionLabel}</span>
                 </button>
               );
             })()}
@@ -1048,10 +1030,11 @@ export default function LanguageQuiz({
           )}
 
           {/* Action Footer */}
+          {quizError && <p role="alert" className="mr-auto text-sm text-rose-600">{quizError}</p>}
           <div className="flex justify-end pt-4 border-t border-slate-100">
             {!isAnswerConfirmed ? (
               <button
-                disabled={selectedAnswerIndex === null}
+                disabled={selectedAnswerIndex === null || isGenerating}
                 onClick={handleConfirmAnswer}
                 className={`inline-flex items-center gap-1.5 px-6 py-3 rounded-xl text-sm font-bold transition-all ${
                   selectedAnswerIndex !== null
@@ -1059,7 +1042,7 @@ export default function LanguageQuiz({
                     : "bg-slate-100 text-slate-400 cursor-not-allowed"
                 }`}
               >
-                <span>Confirmar Resposta</span>
+                <span>{isGenerating ? "A corrigir…" : currentQuestionIndex + 1 === currentQuestions.length ? "Enviar respostas" : "Guardar e continuar"}</span>
               </button>
             ) : (
               <button

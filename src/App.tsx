@@ -2085,7 +2085,9 @@ function AppContent() {
             savedWords={savedWords}
             onAddWords={handleAddWords}
             onBack={() => setView("dashboard")}
-            onCompleteQuiz={(result) => registerPracticeSession("quiz", result.score, result.durationMinutes)}
+            onCompleteQuiz={(result) => addToast(`Quiz concluído: ${result.score}%`, "success")}
+            selectedAgeGroup={selectedAgeGroup}
+            userAge={userProfile?.age}
           />
         )}
 
