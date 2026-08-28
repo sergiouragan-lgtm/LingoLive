@@ -2,7 +2,7 @@ import { Router } from "express";
 import { ai, generateContentWithRetry } from "../config/gemini";
 import { Type } from "@google/genai";
 import { requireAuth } from "../middleware/requireAuth";
-import { safeGetDoc, safeSetDoc, localMemoryDb } from "../services/firestoreSafe.service";
+import { safeGetDoc, safeSetDoc, safeQueryDocs, localMemoryDb } from "../services/firestoreSafe.service";
 import { OpenAI } from "openai";
 import fs from "fs";
 import path from "path";
@@ -499,14 +499,50 @@ router.post("/reports/generate", requireAuth, async (req: any, res) => {
 
 // 4. Get active teacher reports for students
 router.get("/reports/teacher", requireAuth, async (req: any, res) => {
-  // No class aggregation is available yet; return an honest empty state.
+  const teacherId = req.user.uid;
+  const requestedClassId = typeof req.query?.classId === "string" ? req.query.classId : null;
+  const assignedStudents = (await safeQueryDocs("students", "teacherUid", teacherId))
+    .filter((student) => !requestedClassId || student.classId === requestedClassId || student.turma === requestedClassId);
+
+  const studentReports = [];
+  for (const student of assignedStudents) {
+    const results = await safeQueryDocs("pronunciation_results", "userId", student.id);
+    if (results.length === 0) continue;
+    const averageFluency = Math.round(results.reduce((sum, result) => sum + Number(result.fluencyScore || 0), 0) / results.length);
+    const averageAccuracy = Math.round(results.reduce((sum, result) => sum + Number(result.accuracyScore || 0), 0) / results.length);
+    studentReports.push({
+      studentId: student.id,
+      studentName: student.name || student.nome || "Aluno",
+      classId: student.classId || student.turma || null,
+      targetLanguage: student.targetLanguage || null,
+      totalAttempts: results.length,
+      averageFluency,
+      averageAccuracy,
+      criticalPhonemes: results.flatMap((result) => result.phonemeAnalysis || [])
+        .filter((phoneme: any) => Number(phoneme.accuracy) < 80)
+        .map((phoneme: any) => phoneme.ipaSymbol || phoneme.phoneme),
+    });
+  }
+
+  const activeStudentsScoredCount = studentReports.length;
+  const averageClassFluency = activeStudentsScoredCount
+    ? Math.round(studentReports.reduce((sum, report) => sum + report.averageFluency, 0) / activeStudentsScoredCount) : 0;
+  const averageClassAccuracy = activeStudentsScoredCount
+    ? Math.round(studentReports.reduce((sum, report) => sum + report.averageAccuracy, 0) / activeStudentsScoredCount) : 0;
+  const criticalPhonemesToWorkOn = [...new Set(studentReports.flatMap((report) => report.criticalPhonemes))].slice(0, 10);
+
   return res.json({
-    teacherId: req.user.uid,
-    averageClassFluency: 0,
-    averageClassAccuracy: 0,
-    activeStudentsScoredCount: 0,
-    criticalPhonemesToWorkOn: [],
-    pedagogicalActionPlan: "Ainda não existem avaliações reais suficientes para gerar um plano de turma."
+    teacherId,
+    classId: requestedClassId,
+    assignedStudentsCount: assignedStudents.length,
+    averageClassFluency,
+    averageClassAccuracy,
+    activeStudentsScoredCount,
+    criticalPhonemesToWorkOn,
+    pedagogicalActionPlan: activeStudentsScoredCount
+      ? "Priorize os fonemas críticos identificados nas avaliações reais da turma."
+      : "Ainda não existem avaliações reais suficientes para gerar um plano de turma.",
+    students: studentReports,
   });
 });
 
