@@ -137,11 +137,11 @@ export class PronunciationService {
       }
     }
     return {
-      averageClassFluency: 78,
-      averageClassAccuracy: 75,
-      activeStudentsScoredCount: 8,
-      criticalPhonemesToWorkOn: ["θ (TH)", "ɪ (Short I)"],
-      pedagogicalActionPlan: "Dedicar mais atenção síncrona a fricativas."
+      averageClassFluency: 0,
+      averageClassAccuracy: 0,
+      activeStudentsScoredCount: 0,
+      criticalPhonemesToWorkOn: [],
+      pedagogicalActionPlan: "Sem dados reais disponíveis para a turma neste momento."
     };
   }
 
