@@ -4,14 +4,33 @@ Adaptador de operadora de pagamento para a KixiDigital, desenhado para que a
 parte que depende da documentação da KWiK esteja isolada num único ficheiro.
 
 ```
-contrato.ts        Porta: tipos e interfaces. Não sabe o que é a KWiK.
-comissoes.ts       Divisão 1% / 0,5% / 0,5% em aritmética inteira.
-assinatura.ts      HMAC-SHA256 com comparação timing-safe e janela de 5 min.
-webhook.ts         Núcleo: autenticidade → idempotência → montante → estado.
-reconciliacao.ts   Cruzamento nocturno entre razão interno e extracto.
-adaptador-kwik.ts  ⚠️ Tudo o que depende da KWiK vive aqui.
-kwik.test.ts       27 testes. Correm na CI do repositório com `npx vitest run`.
+contrato.ts            Porta: tipos e interfaces. Não sabe o que é a KWiK.
+comissoes.ts           Divisão 1% / 0,5% / 0,5% em aritmética inteira.
+assinatura.ts          HMAC-SHA256 com comparação timing-safe e janela de 5 min.
+webhook.ts             Núcleo: autenticidade → idempotência → montante → estado.
+reconciliacao.ts       Cruzamento nocturno entre razão interno e extracto.
+adaptador-kwik.ts      ⚠️ Tudo o que depende da KWiK vive aqui.
+repositorio-postgres.ts   Repositorio sobre PostgreSQL. Não importa `pg` — ver o seu topo.
+endpoint.ts            Router Express de referência. Não está montado em server.ts.
+kwik.test.ts                              27 testes do núcleo.
+repositorio-postgres.test.ts              11 testes de contrato do repositório (cliente falso).
+repositorio-postgres.integration.test.ts  5 testes contra PostgreSQL real — excluído da CI, corre à mão.
 ```
+
+Os três primeiros ficheiros de teste correm na CI do repositório com
+`npx vitest run`. O de integração está excluído em `vitest.config.ts` porque
+a CI não tem PostgreSQL disponível — as instruções para o correr estão no
+topo do próprio ficheiro. Foi ao correr esse teste contra um PostgreSQL real
+que se encontraram e corrigiram dois bugs que os testes com cliente falso não
+apanhavam: uma junção a buscar `grupo_id` na tabela errada, e uma comparação
+`estado = any(...)` sem o `cast` para o tipo enum do PostgreSQL.
+
+`repositorio-postgres.ts` e `endpoint.ts` não importam `pg` nem alteram o
+`package.json` do LingoLive — a KixiDigital não corre no processo deste
+repositório (ver a decisão #5 do `relatorio.html`). O repositório está tipado
+contra a forma mínima de um cliente SQL que `pg.Pool` já satisfaz
+estruturalmente, para que ligar isto a um servidor real, no repositório
+próprio da KixiDigital, seja só `new RepositorioPostgres(new pg.Pool(...))`.
 
 ## Estado desta integração
 
