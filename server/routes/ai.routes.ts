@@ -20,6 +20,7 @@ import { getExplanationPrompt, getFeedbackPrompt } from "../services/aiPrompts.s
 import { AIEngineOrchestrator } from "../services/learning/AIEngineOrchestrator";
 import { scoreAssessment, validateGeneratedQuestions } from "../services/assessmentScoring.service";
 import { validateCmsExerciseRequest, validateGeneratedCmsExercises } from "../services/cmsExercise.service";
+import { validateCmsMediaInput, validateCmsMediaAnalysis } from "../services/cmsMedia.service";
 
 const router = Router();
 const phraseCache = new LRUCache<string, any>({ max: 500 });
@@ -762,108 +763,92 @@ Type of Question: ${type} (can be: 'multiple-choice', 'true-false', 'fill-in-bla
   }
 });
 
-// Simulated Storage and Cloud Functions API - Analyzes uploaded media using Gemini or robust local heuristics
-router.post("/cms/media-analyze", async (req: any, res) => {
+// Analyze an actual CMS media file already uploaded to Firebase Storage.
+router.post("/cms/media-analyze", requireAuth, async (req: any, res) => {
   try {
-    const { mediaType, fileName, fileUrl } = req.body;
-    if (!mediaType || !fileName) {
-      return res.status(400).json({ error: "Media type and file name are required." });
-    }
-
+    const input = validateCmsMediaInput(req.body);
     const timestamp = new Date().toISOString();
-    const systemInstruction = `You are a high-performance Cloud Functions analyzer for an Educational CMS.
-Analyze the file name and return a structured JSON configuration mimicking Cloud Functions and Whisper API auto-transcription/OCR pipelines.
-Do NOT wrap output in code blocks, return pure JSON.
-
-The response schema MUST be:
-{
-  "suggestedTitle": "string (a polished user-friendly title)",
-  "tags": ["array of 3 suggested tags"],
-  "whisperTranscript": "string (if mediaType is 'audio' or 'video', simulate Whisper API transcription. Else if image/pdf, extract hypothetical OCR text or summaries. Max 2 sentences)",
-  "suggestedMetadata": {
-    "language": "string (Portuguese / English / etc.)",
-    "proficiency": "Beginner" | "Intermediate" | "Advanced",
-    "estimatedDuration": "string (e.g. 5 min, 12 min)",
-    "description": "string (one-sentence description of the content)"
-  }
-}`;
-
-    const promptText = `Analyze this file and simulate Whisper API transcription or Image OCR/classification:
-File Name: ${fileName}
-Media Type: ${mediaType}
-URL: ${fileUrl || 'Local Workspace Blob'}`;
-
-    let resultJSON;
+    let response;
     try {
-      const response = await generateContentWithRetry({
-        model: 'gemini-3.6-flash',
-        contents: [{ role: 'user', parts: [{ text: promptText }] }],
+      response = await generateContentWithRetry({
+        model: "gemini-3.6-flash",
+        contents: [
+          { inlineData: { mimeType: input.mimeType, data: input.cleanBase64 } },
+          { text: `Analyze this real educational file. File name: ${input.fileName}. Media type: ${input.mediaType}.` },
+        ],
         config: {
-          systemInstruction: systemInstruction,
-          responseMimeType: "application/json"
-        }
+          systemInstruction: `You are an educational media analyst. Inspect only the supplied file bytes.
+For audio/video, transcribe the audible speech. For images/PDFs, extract visible text and summarize it.
+Never invent content that is not present. Return strict JSON metadata.`,
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              suggestedTitle: { type: Type.STRING },
+              tags: { type: Type.ARRAY, items: { type: Type.STRING } },
+              whisperTranscript: { type: Type.STRING },
+              suggestedMetadata: {
+                type: Type.OBJECT,
+                properties: {
+                  language: { type: Type.STRING },
+                  proficiency: { type: Type.STRING },
+                  estimatedDuration: { type: Type.STRING },
+                  description: { type: Type.STRING },
+                },
+                required: ["language", "proficiency", "estimatedDuration", "description"],
+              },
+            },
+            required: ["suggestedTitle", "tags", "whisperTranscript", "suggestedMetadata"],
+          },
+        },
       });
-      resultJSON = JSON.parse(response.text || "{}");
-    } catch (apiError: any) {
-      console.warn("Gemini call for media analyzer failed, using high-availability local rules:", apiError.message);
-      
-      // Robust fallbacks based on files
-      let suggestedTitle = fileName.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
-      suggestedTitle = suggestedTitle.charAt(0).toUpperCase() + suggestedTitle.slice(1);
-      
-      let tags = ["aula", "multimédia", "lingolive"];
-      let transcript = "Documento ou imagem analisados com sucesso pelo motor integrado.";
-      let estDur = "5 min";
-
-      if (mediaType === "audio" || mediaType === "video") {
-        tags = ["áudio-aula", "compreensão-oral", "pronúncia"];
-        transcript = "[Whisper API Transcrição Automática]: Olá a todos! Bem-vindos ao LingoLive. Hoje vamos abordar expressões cotidianas e culturais em Angola.";
-        estDur = "10 min";
-      } else if (mediaType === "image") {
-        tags = ["visual", "vocabulário-gráfico", "ilustração"];
-        transcript = "[OCR/Vision AI]: Imagem contendo ilustrações pedagógicas para identificação de objetos e ações do dia-a-dia.";
-        estDur = "3 min";
-      } else if (mediaType === "pdf") {
-        tags = ["leitura", "gramática", "pdf-exercícios"];
-        transcript = "[PDF Parser]: Sumário executivo da lição contendo explicações gramaticais detalhadas de nível intermédio e fichas de exercícios adicionais.";
-        estDur = "15 min";
-      }
-
-      resultJSON = {
-        suggestedTitle,
-        tags,
-        whisperTranscript: transcript,
-        suggestedMetadata: {
-          language: "Português (Angola)",
-          proficiency: "Intermediate",
-          estimatedDuration: estDur,
-          description: `Recurso educativo do tipo ${mediaType} processado automaticamente.`
-        }
-      };
+    } catch (error: any) {
+      console.warn("Real CMS media analysis unavailable:", error.message);
+      return res.status(503).json({
+        error: "CMS_MEDIA_ANALYSIS_UNAVAILABLE",
+        message: "A análise real do ficheiro está temporariamente indisponível. Nenhum recurso foi catalogado.",
+        retryable: true,
+      });
     }
 
-    // Generate real-time Cloud Functions logs
-    const processingLogs = [
-      `[${timestamp}] 🚀 Cloud Function "onMediaUploadedTrigger" started.`,
-      `[${timestamp}] 📁 Detected resource type: "${mediaType}" | FileName: "${fileName}"`,
-      mediaType === "audio" || mediaType === "video" 
-        ? `[${timestamp}] 🎙️ Routing to Whisper API v3 for high-fidelity audio transcription...`
-        : `[${timestamp}] 👁️ Routing to Google Cloud Vision API for OCR and visual tagging...`,
-      `[${timestamp}] 🧠 Correlating context with LLM Metadata Generator...`,
-      `[${timestamp}] 🏷️ Automatically generated tags: ${JSON.stringify(resultJSON.tags)}`,
-      `[${timestamp}] ✅ Processing complete. Firestore document updated securely.`
-    ];
+    const analysis = validateCmsMediaAnalysis(JSON.parse(response.text || "{}"));
+    const assetId = `media_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    const asset = {
+      id: assetId,
+      title: analysis.suggestedTitle || input.title,
+      fileName: input.fileName,
+      type: input.mediaType,
+      mimeType: input.mimeType,
+      size: `${(input.sizeBytes / (1024 * 1024)).toFixed(2)} MB`,
+      sizeBytes: input.sizeBytes,
+      tags: analysis.tags,
+      url: input.fileUrl,
+      whisperTranscript: analysis.whisperTranscript,
+      suggestedMetadata: analysis.suggestedMetadata,
+      author: req.user.name || req.user.email || req.user.uid,
+      createdBy: req.user.uid,
+      status: "active",
+      analysisSource: "gemini",
+      createdAt: timestamp,
+      analyzedAt: timestamp,
+    };
+    await safeSetDoc("media_assets", assetId, asset);
 
-    res.status(200).json({
-      ...resultJSON,
-      processingLogs,
-      processedAt: timestamp,
-      status: "success"
+    return res.status(200).json({
+      asset,
+      processingLogs: [
+        `[${timestamp}] Upload confirmado no Firebase Storage.`,
+        `[${timestamp}] Bytes reais analisados pelo Gemini.`,
+        `[${timestamp}] Metadados validados e recurso catalogado no Firestore.`,
+      ],
+      status: "success",
     });
-
   } catch (error: any) {
-    console.error("Error in media analysis function:", error);
-    res.status(500).json({ error: "Falha ao processar análise de mídia" });
+    console.error("Error in CMS media analysis:", error);
+    const invalid = String(error?.message || "").startsWith("INVALID_CMS_MEDIA_");
+    return res.status(invalid ? 400 : 500).json({
+      error: invalid ? "Ficheiro ou metadados inválidos." : "Falha ao processar análise de mídia",
+    });
   }
 });
 

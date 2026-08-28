@@ -6,7 +6,8 @@ import {
   Check, Settings, Layers, Send, Lock, ChevronRight, Eye, AlertCircle
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { db, auth } from "../../firebase";
+import { db, auth, storage } from "../../firebase";
+import { deleteObject, getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { 
   collection, doc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, 
   query, where, orderBy, limit, Timestamp 
@@ -141,6 +142,7 @@ export const EducationalCMS: React.FC = () => {
 
   const [isMediaModalOpen, setIsMediaModalOpen] = useState(false);
   const [mediaForm, setMediaForm] = useState<Partial<MediaAsset>>({ type: "pdf" });
+  const [selectedMediaFile, setSelectedMediaFile] = useState<File | null>(null);
   const [analyzingMedia, setAnalyzingMedia] = useState(false);
   const [cloudFunctionLogs, setCloudFunctionLogs] = useState<string[]>([]);
 
@@ -514,76 +516,85 @@ export const EducationalCMS: React.FC = () => {
     setIsLessonModalOpen(false);
   };
 
-  // Media Library Upload & Analysis simulation (Cloud Functions & Whisper)
+  // Upload actual bytes to Firebase Storage and request authenticated analysis.
   const handleMediaUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!mediaForm.fileName || !mediaForm.title) {
-      addToast("Nome de arquivo e título são obrigatórios.", "error");
+    if (!selectedMediaFile || !mediaForm.title) {
+      addToast("Selecione um ficheiro real e informe o título.", "error");
+      return;
+    }
+    if (selectedMediaFile.size > 15 * 1024 * 1024) {
+      addToast("O ficheiro excede o limite de 15 MB.", "error");
+      return;
+    }
+
+    const allowedTypes = new Set([
+      "audio/mpeg", "audio/wav", "audio/x-wav", "audio/webm",
+      "video/mp4", "video/webm", "image/png", "image/jpeg", "image/webp", "application/pdf",
+    ]);
+    if (!allowedTypes.has(selectedMediaFile.type)) {
+      addToast("Formato não suportado. Use MP3, WAV, WebM, MP4, PNG, JPG, WebP ou PDF.", "error");
+      return;
+    }
+
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      addToast("É necessária uma sessão autenticada para enviar mídia.", "error");
       return;
     }
 
     setAnalyzingMedia(true);
-    setCloudFunctionLogs([`[${new Date().toISOString()}] 🚀 Upload simulado em andamento...`]);
-
-    const timestamp = new Date().toISOString();
+    setCloudFunctionLogs([`[${new Date().toISOString()}] A enviar bytes reais para o Firebase Storage...`]);
+    const safeName = selectedMediaFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const storageRef = ref(storage, `cms/${currentUser.uid}/${Date.now()}_${safeName}`);
 
     try {
+      await uploadBytes(storageRef, selectedMediaFile, { contentType: selectedMediaFile.type });
+      const fileUrl = await getDownloadURL(storageRef);
+      setCloudFunctionLogs((logs) => [...logs, `[${new Date().toISOString()}] Upload concluído. A iniciar análise real...`]);
+      const fileBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ""));
+        reader.onerror = () => reject(reader.error || new Error("Falha ao ler o ficheiro."));
+        reader.readAsDataURL(selectedMediaFile);
+      });
+      const idToken = await currentUser.getIdToken();
+      const mediaType = selectedMediaFile.type === "application/pdf" ? "pdf" : selectedMediaFile.type.split("/")[0];
       const response = await fetch("/api/cms/media-analyze", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`,
+        },
         body: JSON.stringify({
-          mediaType: mediaForm.type,
-          fileName: mediaForm.fileName,
-          fileUrl: `https://storage.googleapis.com/lingolive-media-bucket/${mediaForm.fileName}`
-        })
+          title: mediaForm.title,
+          mediaType,
+          fileName: selectedMediaFile.name,
+          fileUrl,
+          mimeType: selectedMediaFile.type,
+          fileBase64,
+        }),
       });
-
       const parsed = await response.json();
-
-      if (parsed.processingLogs) {
-        setCloudFunctionLogs(parsed.processingLogs);
+      if (!response.ok || !parsed.asset) {
+        await deleteObject(storageRef).catch(() => undefined);
+        throw new Error(parsed.message || parsed.error || "Falha na análise real do ficheiro.");
       }
 
-      // Prepare complete media asset
-      const mediaId = `media_${Date.now()}`;
-      const newMedia: MediaAsset = {
-        id: mediaId,
-        title: parsed.suggestedTitle || mediaForm.title!,
-        fileName: mediaForm.fileName!,
-        type: mediaForm.type || "pdf",
-        size: mediaForm.size || "2.1 MB",
-        tags: parsed.tags || ["automático"],
-        url: parsed.fileUrl || `https://storage.googleapis.com/lingolive-media-bucket/${mediaForm.fileName}`,
-        whisperTranscript: parsed.whisperTranscript || "",
-        author: user?.displayName || "Sérgio Uragan",
-        status: "active",
-        createdAt: timestamp
-      };
-
+      setCloudFunctionLogs(parsed.processingLogs || []);
+      const newMedia = parsed.asset as MediaAsset;
       const updatedMedia = [newMedia, ...mediaAssets];
       setMediaAssets(updatedMedia);
-      updateCache({
-        courses,
-        lessons,
-        mediaAssets: updatedMedia,
-        exercises,
-        approvalRequests,
-        versionLogs
-      });
-
-      await handleSave("media_assets", mediaId, newMedia, "Recurso de mídia arquivado e analisado");
-      addToast(`Análise concluída via Cloud Functions! Tags auto-geradas: ${newMedia.tags.join(", ")}`, "success");
-      
-      // Keep logs visible briefly then close
-      setTimeout(() => {
-        setAnalyzingMedia(false);
-        setIsMediaModalOpen(false);
-        setCloudFunctionLogs([]);
-      }, 3500);
-
-    } catch (error) {
+      updateCache({ courses, lessons, mediaAssets: updatedMedia, exercises, approvalRequests, versionLogs });
+      addToast(`Recurso real enviado, analisado e catalogado: ${newMedia.title}`, "success");
+      setSelectedMediaFile(null);
+      setMediaForm({ type: "pdf" });
+      setIsMediaModalOpen(false);
+      setCloudFunctionLogs([]);
+    } catch (error: any) {
       console.error(error);
-      addToast("Erro na simulação do processador de mídia.", "error");
+      addToast(error.message || "Erro ao enviar ou analisar o ficheiro.", "error");
+    } finally {
       setAnalyzingMedia(false);
     }
   };
@@ -1253,6 +1264,7 @@ export const EducationalCMS: React.FC = () => {
                   <button
                     onClick={() => {
                       setMediaForm({ type: "audio" });
+                      setSelectedMediaFile(null);
                       setIsMediaModalOpen(true);
                     }}
                     className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 w-full md:w-auto"
@@ -1917,7 +1929,7 @@ export const EducationalCMS: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL: STORAGE MEDIA UPLOAD AND CLOUD FUNCTIONS SIMULATOR */}
+      {/* MODAL: REAL STORAGE MEDIA UPLOAD AND ANALYSIS */}
       {isMediaModalOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
           <motion.div 
@@ -1936,12 +1948,32 @@ export const EducationalCMS: React.FC = () => {
 
             <form onSubmit={handleMediaUpload} className="p-6 space-y-4">
               
-              {/* Fake Drag & drop card */}
-              <div className="border-2 border-dashed border-slate-200 p-6 rounded-2xl text-center bg-slate-50 relative">
+              <label className="border-2 border-dashed border-slate-200 p-6 rounded-2xl text-center bg-slate-50 relative cursor-pointer hover:border-indigo-300 block">
                 <Volume2 className="w-8 h-8 text-indigo-500 mx-auto mb-2 animate-bounce" />
-                <span className="text-xs font-bold text-slate-700 block">Solte os seus ficheiros de áudio, imagem ou PDF aqui</span>
+                <span className="text-xs font-bold text-slate-700 block">
+                  {selectedMediaFile ? selectedMediaFile.name : "Selecione um ficheiro de áudio, vídeo, imagem ou PDF"}
+                </span>
                 <span className="text-[10px] text-slate-400 block mt-1">Suporta MP3, WAV, PNG, JPG, PDF (Max 15MB)</span>
-              </div>
+                <input
+                  type="file"
+                  required
+                  accept="audio/mpeg,audio/wav,audio/webm,video/mp4,video/webm,image/png,image/jpeg,image/webp,application/pdf"
+                  className="sr-only"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0] || null;
+                    setSelectedMediaFile(file);
+                    if (file) {
+                      const type = file.type === "application/pdf" ? "pdf" : file.type.split("/")[0];
+                      setMediaForm({
+                        ...mediaForm,
+                        fileName: file.name,
+                        size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
+                        type: type as MediaAsset["type"],
+                      });
+                    }
+                  }}
+                />
+              </label>
 
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Título do Recurso</label>
@@ -1960,20 +1992,19 @@ export const EducationalCMS: React.FC = () => {
                   <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nome do Arquivo</label>
                   <input
                     type="text"
-                    required
+                    readOnly
                     value={mediaForm.fileName || ""}
-                    onChange={(e) => setMediaForm({ ...mediaForm, fileName: e.target.value })}
-                    placeholder="Ex: pronuncia_kamba.mp3"
-                    className="w-full px-3 py-2 bg-white rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 font-mono"
+                    placeholder="Selecione um ficheiro"
+                    className="w-full px-3 py-2 bg-slate-50 rounded-xl border border-slate-200 text-xs font-mono"
                   />
                 </div>
 
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tipo de Mídia</label>
                   <select
+                    disabled
                     value={mediaForm.type || "pdf"}
-                    onChange={(e) => setMediaForm({ ...mediaForm, type: e.target.value as any })}
-                    className="w-full px-3 py-2 bg-white rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 bg-slate-50 rounded-xl border border-slate-200 text-xs"
                   >
                     <option value="audio">Áudio (Whisper Auto-Transcribe)</option>
                     <option value="image">Imagem (Vision AI Auto-OCR)</option>
@@ -1983,11 +2014,11 @@ export const EducationalCMS: React.FC = () => {
                 </div>
               </div>
 
-              {/* Cloud Function logs terminal simulation */}
+              {/* Processing log */}
               {analyzingMedia && (
                 <div className="bg-slate-900 text-green-400 p-4 rounded-xl font-mono text-[10px] space-y-1.5 max-h-32 overflow-y-auto">
                   <div className="text-white border-b border-slate-800 pb-1 flex justify-between items-center">
-                    <span>TERMINAL DE LOGS DA CLOUD FUNCTION</span>
+                    <span>ESTADO DO PROCESSAMENTO REAL</span>
                     <RefreshCw className="w-3 h-3 animate-spin text-green-400" />
                   </div>
                   {cloudFunctionLogs.map((log, idx) => (
