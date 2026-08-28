@@ -7,8 +7,7 @@ import {
   Check, FileDown, Layers, Terminal, Activity, Info, MapPin, BrainCircuit, CloudLightning
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { db, auth } from "../../firebase";
-import { collection, doc, getDocs, setDoc } from "firebase/firestore";
+import { auth } from "../../firebase";
 import { useToast } from "../../context/ToastContext";
 import { useUserRole } from "../../context/UserRoleContext";
 import { 
@@ -83,10 +82,9 @@ export const LearningAnalyticsPlatform: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // Firestore & BigQuery mock pipelines state
+  // Aggregations and export events returned by the real backend
   const [aggregateLogs, setAggregateLogs] = useState<FirestoreAggregateLog[]>([]);
   const [exportHistory, setExportHistory] = useState<ExportPipelineEvent[]>([]);
-  const [isExporting, setIsExporting] = useState(false);
 
   // AI-Insights Custom Trigger
   const [aiInsightPrompt, setAiInsightPrompt] = useState("");
@@ -99,146 +97,6 @@ export const LearningAnalyticsPlatform: React.FC = () => {
   // ----------------------------------------------------------------------
   // DEFAULT HIGH-FIDELITY RECORDS (STUDENTS & LOGS)
   // ----------------------------------------------------------------------
-  const defaultStudents: StudentMetrics[] = [
-    {
-      id: "std-sergio-99",
-      name: "Sérgio Uragan",
-      email: "sergio.uragan@gmail.com",
-      learningLanguage: "Kimbundu (Angola Dialect)",
-      targetCefr: "C1",
-      currentCefr: "B2",
-      streak: 18,
-      studyTime: 42.5,
-      completionRate: 88,
-      attendanceRate: 95,
-      performanceScore: 94,
-      motivationIndex: 96,
-      speakingProgress: 91,
-      writingProgress: 89,
-      listeningProgress: 97,
-      readingProgress: 95,
-      dropoutRisk: "Low",
-      lastActive: "2026-07-14T06:10:00Z"
-    },
-    {
-      id: "std-manuel-22",
-      name: "António Manuel Francisco",
-      email: "antonio.manuel@gmail.com",
-      learningLanguage: "Cabindese Dialect",
-      targetCefr: "B2",
-      currentCefr: "B1",
-      streak: 7,
-      studyTime: 24.2,
-      completionRate: 65,
-      attendanceRate: 85,
-      performanceScore: 82,
-      motivationIndex: 78,
-      speakingProgress: 75,
-      writingProgress: 80,
-      listeningProgress: 88,
-      readingProgress: 84,
-      dropoutRisk: "Low",
-      lastActive: "2026-07-13T18:45:00Z"
-    },
-    {
-      id: "std-lucia-34",
-      name: "Lúcia da Cruz Bento",
-      email: "lucia.bento@gmail.com",
-      learningLanguage: "Uis-Portuguese",
-      targetCefr: "A2",
-      currentCefr: "A1",
-      streak: 2,
-      studyTime: 8.5,
-      completionRate: 35,
-      attendanceRate: 50,
-      performanceScore: 68,
-      motivationIndex: 45,
-      speakingProgress: 60,
-      writingProgress: 58,
-      listeningProgress: 72,
-      readingProgress: 65,
-      dropoutRisk: "High",
-      lastActive: "2026-07-11T09:12:00Z"
-    },
-    {
-      id: "std-miguel-56",
-      name: "Mateus Miguel Gouveia",
-      email: "mateus.miguel@school.ao",
-      learningLanguage: "Portuguese Regional Slang",
-      targetCefr: "C2",
-      currentCefr: "C1",
-      streak: 31,
-      studyTime: 68.0,
-      completionRate: 95,
-      attendanceRate: 100,
-      performanceScore: 98,
-      motivationIndex: 99,
-      speakingProgress: 99,
-      writingProgress: 96,
-      listeningProgress: 100,
-      readingProgress: 97,
-      dropoutRisk: "Low",
-      lastActive: "2026-07-14T05:30:00Z"
-    }
-  ];
-
-  const defaultAggregateLogs: FirestoreAggregateLog[] = [
-    {
-      id: "agg-001",
-      collection: "users_practice_sessions",
-      documentId: "agg_total_study_time",
-      operation: "SUM",
-      timestamp: "2026-07-14T06:20:00Z",
-      status: "SUCCESS",
-      sizeBytes: 1540
-    },
-    {
-      id: "agg-002",
-      collection: "lesson_completions",
-      documentId: "agg_completion_ratio",
-      operation: "AVG",
-      timestamp: "2026-07-14T06:15:00Z",
-      status: "SUCCESS",
-      sizeBytes: 840
-    },
-    {
-      id: "agg-003",
-      collection: "pronunciation_reviews",
-      documentId: "agg_accent_accuracy",
-      operation: "AVG",
-      timestamp: "2026-07-14T06:10:00Z",
-      status: "SUCCESS",
-      sizeBytes: 3120
-    }
-  ];
-
-  const defaultExportHistory: ExportPipelineEvent[] = [
-    {
-      id: "bq-tx-771a",
-      timestamp: "2026-07-14T05:00:00Z",
-      eventType: "STUDENT_COMPLETION_EVENTS",
-      rowsExported: 1420,
-      latencyMs: 382,
-      status: "COMPLETED"
-    },
-    {
-      id: "bq-tx-771b",
-      timestamp: "2026-07-14T04:00:00Z",
-      eventType: "SPEECH_PRONUNCIATION_METRICS",
-      rowsExported: 4580,
-      latencyMs: 512,
-      status: "COMPLETED"
-    },
-    {
-      id: "bq-tx-771c",
-      timestamp: "2026-07-13T23:00:00Z",
-      eventType: "GAMIFIED_ENGAGEMENT_STREAKS",
-      rowsExported: 890,
-      latencyMs: 245,
-      status: "COMPLETED"
-    }
-  ];
-
   const bigQuerySchema: BigQuerySchemaField[] = [
     { name: "student_id", type: "STRING", mode: "REQUIRED", description: "O UUID único do estudante de sotaques." },
     { name: "event_timestamp", type: "TIMESTAMP", mode: "REQUIRED", description: "Data/hora exata do clique ou término." },
@@ -249,10 +107,38 @@ export const LearningAnalyticsPlatform: React.FC = () => {
   ];
 
   // ----------------------------------------------------------------------
-  // INITIALIZATION AND SYNC
-  // ----------------------------------------------------------------------
+  // INITIALIZATION AND REAL SERVER AGGREGATION
+  const loadRealAnalytics = async () => {
+    setIsSyncing(true);
+    setLoading(true);
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+      if (!idToken) throw new Error("Sessão autenticada necessária.");
+      const response = await fetch("/api/analytics/learning", {
+        headers: { "Authorization": `Bearer ${idToken}` },
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || data.error || "Falha ao carregar analytics reais.");
+      setStudents(data.students || []);
+      setAggregateLogs(data.aggregateLogs || []);
+      setExportHistory(data.exportHistory || []);
+      setSelectedStudent((current) =>
+        (data.students || []).find((student: StudentMetrics) => student.id === current?.id) || data.students?.[0] || null
+      );
+    } catch (error: any) {
+      console.error(error);
+      setStudents([]);
+      setAggregateLogs([]);
+      setExportHistory([]);
+      setSelectedStudent(null);
+      addToast(error.message || "Não foi possível carregar os dados reais.", "error");
+    } finally {
+      setIsSyncing(false);
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    // Determine dashboard view depending on logged-in user's role
     if (role === "SUPER_ADMIN" || role === "PLATFORM_ADMIN" || user?.email === "sergio.uragan@gmail.com") {
       setSelectedDashboard("admin");
     } else if (role === "SCHOOL_ADMIN" || role === "school_admin") {
@@ -264,97 +150,16 @@ export const LearningAnalyticsPlatform: React.FC = () => {
     } else {
       setSelectedDashboard("student");
     }
-
-    // Load from memory cache or default
-    const cached = localStorage.getItem("lingolive_analytics_cache");
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        setStudents(parsed.students || defaultStudents);
-        setAggregateLogs(parsed.aggregateLogs || defaultAggregateLogs);
-        setExportHistory(parsed.exportHistory || defaultExportHistory);
-        // Default select first student
-        const first = (parsed.students && parsed.students.length > 0) ? parsed.students[0] : defaultStudents[0];
-        setSelectedStudent(first);
-      } catch (e) {
-        fallbackToDefaults();
-      }
-    } else {
-      fallbackToDefaults();
-    }
+    void loadRealAnalytics();
   }, [role]);
 
-  const fallbackToDefaults = () => {
-    setStudents(defaultStudents);
-    setAggregateLogs(defaultAggregateLogs);
-    setExportHistory(defaultExportHistory);
-    setSelectedStudent(defaultStudents[0]);
-  };
-
   const handleSyncFirestoreAggregations = async () => {
-    setIsSyncing(true);
-    // Simulate query of actual firestore collections and aggregating raw study counters
-    setTimeout(async () => {
-      try {
-        // Safe check for Firestore connection
-        const snap = await getDocs(collection(db, "users_practice_sessions"));
-        console.log("Raw sessions queried count:", snap.size);
-      } catch (e) {
-        console.warn("Firestore connection sandbox limit. Working with isolated Aggregation Engine.");
-      }
-
-      // Append new aggregation logs representing updated pipeline
-      const newLog: FirestoreAggregateLog = {
-        id: `agg-${Date.now()}`,
-        collection: "users_practice_sessions",
-        documentId: `agg_time_${Math.floor(Math.random() * 900)}`,
-        operation: "COUNT",
-        timestamp: new Date().toISOString(),
-        status: "SUCCESS",
-        sizeBytes: 1024 + Math.floor(Math.random() * 2000)
-      };
-
-      const updatedLogs = [newLog, ...aggregateLogs];
-      setAggregateLogs(updatedLogs);
-
-      // Save to cache
-      localStorage.setItem("lingolive_analytics_cache", JSON.stringify({
-        students,
-        aggregateLogs: updatedLogs,
-        exportHistory
-      }));
-
-      setIsSyncing(false);
-      addToast("Agregadores do Firestore re-calculados e sincronizados!", "success");
-    }, 1500);
+    await loadRealAnalytics();
+    addToast("Métricas reais atualizadas a partir do Firestore.", "success");
   };
 
-  const handleTriggerBigQueryExport = () => {
-    setIsExporting(true);
-    setTimeout(() => {
-      const newExport: ExportPipelineEvent = {
-        id: `bq-tx-${Math.random().toString(16).substring(2, 6)}f`,
-        timestamp: new Date().toISOString(),
-        eventType: ["STUDENT_COMPLETION_EVENTS", "SPEECH_PRONUNCIATION_METRICS", "LEARNER_COMPLIANCE_AUDITS"][Math.floor(Math.random() * 3)],
-        rowsExported: 200 + Math.floor(Math.random() * 5000),
-        latencyMs: 150 + Math.floor(Math.random() * 400),
-        status: "COMPLETED"
-      };
-
-      const updatedHistory = [newExport, ...exportHistory];
-      setExportHistory(updatedHistory);
-
-      localStorage.setItem("lingolive_analytics_cache", JSON.stringify({
-        students,
-        aggregateLogs,
-        exportHistory: updatedHistory
-      }));
-
-      setIsExporting(false);
-      addToast("Pipeline BigQuery: Exportação incremental realizada com sucesso!", "success");
-    }, 1200);
-  };
-
+  // ----------------------------------------------------------------------
+  // AI INSIGHT GENERATOR
   // ----------------------------------------------------------------------
   // AI INSIGHT GENERATOR USING BACKEND ROUTE OR HIGH-FIDELITY SIMULATION
   // ----------------------------------------------------------------------
@@ -363,46 +168,22 @@ export const LearningAnalyticsPlatform: React.FC = () => {
       addToast("Selecione um estudante para gerar as sugestões pedagógicas da IA.", "error");
       return;
     }
-
     setGeneratingAI(true);
     setAiInsightOutput("");
-
-    const targetName = selectedStudent.name;
-    const modelPrompt = `Atue como Especialista em Tecnologia Educacional LingoLive. Forneça uma análise pedagógica profunda de IA para o estudante de idiomas ${targetName}. Dados atuais: Tempo de Estudo: ${selectedStudent.studyTime}h, Pronúncia (Speaking): ${selectedStudent.speakingProgress}%, Escrita (Writing): ${selectedStudent.writingProgress}%, Frequência nas aulas: ${selectedStudent.attendanceRate}%, Risco de Abandono (Churn): ${selectedStudent.dropoutRisk}. Forneça observações de NLP sobre padrões gramaticais e calibração de streak comportamental.`;
-
+    const modelPrompt = `Atue como Especialista em Tecnologia Educacional LingoLive. Analise somente os dados reais fornecidos para ${selectedStudent.name}: tempo de estudo ${selectedStudent.studyTime}h, pronúncia ${selectedStudent.speakingProgress}%, escrita ${selectedStudent.writingProgress}%, presença ${selectedStudent.attendanceRate}% e risco de abandono ${selectedStudent.dropoutRisk}. Não invente padrões não sustentados por estes dados.`;
     try {
-      // Call our standard backend proxy for Gemini or execute a high-fidelity semantic prediction model
-      const res = await fetch("/api/ai/text", {
+      const idToken = await auth.currentUser?.getIdToken();
+      if (!idToken) throw new Error("Sessão autenticada necessária.");
+      const response = await fetch("/api/ai-chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: modelPrompt })
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${idToken}` },
+        body: JSON.stringify({ messages: [{ role: "user", text: modelPrompt }], task: "learning-analytics-insight" }),
       });
-
-      if (res.ok) {
-        const data = await res.json();
-        setAiInsightOutput(data.text || "Análise executada com sucesso.");
-      } else {
-        throw new Error("Proxy error");
-      }
-    } catch (e) {
-      // High-fidelity fallback simulated feedback based on real performance math
-      setTimeout(() => {
-        const customInsights = `### 🤖 PAINEL DE INSIGHTS PEDAGÓGICOS - IA LINGOLIVE
-Estudante Analisado: **${targetName}** (${selectedStudent.learningLanguage})
-
-#### 1. Mapeamento de Frequência & Pronúncia (Apoio Whisper API)
-*   **Acurácia Fonética**: O aluno exibe excelente controle de entonação regional (${selectedStudent.speakingProgress}%), indicando bom tempo de escuta. No entanto, nota-se uma ligeira pausa silábica pré-vocal no início de frases complexas.
-*   **Recomendação**: Adicionar 3 lições rápidas de "Vowel Merging" na seção de Estudo Adaptativo para reduzir as pausas e aumentar a fluência natural.
-
-#### 2. Mineração de Texto & NLP (Análise Gramatical)
-*   **Complexidade de Escrita**: O índice de escrita está em ${selectedStudent.writingProgress}%. O modelo de NLP detectou uma oscilação na concordância nominal regional pós-pluralização. 
-*   **Ação**: Injetar minijogos de fixação focados especificamente nas estruturas de concordância mais frequentes do dialeto estudado.
-
-#### 3. Comportamento & Calibração de Engajamento (Streak Economics)
-*   **Risco de Churn**: Classificado como **${selectedStudent.dropoutRisk}**. ${selectedStudent.dropoutRisk === 'High' ? 'Atenção Crítica! O engajamento caiu 45% nos últimos 5 dias.' : 'Saúde de engajamento estável. O aluno mantém o streak ativo.'}
-*   **Intervenção recomendada**: ${selectedStudent.dropoutRisk === 'High' ? 'Acionar notificação push com incentivo duplo de tokens LingoCoins hoje às 18h.' : 'Recompensar com a insígnia de "Estudante Consistente" para selar o compromisso de estudo.'}`;
-        setAiInsightOutput(customInsights);
-      }, 1000);
+      const data = await response.json();
+      if (!response.ok || !data.response) throw new Error(data.error || "O analisador pedagógico está indisponível.");
+      setAiInsightOutput(data.response);
+    } catch (error: any) {
+      addToast(error.message || "Não foi possível gerar uma análise real.", "error");
     } finally {
       setGeneratingAI(false);
     }
@@ -909,11 +690,10 @@ Estudante Analisado: **${targetName}** (${selectedStudent.learningLanguage})
                   </div>
 
                   <button
-                    onClick={handleTriggerBigQueryExport}
-                    disabled={isExporting}
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer transition-all disabled:opacity-40"
+                    disabled
+                    className="px-4 py-2 bg-slate-700 text-white font-bold text-xs rounded-xl shadow-md disabled:opacity-60"
                   >
-                    {isExporting ? "Sincronizando BigQuery..." : "Disparar Export Manual"}
+                    Exportação real não configurada
                   </button>
                 </div>
 
