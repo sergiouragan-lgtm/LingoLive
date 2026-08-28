@@ -362,21 +362,22 @@ service cloud.firestore {
       allow update: if false; // Certificates are read-only immutable assets!
     }
 
-    // 14. Marketplace Collection
-    match /marketplace/{itemId} {
-      allow read: if isSignedIn();
-
-      function isValidMarketplaceItem(data) {
-        return hasValidMetadata(data)
-            && data.title is string && data.title.size() <= 200
-            && data.priceCoins is int;
-      }
-
-      allow create: if isAdmin() && isValidMarketplaceItem(incoming());
-      allow update: if isAdmin() && isValidMarketplaceItem(incoming()) && (
-        incoming().createdAt == existing().createdAt &&
-        incoming().diff(existing()).affectedKeys().hasOnly(['updatedAt', 'updatedBy', 'title', 'description', 'priceCoins', 'itemCategory', 'stockQuantity', 'status', 'version'])
-      );
+    // 14. Canonical pedagogical Marketplace. All writes pass through the authenticated backend.
+    match /marketplace_items/{itemId} {
+      allow get, list: if isSignedIn() && (existing().status == 'PUBLISHED' || existing().creatorId == request.auth.uid || isAdmin());
+      allow create, update, delete: if false;
+    }
+    match /marketplace_orders/{orderId} {
+      allow get, list: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+      allow create, update, delete: if false;
+    }
+    match /marketplace_entitlements/{entitlementId} {
+      allow get, list: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+      allow create, update, delete: if false;
+    }
+    match /marketplace_ledger/{entryId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
     }
 
     // 15. Avatars Collection
