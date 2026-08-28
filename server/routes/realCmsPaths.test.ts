@@ -22,4 +22,16 @@ describe("real educational CMS paths", () => {
     expect(source).not.toContain("mockCourses");
     expect(source).not.toContain("mockExercises");
   });
+
+  it("analyzes actual uploaded bytes and never fabricates media metadata", () => {
+    const serverSource = fs.readFileSync(path.join(root, "server/routes/ai.routes.ts"), "utf8");
+    const clientSource = fs.readFileSync(path.join(root, "src/components/learning/EducationalCMS.tsx"), "utf8");
+    expect(serverSource).toContain('router.post("/cms/media-analyze", requireAuth');
+    expect(serverSource).toContain("inlineData: { mimeType: input.mimeType, data: input.cleanBase64 }");
+    expect(serverSource).toContain('error: "CMS_MEDIA_ANALYSIS_UNAVAILABLE"');
+    expect(serverSource).not.toContain("Gemini call for media analyzer failed, using high-availability local rules");
+    expect(clientSource).toContain("await uploadBytes(storageRef, selectedMediaFile");
+    expect(clientSource).toContain("reader.readAsDataURL(selectedMediaFile)");
+    expect(clientSource).not.toContain("Upload simulado em andamento");
+  });
 });
