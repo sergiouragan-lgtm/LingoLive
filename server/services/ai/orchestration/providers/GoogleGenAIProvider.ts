@@ -2,15 +2,16 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { IProvider, ProviderResponse, ProviderOptions } from "../interfaces/IProvider";
 import { AIOrchestrationLogger } from "../utils/Logger";
 import { AI_CONFIG } from "../config/AIConfig";
+import { AIProviderError, normalizeProviderError } from "../errors/AIProviderError";
 
 export class GoogleGenAIProvider implements IProvider {
-  private aiClient: GoogleGenAI;
+  private aiClient: GoogleGenAI | null = null;
   private providerName = "google" as const;
 
   constructor() {
     const apiKey = AI_CONFIG.providers.google.apiKey;
-    this.aiClient = new GoogleGenAI({
-      apiKey: apiKey || "MOCK_KEY", // Fallback for loading without crash
+    if (apiKey) this.aiClient = new GoogleGenAI({
+      apiKey,
       httpOptions: {
         headers: {
           'User-Agent': 'aistudio-build',
@@ -31,9 +32,8 @@ export class GoogleGenAIProvider implements IProvider {
 
     AIOrchestrationLogger.info(`Sending request to Google Gen AI with model: ${model}`);
 
-    if (!AI_CONFIG.providers.google.apiKey) {
-      AIOrchestrationLogger.warn("Google Gen AI API key is missing. Using local mock response for sandbox simulation.");
-      return this.generateMockResponse(prompt, model, start);
+    if (!AI_CONFIG.providers.google.apiKey || !this.aiClient) {
+      throw new AIProviderError("AI_PROVIDER_NOT_CONFIGURED", "google", "GEMINI_API_KEY is not configured.", false);
     }
 
     try {
@@ -89,24 +89,7 @@ export class GoogleGenAIProvider implements IProvider {
       };
     } catch (error: any) {
       AIOrchestrationLogger.error(`Google Gen AI generation failed: ${error.message}`, error, "GoogleGenAIProvider");
-      throw error;
+      throw normalizeProviderError("google", error);
     }
-  }
-
-  private generateMockResponse(prompt: string, model: string, start: Date | number): ProviderResponse {
-    const latencyMs = Date.now() - Number(start);
-    const mockText = `[Simulado - Google Gemini Flash Lite] Obrigado pelo seu prompt: "${prompt.substring(0, 40)}...". Este é um fallback de alta disponibilidade porque não foi configurado um GEMINI_API_KEY no servidor de desenvolvimento.`;
-    return {
-      text: mockText,
-      usage: {
-        promptTokens: Math.ceil(prompt.length / 4),
-        completionTokens: Math.ceil(mockText.length / 4),
-        totalTokens: Math.ceil((prompt.length + mockText.length) / 4),
-        estimatedCostUsd: 0,
-      },
-      latencyMs,
-      providerName: this.providerName,
-      modelName: model,
-    };
   }
 }
