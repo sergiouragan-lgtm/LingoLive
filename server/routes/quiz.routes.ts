@@ -4,7 +4,7 @@ import { requireAuth } from "../middleware/requireAuth";
 import { generateContentWithRetry } from "../config/gemini";
 import { safeGetDoc, safeSetDoc } from "../services/firestoreSafe.service";
 import { getLearningProgress, recordLearningEvent } from "../services/learningProgress.repository";
-import { buildAdaptiveQuizPrompt, validateGeneratedQuiz, weakestSkills } from "../services/adaptiveQuiz.service";
+import { buildAdaptiveQuizPrompt, isQuizSessionExpired, QUIZ_SESSION_TTL_MS, validateGeneratedQuiz, weakestSkills } from "../services/adaptiveQuiz.service";
 import { normalizeTutorMemory } from "../services/tutorMemory.service";
 import { quizGenerationLimiter, quizSubmissionLimiter } from "../middleware/rateLimit";
 
@@ -50,7 +50,12 @@ router.post("/generate", requireAuth, quizGenerationLimiter, async (req: any, re
     const generated = validateGeneratedQuiz(JSON.parse(response.text || "{}"));
     const sessionId = `quiz_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
     const questions = generated.map((question, index) => ({ ...question, id: `${sessionId}_${index + 1}` }));
-    await safeSetDoc("quiz_sessions", sessionId, { userId: req.user.uid, language, level, questions, status: "active", createdAt: new Date().toISOString() }, false);
+    const createdAt = new Date();
+    await safeSetDoc("quiz_sessions", sessionId, {
+      userId: req.user.uid, language, level, questions, status: "active",
+      createdAt: createdAt.toISOString(),
+      expiresAt: new Date(createdAt.getTime() + QUIZ_SESSION_TTL_MS).toISOString(),
+    }, false);
     res.status(201).json({ sessionId, questions: questions.map(({ correctAnswerIndex: _answer, explanation: _explanation, ...question }) => question) });
   } catch (error) {
     console.error("Adaptive quiz generation failed:", error);
@@ -62,9 +67,13 @@ router.post("/:sessionId/submit", requireAuth, quizSubmissionLimiter, async (req
   const session = await safeGetDoc("quiz_sessions", req.params.sessionId);
   if (!session.exists) return res.status(404).json({ error: "Quiz não encontrado." });
   const data = session.data();
-  if (data.userId !== req.user.uid) return res.status(403).json({ error: "Acesso negado." });
+  if (data.userId !== req.user.uid) return res.status(404).json({ error: "Quiz não encontrado." });
   if (data.status === "completed" && data.result) return res.json(data.result);
   if (data.status !== "active") return res.status(409).json({ error: "Quiz indisponível para submissão." });
+  if (isQuizSessionExpired(data.expiresAt)) {
+    await safeSetDoc("quiz_sessions", req.params.sessionId, { status: "expired" });
+    return res.status(410).json({ error: "Este quiz expirou. Gere uma nova avaliação." });
+  }
   const answers = Array.isArray(req.body.answers) ? req.body.answers : [];
   if (answers.length !== data.questions.length || answers.some((answer: unknown) => !Number.isInteger(answer))) return res.status(400).json({ error: "Respostas inválidas." });
   const results = data.questions.map((question: any, index: number) => ({

@@ -14,6 +14,14 @@ const LEVELS = new Set(["A1", "A2", "B1", "B2", "C1", "C2"]);
 
 const cleanText = (value: unknown, max: number) => typeof value === "string" ? value.trim().slice(0, max) : "";
 
+export const QUIZ_SESSION_TTL_MS = 45 * 60 * 1000;
+
+export function isQuizSessionExpired(expiresAt: unknown, now = Date.now()): boolean {
+  if (typeof expiresAt !== "string") return true;
+  const expiresAtMs = Date.parse(expiresAt);
+  return !Number.isFinite(expiresAtMs) || expiresAtMs <= now;
+}
+
 export function validateGeneratedQuiz(raw: unknown, expectedCount = 5): GeneratedQuizQuestion[] {
   const source = raw && typeof raw === "object" ? (raw as any).questions : null;
   if (!Array.isArray(source) || source.length !== expectedCount) throw new Error("INVALID_QUIZ_QUESTION_COUNT");
