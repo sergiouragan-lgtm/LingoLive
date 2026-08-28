@@ -43,22 +43,22 @@ export class AdaptiveService {
     const local = await this.repository.getProfile(user.uid);
     if (local) return local;
 
-    // Create a rich default profile for Enterprise
+    // Honest empty profile; evidence metrics are populated by real activity.
     const defaultProfile: AdaptiveLearningProfile = {
       userId: user.uid,
-      performanceScore: 50,
-      quizScoreAverage: 50,
-      speakingScore: 50,
-      listeningScore: 50,
-      readingSpeedWpm: 120,
-      writingQualityScore: 50,
-      attendanceRate: 1,
-      learningStreak: 1,
+      performanceScore: 0,
+      quizScoreAverage: 0,
+      speakingScore: 0,
+      listeningScore: 0,
+      readingSpeedWpm: 0,
+      writingQualityScore: 0,
+      attendanceRate: 0,
+      learningStreak: 0,
       motivationLevel: 'medium',
       estimatedCefr: 'A1',
-      difficultyIndex: 0.2,
+      difficultyIndex: 0,
       learningStyle: 'Hybrid',
-      availableStudyTimeMin: 15,
+      availableStudyTimeMin: 0,
       careerPath: 'General',
       isChildProfile: false,
       lastUpdated: new Date().toISOString()
@@ -87,33 +87,22 @@ export class AdaptiveService {
       console.warn('[AdaptiveService] Server profile update error, saving locally:', err);
     }
 
-    // Local fallback update
+    // Offline updates are limited to self-declared preferences. Learning
+    // evidence is written only by completed activities on the server.
     const current = await this.getProfile();
+    const preferenceUpdates = {
+      ...(updates.motivationLevel !== undefined && { motivationLevel: updates.motivationLevel }),
+      ...(updates.learningStyle !== undefined && { learningStyle: updates.learningStyle }),
+      ...(updates.availableStudyTimeMin !== undefined && {
+        availableStudyTimeMin: Math.max(0, Math.min(1440, updates.availableStudyTimeMin))
+      }),
+      ...(updates.careerPath !== undefined && { careerPath: updates.careerPath })
+    };
     const updated: AdaptiveLearningProfile = {
       ...current,
-      ...updates,
+      ...preferenceUpdates,
       lastUpdated: new Date().toISOString()
     };
-    
-    // Simulate difficulty calculations locally
-    const perf = updated.performanceScore;
-    const quiz = updated.quizScoreAverage;
-    const speaking = updated.speakingScore;
-    const listening = updated.listeningScore;
-    const writing = updated.writingQualityScore;
-    const streak = updated.learningStreak;
-    const motivationFactor = updated.motivationLevel === 'high' ? 1.15 : updated.motivationLevel === 'medium' ? 1.0 : 0.85;
-    
-    const baseScore = (speaking * 0.25) + (quiz * 0.2) + (listening * 0.2) + (writing * 0.15) + (perf * 0.1) + (Math.min(10, streak) * 10 * 0.1);
-    const rawIndex = (baseScore / 100) * motivationFactor;
-    updated.difficultyIndex = Math.max(0.1, Math.min(1.0, rawIndex));
-    
-    if (updated.difficultyIndex > 0.85) updated.estimatedCefr = 'C2';
-    else if (updated.difficultyIndex > 0.70) updated.estimatedCefr = 'C1';
-    else if (updated.difficultyIndex > 0.55) updated.estimatedCefr = 'B2';
-    else if (updated.difficultyIndex > 0.40) updated.estimatedCefr = 'B1';
-    else if (updated.difficultyIndex > 0.25) updated.estimatedCefr = 'A2';
-    else updated.estimatedCefr = 'A1';
 
     await this.repository.saveProfile(updated);
     return updated;

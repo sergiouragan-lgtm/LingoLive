@@ -32,9 +32,23 @@ describe("real learning paths", () => {
     const serviceSource = read("../../src/services/pronunciation.service.ts");
     expect(routeSource).toContain('safeSetDoc("adaptive_profiles", userId');
     expect(routeSource).toContain("pronunciationAttempts: updatedResults.length");
-    expect(routeSource).toContain("activeStudentsScoredCount: 0");
+    expect(routeSource).toContain("const activeStudentsScoredCount = studentReports.length");
     expect(routeSource).not.toContain("totalAttempts: 5");
     expect(routeSource).not.toContain("averageClassFluency: 82");
     expect(serviceSource).not.toContain("averageClassFluency: 78");
+  });
+
+  it("starts adaptive evidence metrics empty and aggregates assigned students only", () => {
+    const adaptiveRoute = read("./adaptive.routes.ts");
+    const pronunciationRoute = read("./pronunciation.routes.ts");
+    const adaptiveService = read("../../src/services/adaptive.service.ts");
+    const adaptiveRepository = read("../../src/repositories/adaptive.repository.ts");
+    expect(adaptiveRoute).toContain("performanceScore: 0");
+    expect(adaptiveRoute).toContain("evidence: { quiz: 0, speaking: 0");
+    expect(adaptiveRoute).not.toContain("speakingScore: 68");
+    expect(adaptiveService).not.toContain("speakingScore: 50");
+    expect(adaptiveRepository).not.toContain("speakingScore: 70");
+    expect(pronunciationRoute).toContain('safeQueryDocs("students", "teacherUid", teacherId)');
+    expect(pronunciationRoute).toContain('safeQueryDocs("pronunciation_results", "userId", student.id)');
   });
 });

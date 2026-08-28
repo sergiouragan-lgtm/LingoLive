@@ -188,6 +188,30 @@ export async function safeGetSubDocs(
   return results;
 }
 
+export async function safeQueryDocs(
+  collectionName: string,
+  field: string,
+  value: string,
+): Promise<any[]> {
+  const results: any[] = [];
+  if (dbAdminUsable()) {
+    try {
+      const snap = await dbAdmin.collection(collectionName).where(field, "==", value).get();
+      snap.forEach((doc: any) => results.push({ id: doc.id, ...doc.data() }));
+    } catch (e: any) {
+      logSandboxWarning(`query on ${collectionName}.${field}`, e);
+      if (!shouldFallback(e)) throw e;
+    }
+  }
+  const prefix = `${collectionName}_`;
+  for (const [key, storedValue] of localMemoryDb.entries()) {
+    if (!key.startsWith(prefix) || storedValue?.[field] !== value) continue;
+    const id = storedValue.id || key.slice(prefix.length);
+    if (!results.some((item) => item.id === id)) results.push({ id, ...storedValue });
+  }
+  return results;
+}
+
 export async function safeAddDoc(collectionName: string, data: any) {
   const cleanedData = removeUndefinedFields(data);
   if (collectionName === "ai_sessions") {

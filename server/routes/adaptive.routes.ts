@@ -8,11 +8,11 @@ const router = Router();
 
 // Helper: Calculate Difficulty and CEFR level
 function runDifficultyEngine(profile: any) {
-  const perf = typeof profile.performanceScore === 'number' ? profile.performanceScore : 70;
-  const quiz = typeof profile.quizScoreAverage === 'number' ? profile.quizScoreAverage : 75;
-  const speaking = typeof profile.speakingScore === 'number' ? profile.speakingScore : 65;
-  const listening = typeof profile.listeningScore === 'number' ? profile.listeningScore : 70;
-  const writing = typeof profile.writingQualityScore === 'number' ? profile.writingQualityScore : 60;
+  const perf = typeof profile.performanceScore === 'number' ? profile.performanceScore : 0;
+  const quiz = typeof profile.quizScoreAverage === 'number' ? profile.quizScoreAverage : 0;
+  const speaking = typeof profile.speakingScore === 'number' ? profile.speakingScore : 0;
+  const listening = typeof profile.listeningScore === 'number' ? profile.listeningScore : 0;
+  const writing = typeof profile.writingQualityScore === 'number' ? profile.writingQualityScore : 0;
   const streak = typeof profile.learningStreak === 'number' ? profile.learningStreak : 0;
   
   // Normalized motivation factor
@@ -25,7 +25,7 @@ function runDifficultyEngine(profile: any) {
   const adjustedScore = Math.max(0, Math.min(100, baseScore * motivationFactor));
   
   // Translate to a difficulty index (0.1 - 1.0)
-  const difficultyIndex = Math.max(0.1, Math.min(1.0, adjustedScore / 100));
+  const difficultyIndex = Math.max(0, Math.min(1.0, adjustedScore / 100));
   
   // Translate to estimated CEFR
   let estimatedCefr: 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2' = 'A1';
@@ -47,20 +47,24 @@ router.get("/profile", requireAuth, async (req: any, res) => {
       return res.json(docSnap.data());
     }
     
-    // Create default
+    // Honest empty profile. Evidence metrics start at zero and are populated
+    // only by completed learning activities.
     const defaultProfile = {
       userId,
-      performanceScore: 72,
-      quizScoreAverage: 78,
-      speakingScore: 68,
-      listeningScore: 74,
-      readingSpeedWpm: 110,
-      writingQualityScore: 65,
-      attendanceRate: 0.88,
-      learningStreak: 3,
-      motivationLevel: 'high',
-      estimatedCefr: 'B1',
-      difficultyIndex: 0.48,
+      performanceScore: 0,
+      quizScoreAverage: 0,
+      speakingScore: 0,
+      listeningScore: 0,
+      readingSpeedWpm: 0,
+      writingQualityScore: 0,
+      attendanceRate: 0,
+      learningStreak: 0,
+      motivationLevel: 'medium',
+      estimatedCefr: 'A1',
+      difficultyIndex: 0,
+      learningStyle: 'Hybrid',
+      availableStudyTimeMin: 0,
+      evidence: { quiz: 0, speaking: 0, listening: 0, reading: 0, writing: 0, attendance: 0 },
       lastUpdated: new Date().toISOString()
     };
     await safeSetDoc("adaptive_profiles", userId, defaultProfile);
@@ -74,16 +78,23 @@ router.get("/profile", requireAuth, async (req: any, res) => {
 // 2. Update and Recalculate Profile
 router.post("/profile/update", requireAuth, async (req: any, res) => {
   const userId = req.user.uid;
-  const updates = req.body;
+  const updates = req.body || {};
   
   try {
     const docSnap = await safeGetDoc("adaptive_profiles", userId);
     let currentProfile = docSnap.exists ? docSnap.data() : { userId };
     
-    // Merge updates
+    // Only self-declared preferences may come from the browser. Performance
+    // metrics are written by authenticated activity endpoints.
+    const allowedPreferences = {
+      ...(typeof updates.motivationLevel === 'string' ? { motivationLevel: updates.motivationLevel } : {}),
+      ...(typeof updates.learningStyle === 'string' ? { learningStyle: updates.learningStyle } : {}),
+      ...(typeof updates.availableStudyTimeMin === 'number' ? { availableStudyTimeMin: Math.max(0, Math.min(1440, updates.availableStudyTimeMin)) } : {}),
+      ...(typeof updates.careerPath === 'string' ? { careerPath: updates.careerPath } : {}),
+    };
     const merged = {
       ...currentProfile,
-      ...updates,
+      ...allowedPreferences,
       userId,
       lastUpdated: new Date().toISOString()
     };

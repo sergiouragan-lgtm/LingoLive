@@ -92,13 +92,13 @@ export const AdaptiveEngineDashboard: React.FC<AdaptiveEngineDashboardProps> = (
 
   // Edit sliders values
   const [sliders, setSliders] = useState({
-    performanceScore: 70,
-    quizScoreAverage: 75,
-    speakingScore: 65,
-    listeningScore: 70,
-    writingQualityScore: 60,
-    learningStreak: 3,
-    motivationLevel: 'high' as 'low' | 'medium' | 'high'
+    performanceScore: 0,
+    quizScoreAverage: 0,
+    speakingScore: 0,
+    listeningScore: 0,
+    writingQualityScore: 0,
+    learningStreak: 0,
+    motivationLevel: 'medium' as 'low' | 'medium' | 'high'
   });
 
   // Load all data
@@ -369,10 +369,10 @@ export const AdaptiveEngineDashboard: React.FC<AdaptiveEngineDashboardProps> = (
           <div>
             <h2 className="text-sm font-extrabold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
               <Sliders className="w-4 h-4 text-indigo-500" />
-              Calibração de Parâmetros
+              Perfil calculado
             </h2>
             <p className="text-[11px] text-slate-400 mt-0.5">
-              Simule alterações em tempo real para ver como o motor de IA se adapta imediatamente.
+              As pontuações abaixo vêm exclusivamente das atividades concluídas pelo aluno.
             </p>
           </div>
 
@@ -411,8 +411,8 @@ export const AdaptiveEngineDashboard: React.FC<AdaptiveEngineDashboardProps> = (
               <input 
                 type="range" min="0" max="100" 
                 value={sliders.performanceScore}
-                onChange={(e) => handleSliderChange('performanceScore', parseInt(e.target.value))}
-                className="w-full accent-indigo-600 h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer"
+                disabled
+                className="w-full accent-indigo-600 h-1.5 bg-slate-100 rounded-lg appearance-none cursor-not-allowed opacity-70"
               />
             </div>
 
@@ -425,8 +425,8 @@ export const AdaptiveEngineDashboard: React.FC<AdaptiveEngineDashboardProps> = (
               <input 
                 type="range" min="0" max="100" 
                 value={sliders.quizScoreAverage}
-                onChange={(e) => handleSliderChange('quizScoreAverage', parseInt(e.target.value))}
-                className="w-full accent-indigo-600 h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer"
+                disabled
+                className="w-full accent-indigo-600 h-1.5 bg-slate-100 rounded-lg appearance-none cursor-not-allowed opacity-70"
               />
             </div>
 
@@ -439,8 +439,8 @@ export const AdaptiveEngineDashboard: React.FC<AdaptiveEngineDashboardProps> = (
               <input 
                 type="range" min="0" max="100" 
                 value={sliders.speakingScore}
-                onChange={(e) => handleSliderChange('speakingScore', parseInt(e.target.value))}
-                className="w-full accent-indigo-600 h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer"
+                disabled
+                className="w-full accent-indigo-600 h-1.5 bg-slate-100 rounded-lg appearance-none cursor-not-allowed opacity-70"
               />
             </div>
 
@@ -453,8 +453,8 @@ export const AdaptiveEngineDashboard: React.FC<AdaptiveEngineDashboardProps> = (
               <input 
                 type="range" min="0" max="100" 
                 value={sliders.listeningScore}
-                onChange={(e) => handleSliderChange('listeningScore', parseInt(e.target.value))}
-                className="w-full accent-indigo-600 h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer"
+                disabled
+                className="w-full accent-indigo-600 h-1.5 bg-slate-100 rounded-lg appearance-none cursor-not-allowed opacity-70"
               />
             </div>
 
@@ -467,8 +467,8 @@ export const AdaptiveEngineDashboard: React.FC<AdaptiveEngineDashboardProps> = (
               <input 
                 type="range" min="0" max="100" 
                 value={sliders.writingQualityScore}
-                onChange={(e) => handleSliderChange('writingQualityScore', parseInt(e.target.value))}
-                className="w-full accent-indigo-600 h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer"
+                disabled
+                className="w-full accent-indigo-600 h-1.5 bg-slate-100 rounded-lg appearance-none cursor-not-allowed opacity-70"
               />
             </div>
 
@@ -481,8 +481,8 @@ export const AdaptiveEngineDashboard: React.FC<AdaptiveEngineDashboardProps> = (
               <input 
                 type="range" min="0" max="30" 
                 value={sliders.learningStreak}
-                onChange={(e) => handleSliderChange('learningStreak', parseInt(e.target.value))}
-                className="w-full accent-indigo-600 h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer"
+                disabled
+                className="w-full accent-indigo-600 h-1.5 bg-slate-100 rounded-lg appearance-none cursor-not-allowed opacity-70"
               />
             </div>
           </div>
@@ -490,7 +490,7 @@ export const AdaptiveEngineDashboard: React.FC<AdaptiveEngineDashboardProps> = (
           <div className="mt-auto pt-4 border-t border-slate-100">
             <div className="flex items-center gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-100 text-[11px] text-slate-500">
               <AlertCircle className="w-4 h-4 text-indigo-500 flex-shrink-0" />
-              <span>O motor avalia o seu desempenho consolidando o Streak e a sua motivação para calcular o seu nível ideal de desafio.</span>
+              <span>O motor calcula o nível de desafio com evidências reais. A motivação continua sendo uma preferência declarada pelo aluno.</span>
             </div>
           </div>
         </div>
@@ -965,15 +965,15 @@ export const AdaptiveEngineDashboard: React.FC<AdaptiveEngineDashboardProps> = (
                         <button
                           onClick={() => {
                             setSliders({
-                              performanceScore: 74,
-                              quizScoreAverage: 82,
-                              speakingScore: 68,
-                              listeningScore: 80,
-                              writingQualityScore: 60,
-                              learningStreak: sliders.learningStreak || 5,
-                              motivationLevel: 'high'
+                              performanceScore: profile.performanceScore,
+                              quizScoreAverage: profile.quizScoreAverage,
+                              speakingScore: profile.speakingScore,
+                              listeningScore: profile.listeningScore,
+                              writingQualityScore: profile.writingQualityScore,
+                              learningStreak: profile.learningStreak,
+                              motivationLevel: profile.motivationLevel
                             });
-                            addToast("Parâmetros do motor adaptativo sincronizados com sucesso!", "success");
+                            addToast("Métricas reais sincronizadas com sucesso!", "success");
                           }}
                           className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[10px] uppercase rounded-xl transition-all cursor-pointer self-start sm:self-auto shrink-0"
                           id="sync-sliders-btn"
