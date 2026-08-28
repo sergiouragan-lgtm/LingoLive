@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { QuizQuestion } from "../../../quizData";
 import { Language, SavedWord } from "../../../types";
 import { LANGUAGES } from "../../../data";
 import { 
@@ -19,13 +18,22 @@ import {
   Flame,
   Volume2,
   Brain,
-  Bookmark,
-  Download,
-  CheckCircle,
-  Plus
+  Bookmark
 } from "lucide-react";
-import { COMMON_PHRASES } from "../biblioteca/commonPhrases";
 import { adaptiveQuizService } from "../../../services/adaptiveQuiz.service";
+
+interface QuizQuestion {
+  id: string;
+  grade: typeof GRADES[number]["id"];
+  category: "Cultura Geral" | "Disciplinas Escolares";
+  languageCode: string;
+  question: string;
+  options: string[];
+  correctAnswerIndex: number;
+  explanation: string;
+  skill?: string;
+  difficulty?: string;
+}
 
 export type TargetAgeGroup = 'CHILD' | 'TEEN' | 'ADULT';
 
@@ -339,7 +347,10 @@ export default function LanguageQuiz({
       filteredWords = savedWords || [];
     }
 
-    if (filteredWords.length === 0) return;
+    if (filteredWords.length < 4) {
+      setQuizError("Guarda pelo menos quatro palavras reais neste idioma para criar flashcards com opções válidas.");
+      return;
+    }
 
     // Generate up to 5 questions
     const questionsToGenerate = [...filteredWords].sort(() => 0.5 - Math.random()).slice(0, 5);
@@ -360,12 +371,7 @@ export default function LanguageQuiz({
           .filter(w => w.id !== wordItem.id)
           .map(w => w.meaning);
         
-        const generalMeanings = [
-          "Obrigado", "Por favor", "Bom dia", "Onde fica?", "Com licença", "Até logo", 
-          "Prazer em conhecê-lo", "Quanto custa?", "Não compreendo", "Sim", "Não", "Desculpe"
-        ];
-
-        const allPotentialDistractors = Array.from(new Set([...otherMeanings, ...generalMeanings]))
+        const allPotentialDistractors = Array.from(new Set(otherMeanings))
           .filter(m => typeof m === "string" && typeof correctAnswer === "string" && m.toLowerCase() !== correctAnswer.toLowerCase());
 
         const selectedDistractors = allPotentialDistractors.sort(() => 0.5 - Math.random()).slice(0, 3);
@@ -379,10 +385,7 @@ export default function LanguageQuiz({
           .filter(w => w.id !== wordItem.id)
           .map(w => w.word);
         
-        const fallbackPhrases = COMMON_PHRASES[normalizedCode] || COMMON_PHRASES["pt"] || [];
-        const generalWords = fallbackPhrases.map(p => p.word);
-
-        const allPotentialDistractors = Array.from(new Set([...otherWords, ...generalWords]))
+        const allPotentialDistractors = Array.from(new Set(otherWords))
           .filter(w => typeof w === "string" && typeof correctAnswer === "string" && w.toLowerCase() !== correctAnswer.toLowerCase());
 
         const selectedDistractors = allPotentialDistractors.sort(() => 0.5 - Math.random()).slice(0, 3);
@@ -741,47 +744,16 @@ export default function LanguageQuiz({
                         item.id && item.id.toLowerCase().startsWith(normalizedCode + "_")
                       );
 
-                      const handleImportInitialWords = () => {
-                        if (!onAddWords) return;
-                        const availablePhrases = COMMON_PHRASES[normalizedCode] || [];
-                        if (availablePhrases.length === 0) return;
-
-                        const wordsToSave: SavedWord[] = availablePhrases.map((template, i) => {
-                          return {
-                            id: `${normalizedCode}_bulk_${Date.now()}_${i}`,
-                            word: template.word,
-                            meaning: template.meaning,
-                            pronunciation: template.pronunciation || "",
-                            grammarNote: template.grammarNote || "",
-                            exampleOriginal: template.exampleOriginal || "",
-                            exampleTranslation: template.exampleTranslation || "",
-                            savedAt: new Date().toISOString().split("T")[0]
-                          };
-                        });
-
-                        onAddWords(wordsToSave);
-                      };
-
-                      if (languageSavedWords.length === 0) {
+                      if (languageSavedWords.length < 4) {
                         return (
                           <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 text-center space-y-4" id="vocab-empty-card">
                             <Bookmark className="w-10 h-10 text-slate-400 mx-auto" />
                             <div className="space-y-1">
-                              <h4 className="font-bold text-slate-700 text-sm">Sem Expressões Guardadas</h4>
+                              <h4 className="font-bold text-slate-700 text-sm">Vocabulário insuficiente</h4>
                               <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
-                                Ainda não tens palavras salvas para {quizLanguage.name}. Desejas carregar um lote inicial de expressões práticas do dia-a-dia de conversação?
+                                Tens {languageSavedWords.length} de 4 palavras necessárias. Guarda vocabulário real na Biblioteca para gerar opções sem conteúdo demonstrativo.
                               </p>
                             </div>
-                            {onAddWords && COMMON_PHRASES[normalizedCode] && (
-                              <button
-                                onClick={handleImportInitialWords}
-                                className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition-all cursor-pointer shadow-xs"
-                                id="btn-import-vocab-on-quiz"
-                              >
-                                <Download className="w-4 h-4" />
-                                <span>Importar Frases Comuns</span>
-                              </button>
-                            )}
                           </div>
                         );
                       }
@@ -835,7 +807,7 @@ export default function LanguageQuiz({
               const languageSavedWords = (savedWords || []).filter(item => 
                 item.id && item.id.toLowerCase().startsWith(normalizedCode + "_")
               );
-              const disabled = isGenerating || (quizMode === "flashcard" && languageSavedWords.length === 0);
+              const disabled = isGenerating || (quizMode === "flashcard" && languageSavedWords.length < 4);
 
               return (
                 <button
