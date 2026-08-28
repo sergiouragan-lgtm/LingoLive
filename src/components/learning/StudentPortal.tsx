@@ -176,31 +176,37 @@ export const StudentPortal: React.FC<{ setView?: (v: string) => void }> = ({ set
     setGrammarTips("");
 
     try {
-      const res = await fetch("/api/ai/text", {
+      const idToken = await auth.currentUser?.getIdToken();
+      if (!idToken) throw new Error("AUTH_REQUIRED");
+      const res = await fetch("/api/learning-interaction", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`,
+        },
         body: JSON.stringify({ 
-          prompt: `Aja como o tutor de sotaque e gírias da LingoLive Angola. O aluno disse: "${prompt}". Responda em português regional ou Kimbundu incentivando a conversação, faça uma nova pergunta curta e adicione no final uma sugestão de correção gramatical entre parênteses se houver erro.` 
+          message: prompt,
+          task: "angolan-cultural-conversation",
+          context: {
+            localization: { country: "AO" },
+            targetRegion: "AO",
+            allowRegionalExpressions: true,
+          },
         })
       });
       if (res.ok) {
         const data = await res.json();
-        setAiMessages(prev => [...prev, { sender: "AI Tutor", text: data.text, time: "Agora" }]);
-        // Award dynamic learning rewards
-        saveGamification(xp + 15, coins + 2);
+        setAiMessages(prev => [...prev, { sender: "AI Tutor", text: data.response, time: "Agora" }]);
+        saveGamification(Number(data.progress?.xp || xp), coins + 2);
       } else {
-        throw new Error();
+        throw new Error("LEARNING_INTERACTION_FAILED");
       }
     } catch (e) {
-      setTimeout(() => {
-        setAiMessages(prev => [...prev, { 
-          sender: "AI Tutor", 
-          text: `Muito bem! Disseste de forma excelente. Em Kimbundu dizemos: 'Mwazekeleny, mbeji kudi mabaia?' (Bom dia, quanto custa?). Continua com o ótimo esforço!`, 
-          time: "Agora" 
-        }]);
-        setGrammarTips("Dica do Co-Pilot: Lembra-te de colocar o prefixo 'M-' para o plural ao saudar um grupo de comerciantes.");
-        saveGamification(xp + 15, coins + 2);
-      }, 1000);
+      setAiMessages(prev => [...prev, {
+        sender: "AI Tutor",
+        text: "O Tutor IA está temporariamente indisponível. A tua resposta não foi pontuada nem gravada; tenta novamente dentro de instantes.",
+        time: "Agora"
+      }]);
     } finally {
       setSendingAi(false);
     }

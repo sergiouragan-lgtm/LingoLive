@@ -17,9 +17,32 @@ import {
   explainPhraseLimiter
 } from "../middleware/rateLimit";
 import { getExplanationPrompt, getFeedbackPrompt } from "../services/aiPrompts.service";
+import { AIEngineOrchestrator } from "../services/learning/AIEngineOrchestrator";
 
 const router = Router();
 const phraseCache = new LRUCache<string, any>({ max: 500 });
+
+const learningOrchestrator = new AIEngineOrchestrator(
+  {
+    async getStudent(userId) {
+      const snapshot = await safeGetDoc("students", userId);
+      if (snapshot.exists) return snapshot.data();
+      const userSnapshot = await safeGetDoc("users", userId);
+      return userSnapshot.exists ? userSnapshot.data() : null;
+    },
+    async getMemory(userId) {
+      const snapshot = await safeGetDoc("learning_memory", userId);
+      return snapshot.exists ? snapshot.data() : null;
+    },
+    async saveProgress(userId, progress) {
+      await safeSetDoc("learning_progress", userId, progress);
+      await safeSetDoc("users", userId, { xp: progress.xp, lastActivityAt: progress.lastActivityAt });
+    },
+    async saveMemory(userId, memory) { await safeSetDoc("learning_memory", userId, memory); },
+    async appendInteraction(interaction) { await safeAddDoc("learning_interactions", interaction); },
+  },
+  orchestrateAI,
+);
 
 // Smart Local Fallback generators for high availability when API quotas are exceeded
 function getLocalPhraseExplanation(phrase: string, language: string) {
@@ -330,9 +353,28 @@ router.post("/feedback", requireAuth, feedbackLimiter, async (req: any, res) => 
   }
 });
 
+// Authenticated end-to-end learning interaction. Identity always comes from
+// the verified token; a client-supplied userId is intentionally ignored.
+router.post("/learning-interaction", requireAuth, chatLimiter, async (req: any, res) => {
+  const message = typeof req.body?.message === "string" ? req.body.message : "";
+  if (!message.trim()) return res.status(400).json({ error: "message is required" });
+  try {
+    const result = await learningOrchestrator.processInteraction({
+      userId: req.user.uid,
+      message,
+      task: req.body?.task,
+      context: req.body?.context,
+    });
+    return res.json(result);
+  } catch (error: any) {
+    console.error("Learning orchestrator failed:", error?.message || error);
+    return res.status(503).json({ error: "Learning interaction is temporarily unavailable" });
+  }
+});
+
 // 3. API endpoint for general AI Tutor Chat with rate limiter
 router.post("/ai-chat", requireAuth, chatLimiter, async (req: any, res) => {
-  const { userId, messages, task, userContext } = req.body;
+  const { messages, task, userContext } = req.body;
   if (!messages || !Array.isArray(messages)) {
     return res.status(400).json({ error: "Messages are required" });
   }
@@ -342,7 +384,7 @@ router.post("/ai-chat", requireAuth, chatLimiter, async (req: any, res) => {
   try {
     const response = await orchestrateAI({
       message: messages[messages.length - 1].text,
-      userId,
+      userId: req.user.uid,
       level: context.level,
       languageNative: context.languageNative,
       languageTarget: context.languageLearning[0],
@@ -358,9 +400,9 @@ router.post("/ai-chat", requireAuth, chatLimiter, async (req: any, res) => {
       preferredAIModel: context.preferredAIModel
     });
     
-    if (userId) {
+    if (req.user.uid) {
       await safeAddDoc("ai_sessions", {
-        userId,
+        userId: req.user.uid,
         type: task || 'chat',
         messages: [...messages, { role: 'assistant', text: response }],
         createdAt: new Date().toISOString()
