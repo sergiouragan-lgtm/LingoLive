@@ -26,4 +26,15 @@ describe("real learning paths", () => {
     expect(source).toContain("Parar e avaliar");
     expect(source).not.toContain("Desvio fonético de apenas 0.4 Hz");
   });
+
+  it("feeds real pronunciation scores into adaptation and exposes honest empty reports", () => {
+    const routeSource = read("./pronunciation.routes.ts");
+    const serviceSource = read("../../src/services/pronunciation.service.ts");
+    expect(routeSource).toContain('safeSetDoc("adaptive_profiles", userId');
+    expect(routeSource).toContain("pronunciationAttempts: updatedResults.length");
+    expect(routeSource).toContain("activeStudentsScoredCount: 0");
+    expect(routeSource).not.toContain("totalAttempts: 5");
+    expect(routeSource).not.toContain("averageClassFluency: 82");
+    expect(serviceSource).not.toContain("averageClassFluency: 78");
+  });
 });
