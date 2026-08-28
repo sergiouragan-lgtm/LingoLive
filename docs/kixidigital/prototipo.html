@@ -142,6 +142,8 @@ header.capa h1 em{font-style:normal; color:var(--dourado)}
   color:var(--tinta-fraca); cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:3px}
 .tabs button span{font-size:17px}
 .tabs button[aria-selected="true"]{color:var(--esmeralda); font-weight:600}
+#modal{display:flex}
+#modal[hidden]{display:none}
 .relogio{display:flex; gap:8px; margin-top:12px}
 .relogio div{flex:1; background:rgba(255,255,255,.12); border-radius:11px; padding:7px 4px; text-align:center}
 .relogio b{font-family:var(--display); font-size:19px; display:block}
@@ -168,6 +170,11 @@ header.capa h1 em{font-style:normal; color:var(--dourado)}
   padding:13px 15px; background:#fff; cursor:pointer; transition:all .2s ease; width:100%; font-family:var(--ui); font-size:14.5px; text-align:left}
 .pagamento:hover{transform:translateX(3px)}
 .pagamento.sel{border-color:var(--esmeralda); background:rgba(15,76,58,.05)}
+.escolha{display:flex; align-items:center; gap:10px; border:1px solid rgba(15,76,58,.14); border-radius:14px; padding:13px 15px; background:#fff; cursor:pointer; transition:all .2s ease; width:100%; font-family:var(--ui); font-size:14.5px; text-align:left}
+.escolha:hover{transform:translateX(3px)}
+.escolha.sel{border-color:var(--esmeralda); background:rgba(15,76,58,.05)}
+.ng-passo{display:none; flex-direction:column; gap:14px}
+.ng-passo.on{display:flex}
 .ponto{width:11px;height:11px;border-radius:50%; flex:none}
 .badge{display:flex; align-items:center; gap:8px; background:linear-gradient(120deg,rgba(212,175,55,.18),rgba(212,175,55,.05));
   border:1px solid rgba(212,175,55,.4); border-radius:12px; padding:10px 13px; font-size:13px; font-weight:600; color:#8A6D10}
@@ -275,6 +282,7 @@ footer{padding:56px 0 80px; border-top:1px solid var(--linha); color:var(--musgo
           <button role="tab" aria-selected="false" data-ecra="admin"><span class="n">4</span><span><b>Dashboard da Mãe</b><em>Saldo, contagem e acções rápidas</em></span></button>
           <button role="tab" aria-selected="false" data-ecra="grupo"><span class="n">5</span><span><b>Gestão de grupo</b><em>Rodízio, membros, cobrança</em></span></button>
           <button role="tab" aria-selected="false" data-ecra="membro"><span class="n">6</span><span><b>Painel do membro</b><em>Contribuição, histórico, badges</em></span></button>
+          <button role="tab" aria-selected="false" data-ecra="novogrupo"><span class="n">7</span><span><b>Criar grupo</b><em>Nome, contribuição, rodízio e convite</em></span></button>
         </div>
         <div class="notas">
           <h3 id="nota-titulo">Recursos deste ecrã</h3>
@@ -378,7 +386,7 @@ footer{padding:56px 0 80px; border-top:1px solid var(--linha); color:var(--musgo
               <div class="rot">🔥 Acções rápidas</div>
               <div class="grelha2">
                 <button class="btn btn-fant">Lembrar atrasados</button>
-                <button class="btn btn-fant">Novo grupo</button>
+                <button class="btn btn-fant" data-ir="novogrupo">Novo grupo</button>
               </div>
               <button class="btn btn-fant">Exportar relatório PDF</button>
             </div>
@@ -453,6 +461,101 @@ footer{padding:56px 0 80px; border-top:1px solid var(--linha); color:var(--musgo
                 <button class="btn btn-fant" style="margin-top:12px">Partilhar convite</button>
               </div>
             </div>
+
+            <!-- 7 criar grupo -->
+            <div class="vista" id="v-novogrupo">
+              <div class="topo">
+                <h4>Criar grupo</h4>
+                <span class="icone" data-ir="admin" style="cursor:pointer" role="button" aria-label="Cancelar e voltar ao início">✕</span>
+              </div>
+              <div id="ng-progresso">
+                <p style="font-size:13.5px; color:var(--tinta-fraca); margin-top:-4px">Passo <span id="ng-passo-num">1</span> de 3</p>
+                <div style="display:flex; gap:6px">
+                  <i id="ng-ponto-1" style="flex:1;height:5px;border-radius:9px;background:var(--esmeralda)"></i>
+                  <i id="ng-ponto-2" style="flex:1;height:5px;border-radius:9px;background:rgba(15,76,58,.15)"></i>
+                  <i id="ng-ponto-3" style="flex:1;height:5px;border-radius:9px;background:rgba(15,76,58,.15)"></i>
+                </div>
+              </div>
+
+              <!-- 7a — identidade do grupo -->
+              <div class="ng-passo on" id="ng-passo-1">
+                <label class="rot" for="ng-nome">Nome do grupo</label>
+                <input class="campo" id="ng-nome" type="text" placeholder="Ex.: Mercado do Povo" value="Mercado do Povo" style="font-size:17px">
+                <label class="rot" style="margin-top:4px">Quanto contribui cada membro?</label>
+                <div class="cartao" style="display:flex; align-items:center; gap:10px; padding:14px 16px">
+                  <button class="icone" id="ng-menos" aria-label="Diminuir valor" style="font-size:19px">−</button>
+                  <input class="campo tnum" id="ng-valor" type="text" inputmode="numeric" value="25.000" style="text-align:center; border:0; padding:0; font-size:20px" aria-label="Valor da contribuição em kwanzas">
+                  <button class="icone" id="ng-mais" aria-label="Aumentar valor" style="font-size:19px">+</button>
+                </div>
+                <label class="rot" style="margin-top:4px">Com que periodicidade?</label>
+                <div class="grelha2" role="radiogroup" aria-label="Periodicidade da contribuição">
+                  <button class="escolha ng-periodo" data-valor="Semanal"><span class="ponto" style="background:#0F4C3A"></span><b>Semanal</b></button>
+                  <button class="escolha ng-periodo sel" data-valor="Quinzenal"><span class="ponto" style="background:#0F4C3A"></span><b>Quinzenal</b></button>
+                  <button class="escolha ng-periodo" data-valor="Mensal"><span class="ponto" style="background:#0F4C3A"></span><b>Mensal</b></button>
+                </div>
+                <button class="btn btn-ouro" data-ng-ir="2" style="margin-top:6px">Continuar</button>
+              </div>
+
+              <!-- 7b — convite de membros -->
+              <div class="ng-passo" id="ng-passo-2" hidden>
+                <div class="rot">Quantos membros, incluindo você?</div>
+                <div class="cartao" style="display:flex; align-items:center; justify-content:space-between; padding:14px 18px">
+                  <button class="icone" id="ng-membros-menos" aria-label="Menos um membro" style="font-size:19px">−</button>
+                  <div style="text-align:center">
+                    <div class="tnum" id="ng-membros-valor" style="font-family:var(--display); font-size:26px; font-weight:600">20</div>
+                    <small style="color:var(--tinta-fraca)">membros</small>
+                  </div>
+                  <button class="icone" id="ng-membros-mais" aria-label="Mais um membro" style="font-size:19px">+</button>
+                </div>
+                <div class="cartao vidro">
+                  <div class="rot">Fundo por ciclo, ao ritmo actual</div>
+                  <div class="tnum" id="ng-fundo-total" style="font-family:var(--display); font-size:24px; color:var(--esmeralda); margin-top:4px">500.000 Kz</div>
+                  <small style="color:var(--tinta-fraca)"><span id="ng-membros-eco">20</span> membros × <span id="ng-valor-eco" class="tnum">25.000</span> Kz</small>
+                </div>
+                <div class="rot">Convidar por</div>
+                <div class="grelha2">
+                  <button class="btn btn-fant">📱 Contactos</button>
+                  <button class="btn btn-fant">🔗 Link de convite</button>
+                </div>
+                <div class="toast">Quem entrar depois de o ciclo começar só integra o ciclo seguinte — é o que impede um rodízio de crescer para pagar o passado.</div>
+                <div class="grelha2" style="margin-top:2px">
+                  <button class="btn btn-fant" data-ng-ir="1">Voltar</button>
+                  <button class="btn btn-ouro" data-ng-ir="3">Continuar</button>
+                </div>
+              </div>
+
+              <!-- 7c — rodízio e confirmação -->
+              <div class="ng-passo" id="ng-passo-3" hidden>
+                <div class="rot">A sua posição no rodízio</div>
+                <div class="grelha2" role="radiogroup" aria-label="Posição no rodízio">
+                  <button class="escolha ng-posicao sel" data-valor="1ª — recebo primeiro"><span class="ponto" style="background:#D4AF37"></span><b>1ª · recebo primeiro</b></button>
+                  <button class="escolha ng-posicao" data-valor="Sorteada pela app"><span class="ponto" style="background:#0F4C3A"></span><b>Sorteada pela app</b></button>
+                </div>
+                <div class="cartao">
+                  <div class="rot">Resumo</div>
+                  <div class="hist"><span>Nome</span><b id="ng-resumo-nome">Mercado do Povo</b></div>
+                  <div class="hist"><span>Contribuição</span><b class="tnum"><span id="ng-resumo-valor">25.000</span> Kz · <span id="ng-resumo-periodo">Quinzenal</span></b></div>
+                  <div class="hist"><span>Membros</span><b class="tnum"><span id="ng-resumo-membros">20</span> pessoas</b></div>
+                  <div class="hist"><span>A sua posição</span><b id="ng-resumo-posicao">1ª · recebo primeiro</b></div>
+                </div>
+                <div class="badge">🔒 O rodízio fica selado por hash assim que o ciclo abre — nenhum membro consegue reordená-lo sozinho.</div>
+                <div class="grelha2">
+                  <button class="btn btn-fant" data-ng-ir="2">Voltar</button>
+                  <button class="btn btn-cta" id="ng-criar">Criar grupo</button>
+                </div>
+              </div>
+
+              <!-- 7d — sucesso -->
+              <div class="ng-passo" id="ng-passo-sucesso" hidden>
+                <div class="centro">
+                  <div class="ilustra">🎉</div>
+                  <div style="font-family:var(--display); font-size:23px; font-weight:600">Grupo criado!</div>
+                  <p style="color:var(--tinta-fraca); font-size:14.5px; max-width:28ch">O <b id="ng-sucesso-nome" style="color:var(--tinta)">Mercado do Povo</b> está pronto. Convide os membros para o rodízio abrir.</p>
+                </div>
+                <button class="btn btn-ouro" data-ir="grupo">Ver o grupo</button>
+                <button class="btn btn-fant" data-ir="admin">Voltar ao início</button>
+              </div>
+            </div>
           </div>
 
           <div class="tabs" role="tablist" aria-label="Navegação do telemóvel">
@@ -463,7 +566,7 @@ footer{padding:56px 0 80px; border-top:1px solid var(--linha); color:var(--musgo
           </div>
 
           <!-- modal pagamento -->
-          <div id="modal" hidden style="position:absolute; inset:0; background:rgba(8,37,28,.55); backdrop-filter:blur(3px); display:flex; align-items:flex-end">
+          <div id="modal" hidden style="position:absolute; inset:0; background:rgba(8,37,28,.55); backdrop-filter:blur(3px); align-items:flex-end">
             <div style="background:var(--gelo); border-radius:26px 26px 34px 34px; padding:22px 18px; width:100%; display:flex; flex-direction:column; gap:12px">
               <div style="width:42px;height:4px;border-radius:9px;background:rgba(15,76,58,.2); margin:0 auto 4px"></div>
               <div style="font-family:var(--display); font-size:20px; font-weight:600">💸 Entregar fundos</div>
@@ -578,7 +681,8 @@ footer{padding:56px 0 80px; border-top:1px solid var(--linha); color:var(--musgo
     onb3:["Máscara <b>+244 9XX XXX XXX</b> aplicada enquanto escreve.","Toque em <b>Enviar código</b> para ver o preenchimento automático do OTP.","Reenvio bloqueado 30 segundos para travar abuso de SMS."],
     admin:["<b>Relógio de contagem</b> para a próxima entrega, dentro do cartão de saldo.","Feed de actividade em tempo real: <i>João pagou 25.000 Kz</i>.","Indicador de sincronização offline no topo, sempre visível.","Barra de 95%: quem está em dia contra quem está em atraso."],
     grupo:["Cartão do grupo com efeito de vidro fosco sobre o fundo gelo.","<b>Toque num membro</b> na lista para o marcar como pago — no telemóvel é um swipe para a direita.","QR Code de cobrança gerado com o valor da semana.","Exportação em PDF com assinaturas digitais para auditoria."],
-    membro:["Botão <b>Pagar agora</b> pulsa até a contribuição da semana estar liquidada.","Badge <b>Pagador Ouro</b> ganho por 12 pagamentos seguidos em dia.","Programa de referência: 500 Kz por amigo que se junte."]
+    membro:["Botão <b>Pagar agora</b> pulsa até a contribuição da semana estar liquidada.","Badge <b>Pagador Ouro</b> ganho por 12 pagamentos seguidos em dia.","Programa de referência: 500 Kz por amigo que se junte."],
+    novogrupo:["Três passos: identidade do grupo, convite de membros, rodízio e confirmação.","O fundo por ciclo recalcula-se em tempo real ao mudar o valor ou o número de membros.","Quem entra depois de o ciclo abrir só integra o ciclo seguinte — impede um rodízio de crescer para pagar o passado.","O selo por hash do rodízio, explicado em detalhe na arquitectura anti-fraude, é criado só na confirmação."]
   };
   var vistas = document.querySelectorAll('.vista');
   var navs = document.querySelectorAll('[data-ecra]');
@@ -588,6 +692,7 @@ footer{padding:56px 0 80px; border-top:1px solid var(--linha); color:var(--musgo
     var lista = notas[id] || [];
     document.getElementById('nota-lista').innerHTML = lista.map(function(t){ return '<li>'+t+'</li>'; }).join('');
     document.querySelector('.corpo').scrollTop = 0;
+    if (id === 'novogrupo' && typeof reiniciarNovoGrupo === 'function') reiniciarNovoGrupo();
   }
   navs.forEach(function(b){ b.addEventListener('click', function(){ mostrar(b.dataset.ecra); }); });
   document.querySelectorAll('[data-ir]').forEach(function(b){ b.addEventListener('click', function(){ mostrar(b.dataset.ir); }); });
@@ -635,5 +740,95 @@ footer{padding:56px 0 80px; border-top:1px solid var(--linha); color:var(--musgo
   }
   slider.addEventListener('input', calcular);
   calcular();
+
+  // ---- Ecrã 7: criar grupo ------------------------------------------------
+  var ngValor = document.getElementById('ng-valor');
+  var ngMembrosValor = document.getElementById('ng-membros-valor');
+  var VALOR_MIN = 5000, VALOR_PASSO = 5000;
+  var MEMBROS_MIN = 3, MEMBROS_MAX = 60;
+
+  function ngLerValor(){ return Number(ngValor.value.replace(/\D/g, '')) || 0; }
+  function ngEscreverValor(v){ ngValor.value = fmt.format(v); ngRecalcularFundo(); }
+  function ngLerMembros(){ return Number(ngMembrosValor.textContent) || 0; }
+
+  function ngRecalcularFundo(){
+    var v = ngLerValor(), m = ngLerMembros();
+    document.getElementById('ng-fundo-total').textContent = fmt.format(v * m) + ' Kz';
+    document.getElementById('ng-membros-eco').textContent = m;
+    document.getElementById('ng-valor-eco').textContent = fmt.format(v);
+  }
+
+  document.getElementById('ng-menos').addEventListener('click', function(){
+    ngEscreverValor(Math.max(VALOR_MIN, ngLerValor() - VALOR_PASSO));
+  });
+  document.getElementById('ng-mais').addEventListener('click', function(){
+    ngEscreverValor(ngLerValor() + VALOR_PASSO);
+  });
+  ngValor.addEventListener('change', function(){ ngEscreverValor(Math.max(VALOR_MIN, ngLerValor())); });
+
+  document.getElementById('ng-membros-menos').addEventListener('click', function(){
+    ngMembrosValor.textContent = String(Math.max(MEMBROS_MIN, ngLerMembros() - 1));
+    ngRecalcularFundo();
+  });
+  document.getElementById('ng-membros-mais').addEventListener('click', function(){
+    ngMembrosValor.textContent = String(Math.min(MEMBROS_MAX, ngLerMembros() + 1));
+    ngRecalcularFundo();
+  });
+
+  function ngLigarGrupoEscolha(seletor){
+    var botoes = document.querySelectorAll(seletor);
+    botoes.forEach(function(b){
+      b.addEventListener('click', function(){
+        botoes.forEach(function(o){ o.classList.remove('sel'); });
+        b.classList.add('sel');
+      });
+    });
+  }
+  ngLigarGrupoEscolha('.ng-periodo');
+  ngLigarGrupoEscolha('.ng-posicao');
+
+  function ngPassoAtual(botoes){ return [].find.call(botoes, function(b){ return b.classList.contains('sel'); }); }
+
+  function ngIrPara(passo){
+    ['1', '2', '3', 'sucesso'].forEach(function(p){
+      var el = document.getElementById('ng-passo-' + p);
+      var visivel = p === passo;
+      el.classList.toggle('on', visivel);
+      el.hidden = !visivel;
+    });
+    document.getElementById('ng-progresso').hidden = passo === 'sucesso';
+    if (passo === '2' || passo === '3') ngRecalcularFundo();
+    if (passo === '3') {
+      document.getElementById('ng-resumo-nome').textContent = document.getElementById('ng-nome').value || 'Sem nome';
+      document.getElementById('ng-resumo-valor').textContent = fmt.format(ngLerValor());
+      var periodo = ngPassoAtual(document.querySelectorAll('.ng-periodo'));
+      document.getElementById('ng-resumo-periodo').textContent = periodo ? periodo.dataset.valor : '—';
+      document.getElementById('ng-resumo-membros').textContent = String(ngLerMembros());
+    }
+    if (['1', '2', '3'].indexOf(passo) !== -1) {
+      document.getElementById('ng-passo-num').textContent = passo;
+      for (var i = 1; i <= 3; i++) {
+        document.getElementById('ng-ponto-' + i).style.background =
+          i <= Number(passo) ? 'var(--esmeralda)' : 'rgba(15,76,58,.15)';
+      }
+    }
+    document.querySelector('.corpo').scrollTop = 0;
+  }
+
+  document.querySelectorAll('[data-ng-ir]').forEach(function(b){
+    b.addEventListener('click', function(){ ngIrPara(b.dataset.ngIr); });
+  });
+
+  document.getElementById('ng-criar').addEventListener('click', function(){
+    var posicao = ngPassoAtual(document.querySelectorAll('.ng-posicao'));
+    document.getElementById('ng-resumo-posicao').textContent = posicao ? posicao.dataset.valor : '—';
+    var nome = document.getElementById('ng-nome').value || 'o seu grupo';
+    document.getElementById('ng-sucesso-nome').textContent = nome;
+    ngIrPara('sucesso');
+  });
+
+  function reiniciarNovoGrupo(){
+    ngIrPara('1');
+  }
 })();
 </script>
