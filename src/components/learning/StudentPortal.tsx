@@ -11,6 +11,7 @@ import { db, auth } from "../../firebase";
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import { useToast } from "../../context/ToastContext";
 import { useUserRole } from "../../context/UserRoleContext";
+import { PronunciationService } from "../../services/pronunciation.service";
 import { 
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, 
   Tooltip, BarChart, Bar, Legend, PieChart, Pie, Cell, LineChart, Line, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar
@@ -212,23 +213,103 @@ export const StudentPortal: React.FC<{ setView?: (v: string) => void }> = ({ set
     }
   };
 
-  // B. Speaking & Whisper API simulation
+  // B. Speaking & pronunciation evaluation
   const [isRecording, setIsRecording] = useState<boolean>(false);
+  const [isAnalyzingPronunciation, setIsAnalyzingPronunciation] = useState<boolean>(false);
   const [pronunciationScore, setPronunciationScore] = useState<number | null>(null);
   const [transcription, setTranscription] = useState<string>("");
   const [phoneticFeedback, setPhoneticFeedback] = useState<string>("");
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const pronunciationServiceRef = useRef(new PronunciationService());
+  const pronunciationTarget = "Wazekele kyambote!";
 
-  const handleStartRecording = () => {
-    setIsRecording(true);
-    addToast("Microfone capturando áudio em 16kHz... Fale agora!", "info");
-    setTimeout(() => {
-      setIsRecording(false);
-      setTranscription("Wazekele kyambote, professor Sérgio.");
-      setPronunciationScore(94);
-      setPhoneticFeedback("Excelente calibração! As tuas sílabas tônicas no termo 'Wazekele' estão perfeitas. Desvio fonético de apenas 0.4 Hz.");
-      saveGamification(xp + 25, coins + 4);
-      addToast("Pronúncia analisada com sucesso com Whisper AI neural!", "success");
-    }, 3000);
+  const blobToBase64 = (blob: Blob): Promise<string> => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error || new Error("AUDIO_READ_FAILED"));
+    reader.onloadend = () => resolve(String(reader.result || ""));
+    reader.readAsDataURL(blob);
+  });
+
+  const releaseMicrophone = () => {
+    mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+    mediaStreamRef.current = null;
+    mediaRecorderRef.current = null;
+  };
+
+  useEffect(() => () => releaseMicrophone(), []);
+
+  const evaluateRecordedAudio = async (blob: Blob) => {
+    setIsAnalyzingPronunciation(true);
+    try {
+      const audioBase64 = await blobToBase64(blob);
+      const result = await pronunciationServiceRef.current.evaluatePronunciation(
+        pronunciationTarget,
+        audioBase64,
+        "Kimbundu / Português de Angola",
+        blob.type || "audio/webm",
+      );
+      setTranscription(result.transcription);
+      setPronunciationScore(result.overallScore);
+      setPhoneticFeedback([result.generalFeedback, ...(result.improvementTips || [])].filter(Boolean).join(" "));
+      saveGamification(xp + Math.max(5, Math.round(result.overallScore / 4)), coins + 4);
+      addToast("Pronúncia avaliada com áudio real.", "success");
+    } catch (error: any) {
+      if (error?.message === "OFFLINE_MODE_SAVED") {
+        addToast("Áudio guardado no dispositivo; será avaliado quando a ligação voltar.", "info");
+      } else {
+        addToast("Não foi possível avaliar o áudio. Nenhuma pontuação foi inventada.", "error");
+      }
+    } finally {
+      setIsAnalyzingPronunciation(false);
+    }
+  };
+
+  const handleStartRecording = async () => {
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      addToast("Este navegador não suporta gravação de áudio.", "error");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const preferredMime = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus"]
+        .find((type) => MediaRecorder.isTypeSupported(type));
+      const recorder = new MediaRecorder(stream, preferredMime ? { mimeType: preferredMime } : undefined);
+      mediaStreamRef.current = stream;
+      mediaRecorderRef.current = recorder;
+      audioChunksRef.current = [];
+      recorder.ondataavailable = (event) => { if (event.data.size > 0) audioChunksRef.current.push(event.data); };
+      recorder.onerror = () => {
+        setIsRecording(false);
+        releaseMicrophone();
+        addToast("A gravação foi interrompida pelo navegador.", "error");
+      };
+      recorder.onstop = async () => {
+        const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        setIsRecording(false);
+        releaseMicrophone();
+        if (blob.size === 0) {
+          addToast("Nenhum áudio foi capturado. Tente novamente.", "error");
+          return;
+        }
+        await evaluateRecordedAudio(blob);
+      };
+      recorder.start(250);
+      setTranscription("");
+      setPronunciationScore(null);
+      setPhoneticFeedback("");
+      setIsRecording(true);
+      addToast(`Microfone ativo. Fale: “${pronunciationTarget}”`, "info");
+    } catch (error: any) {
+      releaseMicrophone();
+      addToast(error?.name === "NotAllowedError" ? "Permissão do microfone recusada." : "Não foi possível iniciar o microfone.", "error");
+    }
+  };
+
+  const handleStopRecording = () => {
+    const recorder = mediaRecorderRef.current;
+    if (recorder?.state === "recording") recorder.stop();
   };
 
   // C. Flashcard States
@@ -738,7 +819,13 @@ export const StudentPortal: React.FC<{ setView?: (v: string) => void }> = ({ set
                           <span key={i} className="w-1.5 h-8 bg-indigo-600 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.15}s` }}></span>
                         ))}
                       </div>
-                      <p className="text-xs font-bold text-indigo-950 font-mono animate-pulse">Gravando... Fale "Wazekele kyambote!"</p>
+                      <p className="text-xs font-bold text-indigo-950 font-mono animate-pulse">Gravando... Fale “{pronunciationTarget}”</p>
+                      <button onClick={handleStopRecording} className="px-4 py-2 rounded-xl bg-rose-600 text-white text-xs font-bold">Parar e avaliar</button>
+                    </div>
+                  ) : isAnalyzingPronunciation ? (
+                    <div className="text-center space-y-3">
+                      <RefreshCw className="w-9 h-9 text-indigo-600 animate-spin mx-auto" />
+                      <p className="text-xs font-bold text-indigo-950 font-mono">A avaliar áudio real…</p>
                     </div>
                   ) : (
                     <button
@@ -765,7 +852,7 @@ export const StudentPortal: React.FC<{ setView?: (v: string) => void }> = ({ set
                       <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl text-center">
                         <span className="text-[10px] text-slate-400 uppercase font-mono tracking-wider block">Nota de Precisão</span>
                         <span className="text-4xl font-black text-indigo-600 block mt-1">{pronunciationScore}%</span>
-                        <span className="text-[10px] text-emerald-600 font-bold block mt-1">Nível Fluente (C1)</span>
+                        <span className="text-[10px] text-emerald-600 font-bold block mt-1">Resultado real do avaliador</span>
                       </div>
                       
                       <div className="md:col-span-2 space-y-2">
