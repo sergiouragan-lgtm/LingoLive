@@ -166,28 +166,11 @@ router.post("/recommendations/generate", requireAuth, async (req: any, res) => {
     return res.json(sanitizedRecs);
   } catch (err: any) {
     console.error("[Adaptive Service] Error generating recommendations:", err);
-    // Fallback if quota or api issue
-    const fallbacks = [
-      {
-        id: "fb_1",
-        title: "Fortalecer Conversação Oral",
-        description: "Inicie um chat rápido de 5 minutos com o nosso Tutor de IA sobre um tema do dia a dia.",
-        actionView: "practice",
-        reason: "O seu score de conversação está abaixo da média global de quizzes.",
-        priority: "high",
-        estimatedTimeMin: 5
-      },
-      {
-        id: "fb_2",
-        title: "Revisar Vocabulário do Nível",
-        description: "Treine 10 novos termos de nível intermediário no seu baralho de memorização rápida.",
-        actionView: "vocab",
-        priority: "medium",
-        reason: "O reforço regular do vocabulário expande a sua compreensão geral.",
-        estimatedTimeMin: 10
-      }
-    ];
-    return res.json(fallbacks);
+    return res.status(503).json({
+      error: "ADAPTIVE_RECOMMENDATIONS_UNAVAILABLE",
+      message: "Não foi possível gerar recomendações reais neste momento.",
+      retryable: true,
+    });
   }
 });
 
@@ -269,58 +252,11 @@ router.post("/path/generate", requireAuth, async (req: any, res) => {
     return res.json(learningPath);
   } catch (err: any) {
     console.error("[Adaptive Path] Error generating path:", err);
-    
-    // Static high quality adaptive fallback path
-    const fallbackPath = {
-      id: `path_${userId}_fallback`,
-      userId,
-      language: language || "Inglês",
-      generatedAt: new Date().toISOString(),
-      nodes: [
-        {
-          id: "node_1",
-          title: "Desafio de Fluência Oral",
-          description: "Grave uma resposta de áudio de 30 segundos descrevendo a sua rotina diária.",
-          type: "speaking",
-          difficulty: "Intermediate",
-          xpReward: 150,
-          status: "unlocked",
-          skillsTargeted: ["Pronúncia", "Vocabulário de Rotina"]
-        },
-        {
-          id: "node_2",
-          title: "Compreensão de Áudio Autêntico",
-          description: "Ouça um podcast curto sobre viagens e responda a 3 perguntas rápidas.",
-          type: "listening",
-          difficulty: "Intermediate",
-          xpReward: 200,
-          status: "locked",
-          skillsTargeted: ["Audição", "Foco em Detalhes"]
-        },
-        {
-          id: "node_3",
-          title: "Redação Criativa de Diálogo",
-          description: "Escreva um diálogo simulado pedindo ajuda a um estranho na rua.",
-          type: "writing",
-          difficulty: "Intermediate",
-          xpReward: 250,
-          status: "locked",
-          skillsTargeted: ["Estrutura de Frases", "Expressões de Cortesia"]
-        },
-        {
-          id: "node_4",
-          title: "Quiz Consolidado Adaptativo",
-          description: "Resolva um teste gramatical baseado em todos os seus erros anteriores.",
-          type: "quiz",
-          difficulty: "Intermediate",
-          xpReward: 300,
-          status: "locked",
-          skillsTargeted: ["Gramática Geral", "Vocabulário do Mês"]
-        }
-      ]
-    };
-    await safeSetDoc("adaptive_paths", userId, fallbackPath);
-    return res.json(fallbackPath);
+    return res.status(503).json({
+      error: "ADAPTIVE_PATH_UNAVAILABLE",
+      message: "Não foi possível gerar uma jornada adaptativa real neste momento.",
+      retryable: true,
+    });
   }
 });
 
