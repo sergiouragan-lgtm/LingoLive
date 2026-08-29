@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="pt-AO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KixiDigital — A kixikila, digitalizada com confiança</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+<style>
+:root{
+  --esmeralda:#0F4C3A; --esmeralda-clara:#176B52; --esmeralda-fundo:#08251C;
+  --dourado:#D4AF37; --dourado-claro:#F0D989; --gelo:#F8F9FA; --cta:#E85D26;
+  --pago:#2ECC71; --atraso:#E74C3C; --tinta:#0C1B16; --tinta-fraca:#5A6B64;
+  --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --ui:"Inter",-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,monospace;
+  --linha:rgba(212,175,55,.18);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0; background:var(--esmeralda-fundo); color:var(--gelo); font-family:var(--ui);
+  font-size:16.5px; line-height:1.6; -webkit-font-smoothing:antialiased; overflow-x:hidden}
+img,svg{display:block; max-width:100%}
+a{color:inherit}
+.wrap{max-width:1180px; margin:0 auto; padding:0 32px}
+h1,h2,h3{font-family:var(--display); font-weight:600; text-wrap:balance; margin:0; line-height:1.04; letter-spacing:-.02em}
+p{margin:0}
+.tnum{font-variant-numeric:tabular-nums}
+::selection{background:var(--dourado); color:var(--esmeralda-fundo)}
+
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:.001ms!important; animation-iteration-count:1!important; transition-duration:.001ms!important; scroll-behavior:auto!important}
+}
+
+/* ---------- barra de navegação ---------- */
+.nav{
+  position:fixed; top:0; left:0; right:0; z-index:50;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:20px 32px; backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  background:rgba(8,37,28,.55); border-bottom:1px solid transparent; transition:border-color .3s ease, background .3s ease;
+}
+.nav.encolhido{background:rgba(8,37,28,.92); border-bottom-color:var(--linha)}
+.nav-marca{display:flex; align-items:center; gap:11px; font-family:var(--display); font-size:18px; font-weight:600}
+.nav-marca .ico{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;
+  background:linear-gradient(145deg,var(--dourado),#8a6d1e); color:var(--esmeralda-fundo); font-weight:800; font-size:17px}
+.nav-cta{
+  background:var(--dourado); color:var(--esmeralda-fundo); font-family:var(--ui); font-weight:700; font-size:14px;
+  padding:11px 22px; border-radius:999px; text-decoration:none; transition:transform .2s ease, box-shadow .2s ease;
+}
+.nav-cta:hover{transform:translateY(-1px); box-shadow:0 10px 24px -10px rgba(212,175,55,.6)}
+
+/* ---------- hero ---------- */
+.hero{
+  position:relative; min-height:100vh; display:flex; align-items:center;
+  padding:150px 0 90px; overflow:hidden;
+}
+.hero-fundo{position:absolute; inset:0; z-index:0; overflow:hidden}
+.mancha{position:absolute; border-radius:50%; filter:blur(70px); opacity:.55; will-change:transform}
+.mancha-1{width:640px; height:640px; top:-220px; right:-160px;
+  background:radial-gradient(circle at 30% 30%, var(--dourado), transparent 70%)}
+.mancha-2{width:520px; height:520px; bottom:-260px; left:-180px;
+  background:radial-gradient(circle at 60% 40%, var(--esmeralda-clara), transparent 70%); opacity:.7}
+.grao{position:absolute; inset:0; opacity:.05; mix-blend-mode:overlay; pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+.hero-grelha{position:relative; z-index:1; display:grid; grid-template-columns:1.05fr .95fr; gap:56px; align-items:center}
+.hero-eyebrow{display:inline-flex; align-items:center; gap:9px; font-size:12.5px; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--dourado-claro); font-weight:600; padding:7px 14px 7px 8px; border:1px solid var(--linha); border-radius:999px}
+.hero-eyebrow .ponto{width:7px;height:7px;border-radius:50%; background:var(--pago); box-shadow:0 0 0 3px rgba(46,204,113,.25)}
+.hero h1{font-size:clamp(40px,5.4vw,68px); margin-top:24px; max-width:15ch}
+.hero h1 em{font-style:normal; color:var(--dourado); position:relative; white-space:nowrap}
+.hero-lede{margin-top:24px; font-size:19px; color:rgba(248,249,250,.72); max-width:46ch; line-height:1.65}
+.hero-acoes{display:flex; align-items:center; gap:22px; margin-top:38px; flex-wrap:wrap}
+.btn-primario{
+  background:linear-gradient(120deg,var(--dourado),#b48f22); color:var(--esmeralda-fundo);
+  font-family:var(--ui); font-weight:700; font-size:15.5px; padding:16px 30px; border-radius:14px; border:0;
+  cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:10px;
+  box-shadow:0 16px 40px -16px rgba(212,175,55,.55); transition:transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s ease;
+}
+.btn-primario:hover{transform:translateY(-3px); box-shadow:0 22px 48px -14px rgba(212,175,55,.7)}
+.btn-secundario{display:inline-flex; align-items:center; gap:9px; color:var(--gelo); font-weight:600; font-size:15px;
+  text-decoration:none; border-bottom:1px solid rgba(248,249,250,.28); padding-bottom:3px; transition:border-color .2s ease, color .2s ease}
+.btn-secundario:hover{border-color:var(--dourado); color:var(--dourado-claro)}
+
+.hero-provas{display:flex; gap:34px; margin-top:56px; flex-wrap:wrap}
+.prova b{display:block; font-family:var(--display); font-size:28px; color:var(--gelo)}
+.prova small{display:block; font-size:12.5px; color:rgba(248,249,250,.55); text-transform:uppercase; letter-spacing:.08em; margin-top:2px}
+
+/* ---------- maquete do telemóvel no hero ---------- */
+.hero-visual{position:relative; display:flex; justify-content:center; perspective:1400px}
+.telemovel-flutua{
+  width:296px; padding:12px; border-radius:38px; background:linear-gradient(160deg,#1d3a30,var(--esmeralda-fundo));
+  border:1px solid rgba(212,175,55,.28); box-shadow:0 60px 100px -30px rgba(0,0,0,.75);
+  transform:rotate3d(1,-1,0.06,10deg); animation:flutuar 7s ease-in-out infinite;
+}
+@keyframes flutuar{0%,100%{transform:rotate3d(1,-1,.06,10deg) translateY(0)} 50%{transform:rotate3d(1,-1,.06,10deg) translateY(-16px)}}
+.ecra-mini{background:var(--gelo); border-radius:28px; overflow:hidden; color:var(--tinta); padding:22px 18px; height:560px}
+.em-topo{display:flex; justify-content:space-between; align-items:center; font-size:13px; font-weight:600}
+.em-cartao{background:linear-gradient(150deg,var(--esmeralda),#0A3328); color:#fff; border-radius:16px; padding:18px; margin-top:16px; position:relative; overflow:hidden}
+.em-cartao::after{content:"";position:absolute; right:-24px; top:-30px; width:120px; height:120px; border-radius:50%;
+  background:radial-gradient(closest-side, rgba(212,175,55,.35), transparent)}
+.em-rot{font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; opacity:.65}
+.em-val{font-family:var(--display); font-size:27px; font-weight:600; margin-top:5px}
+.em-delta{font-size:12px; color:#7EE2A8; margin-top:5px}
+.em-linha2{display:flex; gap:10px; margin-top:14px}
+.em-mini{flex:1; background:#fff; border-radius:14px; padding:13px; box-shadow:0 2px 8px rgba(15,76,58,.06)}
+.em-mini .r{font-size:9.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--tinta-fraca); font-weight:600}
+.em-barras{display:flex; align-items:flex-end; gap:4px; height:38px; margin-top:8px}
+.em-barras span{flex:1; border-radius:3px; background:rgba(15,76,58,.18)}
+.em-barras span.on{background:var(--esmeralda)}
+.em-membros{margin-top:14px; background:#fff; border-radius:14px; padding:14px; box-shadow:0 2px 8px rgba(15,76,58,.06)}
+.em-membro{display:flex; align-items:center; gap:10px; padding:7px 0}
+.em-av{width:28px;height:28px;border-radius:9px; display:grid; place-items:center; font-size:10.5px; font-weight:700;
+  background:rgba(15,76,58,.1); color:var(--esmeralda); flex:none}
+.em-membro small{display:block; font-size:9px; color:var(--tinta-fraca)}
+.em-selo{margin-left:auto; font-size:9px; font-weight:700; padding:3px 8px; border-radius:99px}
+.em-selo.pago{background:rgba(46,204,113,.15); color:#1E8449}
+.em-selo.pend{background:rgba(212,175,55,.2); color:#8A6D10}
+.badge-flutuante{
+  position:absolute; z-index:5; background:#fff; color:var(--tinta); border-radius:14px; padding:12px 16px;
+  box-shadow:0 20px 40px -14px rgba(0,0,0,.35); display:flex; align-items:center; gap:10px; font-size:12.5px; font-weight:600;
+  white-space:nowrap; animation:flutuar-badge 6s ease-in-out infinite;
+}
+.badge-flutuante .ic{width:30px;height:30px;border-radius:9px; display:grid; place-items:center; font-size:15px; flex:none}
+.badge-1{top:8%; left:2%; animation-delay:.3s}
+.badge-1 .ic{background:rgba(46,204,113,.15)}
+.badge-2{bottom:12%; right:0%; animation-delay:1.1s}
+.badge-2 .ic{background:rgba(212,175,55,.2)}
+@keyframes flutuar-badge{0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)}}
+
+/* ---------- secções gerais ---------- */
+section{position:relative; padding:120px 0}
+.eyebrow{font-size:12px; letter-spacing:.16em; text-transform:uppercase; color:var(--dourado); font-weight:700}
+.titulo-seccao{font-size:clamp(30px,4vw,44px); margin-top:16px; max-width:16ch}
+.lede-seccao{margin-top:18px; font-size:17.5px; color:rgba(248,249,250,.62); max-width:56ch}
+.cab-seccao{display:flex; justify-content:space-between; align-items:flex-end; gap:40px; flex-wrap:wrap}
+
+.reveal{opacity:0; transform:translateY(28px); transition:opacity .7s cubic-bezier(.2,.7,.2,1), transform .7s cubic-bezier(.2,.7,.2,1)}
+.reveal.visivel{opacity:1; transform:none}
+
+/* ---------- operadoras ---------- */
+.faixa-operadoras{border-top:1px solid var(--linha); border-bottom:1px solid var(--linha); padding:34px 0; background:rgba(255,255,255,.02)}
+.faixa-linha{display:flex; align-items:center; justify-content:center; gap:52px; flex-wrap:wrap}
+.op-item{display:flex; align-items:center; gap:10px; color:rgba(248,249,250,.5); font-family:var(--display); font-weight:600; font-size:15px; letter-spacing:.01em}
+.op-item .pt{width:9px;height:9px;border-radius:50%}
+
+/* ---------- como funciona ---------- */
+.passos{display:grid; grid-template-columns:repeat(3,1fr); gap:2px; margin-top:70px; background:var(--linha); border-radius:24px; overflow:hidden}
+.passo{background:var(--esmeralda-fundo); padding:44px 34px; position:relative}
+.passo .n{font-family:var(--display); font-size:15px; color:var(--dourado); border:1px solid var(--linha); width:38px; height:38px;
+  border-radius:11px; display:grid; place-items:center; margin-bottom:26px}
+.passo h3{font-size:21px}
+.passo p{margin-top:12px; color:rgba(248,249,250,.6); font-size:15px; max-width:32ch}
+.passo-linha{position:absolute; top:44px; right:-1px; width:1px; height:38px; background:var(--linha)}
+
+/* ---------- bento de funcionalidades ---------- */
+.bento{display:grid; grid-template-columns:repeat(6,1fr); gap:20px; margin-top:64px}
+.b-item{border:1px solid var(--linha); border-radius:22px; padding:32px; background:linear-gradient(175deg,rgba(255,255,255,.035),rgba(255,255,255,.01));
+  position:relative; overflow:hidden; transition:border-color .3s ease, transform .3s ease}
+.b-item:hover{border-color:rgba(212,175,55,.4); transform:translateY(-4px)}
+.b-grande{grid-column:span 4}
+.b-pequeno{grid-column:span 2}
+.b-item h3{font-size:22px; margin-top:18px}
+.b-item p{color:rgba(248,249,250,.6); font-size:15px; margin-top:10px; max-width:38ch}
+
+.mini-grafico-demo{display:flex; align-items:flex-end; gap:7px; height:64px; margin-top:22px}
+.mini-grafico-demo span{flex:1; border-radius:5px 5px 2px 2px; background:rgba(212,175,55,.18); transform:scaleY(0); transform-origin:bottom; transition:transform .8s cubic-bezier(.2,.8,.2,1)}
+.mini-grafico-demo span.ok{background:var(--pago)}
+.b-item.visivel .mini-grafico-demo span{transform:scaleY(1)}
+
+.selo-alerta{display:inline-flex; align-items:center; gap:9px; margin-top:20px; padding:9px 14px; border-radius:12px;
+  background:rgba(231,76,60,.1); border:1px solid rgba(231,76,60,.28); font-size:13px; color:#F09A8E; font-weight:600}
+.pulso-vermelho{width:8px;height:8px;border-radius:50%; background:var(--atraso); position:relative; flex:none}
+.pulso-vermelho::after{content:""; position:absolute; inset:-6px; border-radius:50%; border:1.5px solid var(--atraso); animation:pulso 1.8s ease-out infinite}
+@keyframes pulso{0%{transform:scale(.5); opacity:1} 100%{transform:scale(1.8); opacity:0}}
+
+.icone-linha{width:46px; height:46px; border-radius:13px; display:grid; place-items:center; font-size:21px; background:rgba(212,175,55,.14)}
+
+/* ---------- livro-razão (segurança) ---------- */
+.razao{display:grid; grid-template-columns:.95fr 1.05fr; gap:64px; align-items:center; margin-top:64px}
+.cadeia{display:flex; flex-direction:column; gap:0}
+.elo{display:flex; align-items:center; gap:16px; padding:16px 0}
+.elo-no{width:46px; height:46px; border-radius:13px; background:var(--esmeralda-clara); border:1px solid rgba(212,175,55,.4);
+  display:grid; place-items:center; font-family:var(--mono); font-size:11px; color:var(--dourado-claro); flex:none; position:relative; z-index:1}
+.elo-fio{width:1px; flex:none; background:repeating-linear-gradient(var(--linha),var(--linha) 4px, transparent 4px, transparent 8px);
+  margin-left:22.5px; height:24px}
+.elo-corpo b{display:block; font-size:15px; font-weight:600}
+.elo-corpo small{display:block; font-size:12.5px; color:rgba(248,249,250,.55); margin-top:2px; font-family:var(--mono)}
+
+/* ---------- planos ---------- */
+.planos{display:grid; grid-template-columns:repeat(3,1fr); gap:22px; margin-top:64px}
+.plano{border:1px solid var(--linha); border-radius:22px; padding:36px 30px; display:flex; flex-direction:column; gap:18px; transition:transform .3s ease, border-color .3s ease}
+.plano:hover{transform:translateY(-6px)}
+.plano-destaque{border-color:var(--dourado); background:linear-gradient(170deg,rgba(212,175,55,.1),rgba(255,255,255,.02)); position:relative}
+.plano-etiqueta{position:absolute; top:-13px; left:30px; background:var(--dourado); color:var(--esmeralda-fundo); font-size:11.5px;
+  font-weight:700; padding:5px 13px; border-radius:999px; letter-spacing:.03em}
+.plano h3{font-size:20px}
+.plano .preco{font-family:var(--display); font-size:34px; color:var(--dourado)}
+.plano .preco span{font-size:14px; color:rgba(248,249,250,.5); font-family:var(--ui)}
+.plano ul{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:11px}
+.plano li{display:flex; gap:10px; font-size:14.5px; color:rgba(248,249,250,.75)}
+.plano li::before{content:"✓"; color:var(--pago); font-weight:700; flex:none}
+
+/* ---------- cta final ---------- */
+.cta-final{padding:130px 0; text-align:center; position:relative; overflow:hidden}
+.cta-final::before{content:""; position:absolute; inset:0; background:radial-gradient(ellipse at 50% 30%, rgba(212,175,55,.16), transparent 65%)}
+.cta-final .wrap{position:relative}
+.cta-final h2{font-size:clamp(32px,5vw,54px); max-width:18ch; margin:0 auto}
+.cta-final p{margin:22px auto 0; font-size:18px; color:rgba(248,249,250,.62); max-width:44ch}
+.cta-final .btn-primario{margin-top:38px}
+
+footer{border-top:1px solid var(--linha); padding:44px 0; font-size:13.5px; color:rgba(248,249,250,.4)}
+.rodape-linha{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px}
+
+@media (max-width:920px){
+  .hero-grelha{grid-template-columns:1fr}
+  .hero-visual{order:-1; margin-bottom:20px}
+  .telemovel-flutua{width:250px}
+  .ecra-mini{height:470px}
+  .bento{grid-template-columns:1fr}
+  .b-grande,.b-pequeno{grid-column:span 1}
+  .passos{grid-template-columns:1fr}
+  .passo-linha{display:none}
+  .razao{grid-template-columns:1fr}
+  .planos{grid-template-columns:1fr}
+  .badge-flutuante{display:none}
+}
+</style>
+</head>
+<body>
+
+<nav class="nav" id="nav">
+  <div class="nav-marca"><span class="ico">K</span>KixiDigital</div>
+  <a class="nav-cta" href="#comecar">Começar grátis</a>
+</nav>
+
+<header class="hero">
+  <div class="hero-fundo">
+    <div class="mancha mancha-1" id="mancha1"></div>
+    <div class="mancha mancha-2" id="mancha2"></div>
+    <div class="grao"></div>
+  </div>
+  <div class="wrap hero-grelha">
+    <div>
+      <span class="hero-eyebrow"><span class="ponto"></span>Já em piloto no Mercado do Povo</span>
+      <h1>A sua kixikila, agora com <em>confiança digital</em>.</h1>
+      <p class="hero-lede">Rodízio selado, pagamentos verificados por três fontes independentes, e um livro-razão que ninguém consegue reescrever — nem por dentro. Poupar em grupo, sem ter de confiar apenas na palavra de alguém.</p>
+      <div class="hero-acoes">
+        <a class="btn-primario" href="#comecar">Criar o meu grupo grátis →</a>
+        <a class="btn-secundario" href="#como-funciona">Ver como funciona</a>
+      </div>
+      <div class="hero-provas">
+        <div class="prova"><b class="tnum" data-contar="0" data-ate="1200000">0</b><small>Kz já reconciliados</small></div>
+        <div class="prova"><b class="tnum" data-contar="0" data-ate="99">0</b><small>% de rondas em dia</small></div>
+        <div class="prova"><b>0 Kz</b><small>Custódia retida por nós</small></div>
+      </div>
+    </div>
+
+    <div class="hero-visual">
+      <div class="badge-flutuante badge-1"><span class="ic">✓</span>Ciclo concluído — 500.000 Kz</div>
+      <div class="telemovel-flutua">
+        <div class="ecra-mini">
+          <div class="em-topo"><span>👋 Dona Maria</span><span>☁️✓</span></div>
+          <div class="em-cartao">
+            <div class="em-rot">Saldo do grupo</div>
+            <div class="em-val tnum">500.000 Kz</div>
+            <div class="em-delta">▲ +12% vs. mês passado</div>
+          </div>
+          <div class="em-linha2">
+            <div class="em-mini">
+              <div class="r">Contribuições</div>
+              <div class="em-barras"><span style="height:45%"></span><span style="height:65%"></span><span style="height:55%"></span><span class="on" style="height:90%"></span></div>
+            </div>
+          </div>
+          <div class="em-membros">
+            <div class="em-membro"><div class="em-av">RM</div><div><b style="font-size:12px">Rosa Manuel</b><small>Recebe a 24/08</small></div><span class="em-selo pago">Paga</span></div>
+            <div class="em-membro"><div class="em-av">JB</div><div><b style="font-size:12px">João Baptista</b><small>3 dias em atraso</small></div><span class="em-selo pend">Atrasado</span></div>
+            <div class="em-membro"><div class="em-av">AF</div><div><b style="font-size:12px">Ana Ferreira</b><small>Prazo aberto</small></div><span class="em-selo pend">Pendente</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="badge-flutuante badge-2"><span class="ic">🔒</span>Razão selado por hash</div>
+    </div>
+  </div>
+</header>
+
+<div class="faixa-operadoras">
+  <div class="wrap faixa-linha">
+    <div class="op-item"><span class="pt" style="background:#2ECC71"></span>KWiK</div>
+    <div class="op-item"><span class="pt" style="background:#E85D26"></span>Unitel Money</div>
+    <div class="op-item"><span class="pt" style="background:#2D6CDF"></span>Multicaixa Express</div>
+    <div class="op-item"><span class="pt" style="background:#D4AF37"></span>Dinheiro, com dupla assinatura</div>
+  </div>
+</div>
+
+<section id="como-funciona">
+  <div class="wrap">
+    <span class="eyebrow reveal">Como funciona</span>
+    <h2 class="titulo-seccao reveal">Três passos, e o grupo já está a poupar</h2>
+    <p class="lede-seccao reveal">Sem papelada, sem caderno de contas. A app faz o que a Mãe da Kixikila já fazia de cabeça — só que agora fica provado.</p>
+
+    <div class="passos">
+      <div class="passo reveal"><div class="n tnum">01</div><h3>Cria o grupo</h3><p>Nome, valor da contribuição e o número de membros. O fundo por ciclo calcula-se sozinho.</p><span class="passo-linha"></span></div>
+      <div class="passo reveal"><div class="n tnum">02</div><h3>Convida e recebe</h3><p>KWiK, Unitel Money, Multicaixa ou dinheiro com dupla assinatura — cada pagamento fica registado.</p><span class="passo-linha"></span></div>
+      <div class="passo reveal"><div class="n tnum">03</div><h3>O ciclo fecha-se sozinho</h3><p>Quando todos pagam, a entrega liberta-se automaticamente. Sem ninguém a ter de confiar em ninguém.</p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <span class="eyebrow reveal">O que muda no dia a dia</span>
+    <h2 class="titulo-seccao reveal">Feito para quem gere a kixikila, não para quem programa</h2>
+
+    <div class="bento">
+      <div class="b-item b-grande reveal">
+        <div class="icone-linha">📊</div>
+        <h3>Contribuições que se veem, não se adivinham</h3>
+        <p>Gráfico da ronda actual, ligado em tempo real ao que cada membro já pagou. Sem folha de cálculo, sem perguntar de porta em porta.</p>
+        <div class="mini-grafico-demo" aria-hidden="true">
+          <span style="height:35%"></span><span style="height:58%"></span><span style="height:48%"></span>
+          <span style="height:72%"></span><span style="height:64%"></span><span class="ok" style="height:92%"></span>
+        </div>
+      </div>
+      <div class="b-item b-pequeno reveal">
+        <div class="icone-linha">⚠️</div>
+        <h3>Atrasos, resolvidos ali mesmo</h3>
+        <p>Um lembrete por WhatsApp, um toque para confirmar — sem constrangimento, sem confronto.</p>
+        <div class="selo-alerta"><span class="pulso-vermelho"></span>João Baptista · 3 dias em atraso</div>
+      </div>
+      <div class="b-item b-pequeno reveal">
+        <div class="icone-linha">🎉</div>
+        <h3>O ciclo termina em festa</h3>
+        <p>Quando o último membro paga, o grupo inteiro vê a confirmação — não só quem recebeu.</p>
+      </div>
+      <div class="b-item b-grande reveal">
+        <div class="icone-linha">🔒</div>
+        <h3>Um livro que ninguém reescreve — nem nós</h3>
+        <p>Cada movimento é selado por hash e encadeado ao anterior. Alterar o passado exigiria apagar um número que já está no telemóvel de todos os membros.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap razao">
+    <div>
+      <span class="eyebrow reveal">Sem custódia</span>
+      <h2 class="titulo-seccao reveal">O dinheiro nunca passa pelas nossas mãos</h2>
+      <p class="lede-seccao reveal">A KixiDigital regista, prova e reconcilia — nunca detém um único kwanza do grupo. É essa a diferença entre confiar numa app e confiar numa pessoa.</p>
+    </div>
+    <div class="cadeia reveal">
+      <div class="elo"><div class="elo-no">01</div><div class="elo-corpo"><b>Contribuição recebida</b><small>hash: 4f9a…c21e</small></div></div>
+      <div class="elo-fio"></div>
+      <div class="elo"><div class="elo-no">02</div><div class="elo-corpo"><b>Verificada pela operadora</b><small>hash: 8b2d…7f01</small></div></div>
+      <div class="elo-fio"></div>
+      <div class="elo"><div class="elo-no">03</div><div class="elo-corpo"><b>Selada no livro-razão</b><small>hash: e61c…9a4b</small></div></div>
+      <div class="elo-fio"></div>
+      <div class="elo"><div class="elo-no">04</div><div class="elo-corpo"><b>Entrega libertada</b><small>hash: 2d7f…33c8</small></div></div>
+    </div>
+  </div>
+</section>
+
+<section id="precos">
+  <div class="wrap">
+    <div class="cab-seccao">
+      <div>
+        <span class="eyebrow reveal">Planos</span>
+        <h2 class="titulo-seccao reveal">Grátis para começar. Cresce com o grupo.</h2>
+      </div>
+      <p class="lede-seccao reveal" style="margin-top:0">Sem letra pequena: dinheiro em espécie nunca paga comissão.</p>
+    </div>
+
+    <div class="planos">
+      <div class="plano reveal">
+        <h3>Gratuito</h3>
+        <div class="preco">0 Kz</div>
+        <ul>
+          <li>Grupos até 10 membros</li>
+          <li>Gestão de rodízio e lembretes por SMS</li>
+          <li>Pagamentos registados manualmente</li>
+        </ul>
+      </div>
+      <div class="plano plano-destaque reveal">
+        <span class="plano-etiqueta">Mais escolhido</span>
+        <h3>Premium</h3>
+        <div class="preco">5.000 Kz<span>/mês por grupo</span></div>
+        <ul>
+          <li>Grupos de 50+ membros</li>
+          <li>Integração nativa KWiK e Unitel Money</li>
+          <li>Relatórios em PDF e Excel</li>
+          <li>Suporte prioritário por WhatsApp</li>
+        </ul>
+      </div>
+      <div class="plano reveal">
+        <h3>Por transacção</h3>
+        <div class="preco">1%</div>
+        <ul>
+          <li>Só sobre pagamentos digitais</li>
+          <li>Partilhada com a operadora</li>
+          <li>Dinheiro fica sempre isento</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="cta-final" id="comecar">
+  <div class="wrap">
+    <h2 class="reveal">A confiança que já tinha, agora com prova.</h2>
+    <p class="reveal">Cria o teu primeiro grupo em menos de dois minutos. Sem cartão, sem compromisso.</p>
+    <a class="btn-primario reveal" href="#">Criar o meu grupo grátis →</a>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap rodape-linha">
+    <div>KixiDigital · Luanda, Angola</div>
+    <div>Registo AGT em curso · Lei n.º 22/11 aplicada</div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  // barra de navegação: encolhe ao rolar
+  var nav = document.getElementById('nav');
+  window.addEventListener('scroll', function(){
+    nav.classList.toggle('encolhido', window.scrollY > 40);
+  }, { passive: true });
+
+  // paralaxe subtil das manchas do hero, ao mover o rato
+  var reduzMovimento = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!reduzMovimento) {
+    var m1 = document.getElementById('mancha1');
+    var m2 = document.getElementById('mancha2');
+    window.addEventListener('mousemove', function(e){
+      var x = (e.clientX / window.innerWidth - 0.5);
+      var y = (e.clientY / window.innerHeight - 0.5);
+      m1.style.transform = 'translate(' + (x * -30) + 'px,' + (y * -30) + 'px)';
+      m2.style.transform = 'translate(' + (x * 24) + 'px,' + (y * 24) + 'px)';
+    });
+  }
+
+  // revelar ao rolar
+  var observador = new IntersectionObserver(function(entradas){
+    entradas.forEach(function(entrada){
+      if (entrada.isIntersecting) {
+        entrada.target.classList.add('visivel');
+        observador.unobserve(entrada.target);
+      }
+    });
+  }, { threshold: 0.15 });
+  document.querySelectorAll('.reveal, .b-item').forEach(function(el){ observador.observe(el); });
+
+  // contadores a subir, uma única vez, quando entram em vista
+  var contadores = document.querySelectorAll('[data-contar]');
+  var fmt = new Intl.NumberFormat('pt-AO');
+  var observadorContagem = new IntersectionObserver(function(entradas){
+    entradas.forEach(function(entrada){
+      if (!entrada.isIntersecting) return;
+      observadorContagem.unobserve(entrada.target);
+      var alvo = Number(entrada.target.dataset.ate);
+      if (reduzMovimento) { entrada.target.textContent = fmt.format(alvo); return; }
+      var inicio = performance.now();
+      var duracao = 1400;
+      function passo(agora){
+        var t = Math.min(1, (agora - inicio) / duracao);
+        var suavizado = 1 - Math.pow(1 - t, 3);
+        entrada.target.textContent = fmt.format(Math.round(alvo * suavizado));
+        if (t < 1) requestAnimationFrame(passo);
+      }
+      requestAnimationFrame(passo);
+    });
+  }, { threshold: 0.6 });
+  contadores.forEach(function(el){ observadorContagem.observe(el); });
+})();
+</script>
+</body>
+</html>
