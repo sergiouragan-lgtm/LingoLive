@@ -10,6 +10,13 @@ vi.mock("../../firebase", () => ({
   auth: { currentUser: { getIdToken: vi.fn().mockResolvedValue("test-token") } },
 }));
 
+vi.mock("../../context/ThemeContext", () => ({
+  useAppTheme: () => ({
+    colorScheme: "light",
+    setColorScheme: (scheme: string) => localStorage.setItem("lingolive_color_scheme", scheme),
+  }),
+}));
+
 const response = (body: unknown, status = 200) => ({
   ok: status >= 200 && status < 300,
   status,
@@ -18,6 +25,13 @@ const response = (body: unknown, status = 200) => ({
 
 describe("LearningMemoryPanel helpers", () => {
   beforeEach(() => {
+    const values = new Map<string, string>();
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+      removeItem: (key: string) => values.delete(key),
+      clear: () => values.clear(),
+    });
     vi.stubGlobal("fetch", vi.fn());
   });
 
@@ -86,7 +100,8 @@ describe("LearningMemoryPanel helpers", () => {
       .mockResolvedValueOnce(response(null, 204) as unknown as Response);
 
     render(<LearningMemoryPanel userId="u1" />);
-    const deleteButton = await screen.findByRole("button", { name: "Apagar toda a memória" });
+    fireEvent.click(await screen.findByRole("button", { name: "Controlo" }));
+    const deleteButton = await screen.findByRole("button", { name: /Apagar toda a memória/ });
     fireEvent.click(deleteButton);
 
     expect(screen.getByText("Esta ação é definitiva.")).toBeTruthy();
@@ -95,5 +110,22 @@ describe("LearningMemoryPanel helpers", () => {
     fireEvent.click(screen.getByRole("button", { name: "Confirmar eliminação" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     expect(fetchMock.mock.calls[1][1]?.method).toBe("DELETE");
+  });
+
+  it("navigates through the four screens and toggles the persisted color scheme", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(response({ memory: { enabled: true } }) as unknown as Response);
+
+    render(<LearningMemoryPanel userId="u1" />);
+    await screen.findByText("Retrato atual");
+
+    fireEvent.click(screen.getByRole("button", { name: "Competências" }));
+    expect(screen.getByRole("tab", { name: "Vocabulário" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Percurso" }));
+    expect(screen.getByText("A memória cresce apenas com atividade concluída.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Controlo" }));
+    expect(screen.getByText("Os seus dados de aprendizagem pertencem-lhe.")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Ativar tema escuro" }));
+    expect(localStorage.getItem("lingolive_color_scheme")).toBe("dark");
   });
 });
