@@ -1573,8 +1573,8 @@ function AppContent() {
     return (
       <div className={`min-h-screen flex font-sans transition-all duration-300 ${
         theme === 'kiditorial' 
-          ? 'theme-kiditorial bg-slate-50 text-slate-800' 
-          : 'theme-corporate bg-slate-50 text-slate-800'
+          ? 'theme-kiditorial bg-slate-50 text-slate-800 dark:bg-[#070b18] dark:text-slate-100'
+          : 'theme-corporate bg-slate-50 text-slate-800 dark:bg-[#070b18] dark:text-slate-100'
       }`} id="lingolive-root-app">
         <div className="flex-1 flex flex-col min-w-0">
           <PrivacyPolicy setView={setView} previousView="landing" />
@@ -1731,8 +1731,8 @@ function AppContent() {
   return (
     <div className={`min-h-screen flex font-sans transition-all duration-300 ${
       theme === 'kiditorial' 
-        ? 'theme-kiditorial bg-slate-50 text-slate-800' 
-        : 'theme-corporate bg-slate-50 text-slate-800'
+        ? 'theme-kiditorial bg-slate-50 text-slate-800 dark:bg-[#070b18] dark:text-slate-100'
+        : 'theme-corporate bg-slate-50 text-slate-800 dark:bg-[#070b18] dark:text-slate-100'
     }`} id="lingolive-root-app">
       {view !== 'subscription' && view !== 'onboarding' && view !== 'welcome' && view !== 'pagamentos' && view !== 'waiting-verification' && view !== 'suspended' && view !== 'privacy-policy' && (
         <Sidebar 

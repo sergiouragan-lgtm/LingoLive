@@ -1,5 +1,5 @@
 import React from 'react';
-import { Settings, UserCog, ShieldCheck, Sparkles, Lock, Target, Database, Trash2, RefreshCw, Bell, BellRing, BellOff, Clock, Smartphone, AlertCircle, Volume2, Globe, Languages, Sliders, MessageSquare, GraduationCap, Flame, Snowflake } from "lucide-react";
+import { Settings, UserCog, ShieldCheck, Sparkles, Lock, Target, Database, Trash2, RefreshCw, Bell, BellRing, BellOff, Clock, Smartphone, AlertCircle, Volume2, Globe, Languages, Sliders, MessageSquare, GraduationCap, Flame, Snowflake, Sun, Moon, Monitor } from "lucide-react";
 import { UserRole, AppView, Localization, SavedWord, StreakData } from '../../types';
 import { useLocalization } from '../../context/LocalizationContext';
 import { useAppTheme } from '../../context/ThemeContext';
@@ -42,6 +42,12 @@ interface SettingsViewProps {
   streakData?: StreakData;
   onProtectStreakWithPoints?: () => void;
 }
+
+const APPEARANCE_OPTIONS = {
+  light: { label: 'Editorial Claro', description: 'Luminoso e editorial', icon: Sun },
+  dark: { label: 'Índigo Atmosférico', description: 'Profundo e imersivo', icon: Moon },
+  system: { label: 'Sistema', description: 'Segue o dispositivo', icon: Monitor },
+} as const;
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
   role,
@@ -334,14 +340,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-10 w-full" id="settings-view">
+    <div className="max-w-4xl mx-auto px-6 py-10 w-full text-slate-800 dark:text-slate-100" id="settings-view">
       <div className="flex items-center gap-3 mb-8">
-        <div className="p-3 bg-indigo-50 rounded-2xl">
-          <Settings className="w-8 h-8 text-indigo-600" />
+        <div className="p-3 bg-indigo-50 dark:bg-indigo-500/15 rounded-2xl">
+          <Settings className="w-8 h-8 text-indigo-600 dark:text-indigo-300" />
         </div>
         <div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Configurações</h1>
-          <p className="text-sm text-slate-400 font-medium">Gerencie seu perfil, preferências e permissões.</p>
+          <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Configurações</h1>
+          <p className="text-sm text-slate-400 dark:text-slate-400 font-medium">Gerencie seu perfil, preferências e permissões.</p>
         </div>
       </div>
 
@@ -1216,25 +1222,40 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
         
         {/* Card: Aparência */}
-        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm col-span-1 md:col-span-2">
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm col-span-1 md:col-span-2">
           <div className="flex items-center gap-2 mb-4">
-            <Sliders className="w-5 h-5 text-indigo-600" />
-            <h3 className="text-lg font-bold text-slate-900">Aparência</h3>
+            <Sliders className="w-5 h-5 text-indigo-600 dark:text-indigo-300" />
+            <div>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Aparência</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Escolha um dos temas oficiais do LingoLIVE.</p>
+            </div>
           </div>
-          <div className="flex gap-4">
-            {(['light', 'dark', 'system'] as const).map((scheme) => (
-              <button
-                key={scheme}
-                onClick={() => setColorScheme(scheme)}
-                className={`flex-1 py-3 px-4 rounded-xl border-2 font-bold text-xs capitalize transition-all ${
-                  colorScheme === scheme
-                    ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                    : 'border-slate-200 hover:border-slate-300 text-slate-600'
-                }`}
-              >
-                {scheme}
-              </button>
-            ))}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {(Object.keys(APPEARANCE_OPTIONS) as Array<keyof typeof APPEARANCE_OPTIONS>).map((scheme) => {
+              const option = APPEARANCE_OPTIONS[scheme];
+              const Icon = option.icon;
+              const selected = colorScheme === scheme;
+              return (
+                <button
+                  type="button"
+                  key={scheme}
+                  aria-label={`Tema ${option.label}`}
+                  aria-pressed={selected}
+                  onClick={() => setColorScheme(scheme)}
+                  className={`flex items-center gap-3 py-3 px-4 rounded-xl border-2 text-left transition-all ${
+                    selected
+                      ? 'border-indigo-600 bg-indigo-50 text-indigo-700 dark:border-indigo-400 dark:bg-indigo-500/15 dark:text-indigo-200'
+                      : 'border-slate-200 hover:border-slate-300 text-slate-600 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <Icon className="w-4 h-4 shrink-0" />
+                  <span className="min-w-0">
+                    <span className="block text-xs font-bold leading-tight">{option.label}</span>
+                    <span className="block text-[10px] font-medium opacity-70 mt-0.5">{option.description}</span>
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
