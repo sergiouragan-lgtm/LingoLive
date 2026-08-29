@@ -125,7 +125,8 @@ describe("LearningMemoryPanel helpers", () => {
     fireEvent.click(screen.getByRole("button", { name: "Controlo" }));
     expect(screen.getByText("Os seus dados de aprendizagem pertencem-lhe.")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Ativar tema escuro" }));
+    expect(document.querySelector('[data-memory-theme="editorial-light"]')).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Ativar tema Índigo Atmosférico" }));
     expect(localStorage.getItem("lingolive_color_scheme")).toBe("dark");
   });
 });

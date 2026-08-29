@@ -16,28 +16,27 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+export const normalizeColorScheme = (value: string | null): ColorScheme =>
+  value === 'light' || value === 'dark' || value === 'system' ? value : 'system';
+
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [age, setAgeState] = useState<number | null>(() => {
     const cached = localStorage.getItem('lingolive_student_age');
     return cached ? Number(cached) : null;
   });
   const [colorScheme, setColorSchemeState] = useState<ColorScheme>(() => {
-    return (localStorage.getItem('lingolive_color_scheme') as ColorScheme) || 'system';
+    return normalizeColorScheme(localStorage.getItem('lingolive_color_scheme'));
   });
   const [loading, setLoading] = useState(true);
 
-  // Apply dark mode class
+  // Apply the approved light/dark theme and follow OS changes while in system mode.
   useEffect(() => {
     const root = window.document.documentElement;
-    const isDark =
-      colorScheme === 'dark' ||
-      (colorScheme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-
-    if (isDark) {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const applyScheme = () => root.classList.toggle('dark', colorScheme === 'dark' || (colorScheme === 'system' && media.matches));
+    applyScheme();
+    if (colorScheme === 'system') media.addEventListener('change', applyScheme);
+    return () => media.removeEventListener('change', applyScheme);
   }, [colorScheme]);
 
   const setColorScheme = (scheme: ColorScheme) => {
