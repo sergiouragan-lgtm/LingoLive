@@ -18,6 +18,15 @@ export async function listPublishedItems() {
     .map(([key, value]) => publicMarketplaceItem(key.slice("marketplace_items_".length), value));
 }
 
+export async function listMarketplaceItemsByStatus(status: string) {
+  if (dbAdmin && process.env.VITEST !== "true" && process.env.NODE_ENV !== "test") {
+    const snap = await dbAdmin.collection("marketplace_items").where("status", "==", status).limit(100).get();
+    return snap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+  }
+  if (!volatileAllowed) throw new Error("MARKETPLACE_STORAGE_UNAVAILABLE");
+  return [...localMemoryDb.entries()].filter(([key, value]) => key.startsWith("marketplace_items_") && value.status === status).map(([key, value]) => ({ id: key.slice("marketplace_items_".length), ...value }));
+}
+
 export async function listOwned(collection: "marketplace_items" | "marketplace_entitlements", uid: string) {
   const ownerField = collection === "marketplace_items" ? "creatorId" : "userId";
   if (dbAdmin && process.env.VITEST !== "true" && process.env.NODE_ENV !== "test") {

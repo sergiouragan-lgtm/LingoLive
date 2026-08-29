@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import { Router } from "express";
 import { requireAuth } from "../middleware/requireAuth";
-import { acquireMarketplaceItem, getMarketplaceItem, listOwned, listPublishedItems, saveMarketplaceItem } from "../services/marketplace.repository";
+import { acquireMarketplaceItem, getMarketplaceItem, listMarketplaceItemsByStatus, listOwned, listPublishedItems, saveMarketplaceItem } from "../services/marketplace.repository";
 import { validateIdempotencyKey, validateMarketplaceItem } from "../services/marketplace.service";
 import { safeGetDoc } from "../services/firestoreSafe.service";
 
@@ -58,6 +58,12 @@ router.post("/admin/items/:itemId/moderate", requireAuth, async (req: any, res) 
   if (!item || item.status !== "IN_REVIEW") return res.status(404).json({ error: "Produto em revisão não encontrado." });
   await saveMarketplaceItem(req.params.itemId, { status: decision, rejectionReason: reason, moderatedBy: req.user.uid, moderatedAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
   res.json({ id: req.params.itemId, status: decision });
+});
+
+router.get("/admin/review-queue", requireAuth, async (req: any, res) => {
+  if (!privilegedRole(await resolvedRole(req.user))) return res.status(403).json({ error: "Permissão de moderação necessária." });
+  try { res.json({ items: await listMarketplaceItemsByStatus("IN_REVIEW") }); }
+  catch { res.status(503).json({ error: "Fila de moderação indisponível." }); }
 });
 
 router.post("/items/:itemId/acquire", requireAuth, async (req: any, res) => {

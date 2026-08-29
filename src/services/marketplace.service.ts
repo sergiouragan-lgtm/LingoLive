@@ -8,5 +8,7 @@ export const marketplaceService = {
   creatorItems: async () => (await authenticatedFetch("/creator/items")).items as MarketplaceItemDto[],
   createItem: async (item: any) => authenticatedFetch("/creator/items", { method: "POST", body: JSON.stringify(item) }),
   submitItem: async (id: string) => authenticatedFetch(`/creator/items/${encodeURIComponent(id)}/submit`, { method: "POST" }),
+  reviewQueue: async () => (await authenticatedFetch("/admin/review-queue")).items as MarketplaceItemDto[],
+  moderate: async (id: string, decision: "APPROVE" | "REJECT", reason = "") => authenticatedFetch(`/admin/items/${encodeURIComponent(id)}/moderate`, { method: "POST", body: JSON.stringify({ decision, reason }) }),
   acquire: async (id: string) => authenticatedFetch(`/items/${encodeURIComponent(id)}/acquire`, { method: "POST", headers: { "Idempotency-Key": crypto.randomUUID() } }),
 };
