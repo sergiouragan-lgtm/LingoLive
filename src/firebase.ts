@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
+import { getStorage } from 'firebase/storage';
 import { 
   initializeFirestore, 
   memoryLocalCache,
@@ -28,6 +29,7 @@ try {
 export const db = firestoreInstance;
 
 export const auth = getAuth();
+export const storage = getStorage(app);
 
 export enum OperationType {
   CREATE = 'create',

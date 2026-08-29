@@ -8,7 +8,6 @@ import { NeuralMemoryEngine } from "../../src/types/neuralMemoryEngine";
 import { COUNTRY_DETAILS } from "../../src/data/localizationData";
 import { MemoriaCognitiva } from "../../src/types/neuralMemory";
 import { orchestrateAI } from "../aiOrchestrator";
-import { sendCertificateEmail } from "../services/email.service";
 import { textoParaVoz } from "../services/tts.service";
 import { Timestamp } from "firebase-admin/firestore";
 import {
@@ -19,6 +18,8 @@ import {
 import { getExplanationPrompt, getFeedbackPrompt } from "../services/aiPrompts.service";
 import { AIEngineOrchestrator } from "../services/learning/AIEngineOrchestrator";
 import { scoreAssessment, validateGeneratedQuestions } from "../services/assessmentScoring.service";
+import { validateCmsExerciseRequest, validateGeneratedCmsExercises } from "../services/cmsExercise.service";
+import { validateCmsMediaInput, validateCmsMediaAnalysis } from "../services/cmsMedia.service";
 
 const router = Router();
 const phraseCache = new LRUCache<string, any>({ max: 500 });
@@ -44,105 +45,6 @@ const learningOrchestrator = new AIEngineOrchestrator(
   },
   orchestrateAI,
 );
-
-// Smart Local Fallback generators for high availability when API quotas are exceeded
-function getLocalPhraseExplanation(phrase: string, language: string) {
-  const norm = phrase.toLowerCase().trim();
-  const phrasesDict: Record<string, any> = {
-    "bom dia": {
-      meaning: "Good morning",
-      pronunciation: "BOHNG DEE-ah",
-      grammarNote: "A standard polite morning greeting used in Portuguese-speaking regions.",
-      exampleOriginal: "Bom dia, como você está?",
-      exampleTranslation: "Good morning, how are you?"
-    },
-    "obrigado": {
-      meaning: "Thank you",
-      pronunciation: "oh-bree-GAH-doo",
-      grammarNote: "Used by male speakers. Female speakers should use 'obrigada'.",
-      exampleOriginal: "Muito obrigado pela ajuda!",
-      exampleTranslation: "Thank you very much for the help!"
-    },
-    "com licença": {
-      meaning: "Excuse me",
-      pronunciation: "cohm lee-SEN-sah",
-      grammarNote: "Used to politely request passage or get someone's attention.",
-      exampleOriginal: "Com licença, onde fica a escola?",
-      exampleTranslation: "Excuse me, where is the school?"
-    },
-    "por favor": {
-      meaning: "Please",
-      pronunciation: "poor fah-VOHR",
-      grammarNote: "A standard courtesy formula used in requests.",
-      exampleOriginal: "Um copo de água, por favor.",
-      exampleTranslation: "A glass of water, please."
-    }
-  };
-
-  if (phrasesDict[norm]) {
-    return {
-      ...phrasesDict[norm],
-      maturityLevel: "Infantil",
-      category: "Geral"
-    };
-  }
-
-  const cleanPhrase = phrase.replace(/[?.,!]/g, "").trim();
-  return {
-    meaning: `Expression/Word in ${language}`,
-    pronunciation: `[Phonetic: ${cleanPhrase}]`,
-    grammarNote: `Interactive practice phrase for vocabulary building in ${language}.`,
-    exampleOriginal: `Vamos praticar a expressão "${phrase}".`,
-    exampleTranslation: `Let's practice the expression "${phrase}".`,
-    maturityLevel: "Adulto",
-    category: "Geral"
-  };
-}
-
-function getLocalAngolanResponse(msg: string, memory: any) {
-  const norm = msg.toLowerCase();
-  let text = "";
-  let correction = "";
-  let word = "Kamba";
-  let meaning = "Amigo / Companheiro";
-
-  if (norm.includes("olá") || norm.includes("oi") || norm.includes("bom dia") || norm.includes("boa tarde") || norm.includes("olã")) {
-    text = "Olá, meu kamba! Tudo bem contigo? É um prazer enorme estar aqui a conversar contigo sobre a nossa terra e a nossa cultura angolana. Como vão as coisas por aí?";
-  } else if (norm.includes("comida") || norm.includes("comer") || norm.includes("gastronomia") || norm.includes("funge") || norm.includes("calulu")) {
-    text = "Ah, falar de comida em Angola é falar do nosso funge! Funge de bombo ou de milho, acompanhado com um calulu de peixe ou carne seca, ou um muamba de galinha bem gostoso! Já provaste, mano?";
-    word = "Funge";
-    meaning = "Prato tradicional de Angola feito com farinha de mandioca ou milho cozida.";
-  } else if (norm.includes("música") || norm.includes("dança") || norm.includes("semba") || norm.includes("kizomba") || norm.includes("kuduro")) {
-    text = "A música corre nas veias de Angola, mano! O Semba é a nossa alma, a Kizomba espalhou o nosso ritmo pelo mundo inteiro, e o Kuduro dá aquela energia incrível. Que estilo gostas mais?";
-    word = "Semba";
-    meaning = "Estilo de música e dança tradicional angolana, antecessor do samba.";
-  } else if (norm.includes("gíria") || norm.includes("calão") || norm.includes("expressão") || norm.includes("falar") || norm.includes("gírias")) {
-    text = "Aqui em Angola usamos muito calão fixe! Por exemplo, 'kamba' é amigo, 'bazar' é ir embora, e 'está fixe' significa está bom. Estás a apanhar bem o ritmo?";
-    word = "Fixe";
-    meaning = "Expressão informal para algo muito bom, legal, espetacular.";
-  } else {
-    text = "Estou a perceber muito bem o teu ponto, meu kamba! Estás a progredir muito bem. Conversar contigo assim faz com que o teu nível de fluidez melhore a cada dia. O que mais gostarias de saber sobre Luanda ou a nossa cultura?";
-  }
-
-  if (norm.includes("eu querer") || norm.includes("nós vai")) {
-    correction = "Lembra-te de conjugar o verbo corretamente: 'eu quero' ou 'nós vamos'. Mas continuas a falar muito bem, mano!";
-  }
-
-  return {
-    respostaAI: text,
-    correcaoPedagogica: correction || null,
-    aprendizadoMaquina: {
-      nivelEstimado: memory.nivelAtual || "Iniciante",
-      vocabularioRetido: [word],
-      pontosDeAtencao: "Foco na concordância verbal e pronúncia das vogais abertas.",
-      engajamentoCultural: 5
-    },
-    vocabularioDoDia: {
-      termo: word,
-      significado: meaning
-    }
-  };
-}
 
 // 1. API endpoint for instant word/phrase translation and explanation with rate limiter
 router.post("/explain-phrase", requireAuth, explainPhraseLimiter, async (req: any, res) => {
@@ -196,14 +98,12 @@ router.post("/explain-phrase", requireAuth, explainPhraseLimiter, async (req: an
     phraseCache.set(cacheKey, result);
     res.json(result);
   } catch (error: any) {
-    console.warn("Gemini explain-phrase call failed, using smart local database fallback:", error.message);
-    const mockData = getLocalPhraseExplanation(phrase, language);
-    if (parsedAge < 12) {
-      mockData.maturityLevel = "Infantil";
-    } else if (parsedAge < 18) {
-      mockData.maturityLevel = "Adolescente";
-    }
-    res.json(mockData);
+    console.warn("Gemini explain-phrase call failed:", error.message);
+    res.status(503).json({
+      error: "PHRASE_EXPLANATION_UNAVAILABLE",
+      message: "A explicação real está temporariamente indisponível.",
+      retryable: true,
+    });
   }
 });
 
@@ -306,51 +206,12 @@ router.post("/feedback", requireAuth, feedbackLimiter, async (req: any, res) => 
 
     res.json(result);
   } catch (error: any) {
-    console.warn("Gemini feedback analysis failed, using local high-availability state:", error.message);
-    const mockFeedback = {
-      overallScore: 82,
-      fluencyLevel: proficiency || "A1",
-      strengths: ["Vocabulário apropriado para o cenário", "Respostas calorosas e gentis"],
-      grammarMistakes: [],
-      vocabularyTips: [
-        {
-          word: "Kamba",
-          definition: "Friend or partner in Kimbundu / Angolan Portuguese.",
-          suggestion: "Use this to show friendship and cultural appreciation in Angola."
-        }
-      ],
-      pronunciationTips: ["Continue praticando as vogais nasais.", "Muito boa articulação no sotaque geral."],
-      pronunciationAnalysis: [
-        {
-          word: "Kamba",
-          userPhonetic: "kam-bah",
-          nativePhonetic: "KAHM-bah",
-          tip: "Position your tongue flat and slightly back on the 'm' sound for a fuller resonant tone, and make the 'a' sound more nasalized as is typical in Angolan Portuguese."
-        },
-        {
-          word: "Funge",
-          userPhonetic: "fun-jee",
-          nativePhonetic: "FOON-jeh",
-          tip: "Keep the ending 'e' closed and short, almost sounding like an 'eh'. Do not pronounce it as a long English 'ee' sound."
-        }
-      ],
-      encouragingSummary: "Maravilhoso progresso! O teu fluxo de conversação está fantástico e o uso de termos locais está cada vez mais natural. Continua a praticar diariamente com o Kamba IA para consolidar a tua fluência!"
-    };
-
-    try {
-      await safeAddDoc("analytics", {
-        alunoId: userUid,
-        detected_error: "Sem erros gramaticais expressivos nesta sessão (Fallback).",
-        correction: "Excelente fluidez verbal.",
-        pedagogical_note: mockFeedback.encouragingSummary,
-        planId,
-        timestamp: Timestamp.now()
-      });
-    } catch (e) {
-      console.error("Failed to log fallback analytic to database:", e);
-    }
-
-    res.json(mockFeedback);
+    console.warn("Gemini feedback analysis failed:", error.message);
+    res.status(503).json({
+      error: "CONVERSATION_FEEDBACK_UNAVAILABLE",
+      message: "A análise real da conversa está temporariamente indisponível. Nenhuma nota foi gravada.",
+      retryable: true,
+    });
   }
 });
 
@@ -649,8 +510,12 @@ Responda APENAS em formato JSON, exatamente assim:
       });
       resultadoJSON = JSON.parse(response.text || "{}");
     } catch (error: any) {
-      console.warn("Gemini ia-live call failed, using high-availability local Kamba AI response:", error.message);
-      resultadoJSON = getLocalAngolanResponse(mensagemUsuario, memory);
+      console.warn("Gemini ia-live call failed:", error.message);
+      return res.status(503).json({
+        error: "KAMBA_AI_UNAVAILABLE",
+        message: "O tutor cultural real está temporariamente indisponível.",
+        retryable: true,
+      });
     }
 
     const oldLevel = memory.nivelAtual;
@@ -658,13 +523,16 @@ Responda APENAS em formato JSON, exatamente assim:
 
     await safeSetDoc("neuralMemory", alunoId, memoriaAtualizada);
 
-    if (memoriaAtualizada.nivelAtual !== oldLevel && alunoData?.emailPai) {
-        try {
-            const placeholderUrl = "https://example.com/placeholder-certificado.pdf";
-            await sendCertificateEmail(alunoData.emailPai, alunoData.nome || "Aluno", placeholderUrl);
-        } catch (e) {
-            console.error("Erro ao enviar certificado:", e);
-        }
+    if (memoriaAtualizada.nivelAtual !== oldLevel) {
+      await safeAddDoc("certificate_delivery_events", {
+        userId: alunoId,
+        recipientEmail: alunoData?.emailPai || null,
+        previousLevel: oldLevel,
+        achievedLevel: memoriaAtualizada.nivelAtual,
+        status: "pending_document",
+        reason: "Aguardando emissão e persistência do certificado oficial.",
+        createdAt: new Date().toISOString(),
+      });
     }
 
     let audioBase64 = "";
@@ -694,12 +562,9 @@ Responda APENAS em formato JSON, exatamente assim:
 });
 
 // CMS AI Generator Route - Generates high-quality language learning exercises
-router.post("/cms/generate-exercise", async (req: any, res) => {
+router.post("/cms/generate-exercise", requireAuth, async (req: any, res) => {
   try {
-    const { language, proficiency, topic, type } = req.body;
-    if (!language || !proficiency || !topic || !type) {
-      return res.status(400).json({ error: "Language, proficiency, topic, and type are required." });
-    }
+    const { language, proficiency, topic, type } = validateCmsExerciseRequest(req.body);
 
     const systemInstruction = `You are an expert language content developer. Generate language learning exercises.
 Return a JSON array containing 3 distinct exercises.
@@ -733,167 +598,123 @@ Type of Question: ${type} (can be: 'multiple-choice', 'true-false', 'fill-in-bla
       });
 
       const parsedJSON = JSON.parse(response.text || "[]");
-      res.status(200).json({ exercises: parsedJSON });
+      const generated = validateGeneratedCmsExercises(parsedJSON, type);
+      const createdAt = new Date().toISOString();
+      const exercises = generated.map((exercise, index) => ({
+        ...exercise,
+        id: `ex_ai_${Date.now()}_${index}_${Math.random().toString(36).substring(2, 7)}`,
+        language,
+        proficiency,
+        topic,
+        type,
+        source: "gemini",
+        status: "Draft",
+        createdBy: req.user.uid,
+        createdAt,
+      }));
+      for (const exercise of exercises) await safeSetDoc("exercises", exercise.id, exercise);
+      res.status(200).json({ exercises });
     } catch (apiError: any) {
-      console.warn("Gemini call for CMS exercise generation failed. Using premium local simulation database fallback:", apiError.message);
-      
-      // Smart Fallback Questions
-      const simulatedFallbacks: Record<string, any[]> = {
-        "multiple-choice": [
-          {
-            "id": "mc_local_1",
-            "question": `Qual é a opção que traduz corretamente '${topic}' para ${language}?`,
-            "options": ["Opção Correta", "Opção Incorreta A", "Opção Incorreta B", "Opção Incorreta C"],
-            "answer": "Opção Correta",
-            "explanation": "Explicação pedagógica automática sobre a concordância e vocabulário contextualizado.",
-            "difficulty": proficiency,
-            "tags": [topic.toLowerCase().replace(/\s+/g, '_'), "vocabulary"]
-          },
-          {
-            "id": "mc_local_2",
-            "question": `Completa a frase correspondente ao nível ${proficiency}: "Nós __________ a Angola no próximo mês."`,
-            "options": ["vamos", "ir", "fomos", "iremos"],
-            "answer": "vamos",
-            "explanation": "Em português, a locução de futuro imediato usa o presente do verbo ir + infinitivo.",
-            "difficulty": proficiency,
-            "tags": ["grammar", "verbs"]
-          }
-        ],
-        "true-false": [
-          {
-            "id": "tf_local_1",
-            "question": `A palavra '${topic}' é usada como um termo formal no idioma ${language}?`,
-            "options": ["Verdadeiro", "Falso"],
-            "answer": "Falso",
-            "explanation": "Este termo é comumente classificado como linguagem coloquial ou regional de nível intermédio.",
-            "difficulty": proficiency,
-            "tags": ["vocabulary", "formal-usage"]
-          }
-        ],
-        "fill-in-blanks": [
-          {
-            "id": "fib_local_1",
-            "question": `Preenche o espaço: "O kamba de Angola gosta muito de comer [_____] com peixe seco."`,
-            "options": [],
-            "answer": "funge",
-            "explanation": "O funge é o prato tradicional angolano mais célebre feito de mandioca ou milho.",
-            "difficulty": proficiency,
-            "tags": ["culture", "angola"]
-          }
-        ]
-      };
-
-      const selectedFallback = simulatedFallbacks[type] || simulatedFallbacks["multiple-choice"];
-      res.status(200).json({ exercises: selectedFallback });
+      console.warn("Gemini CMS exercise generation unavailable:", apiError.message);
+      return res.status(503).json({
+        error: "CMS_EXERCISE_GENERATION_UNAVAILABLE",
+        message: "A geração real de exercícios está temporariamente indisponível. Nenhum conteúdo foi criado.",
+        retryable: true,
+      });
     }
   } catch (error: any) {
     console.error("Error in generating CMS exercises:", error);
-    res.status(500).json({ error: "Falha ao gerar exercícios de CMS" });
+    const invalid = String(error?.message || "").startsWith("INVALID_CMS_EXERCISE_REQUEST");
+    res.status(invalid ? 400 : 500).json({ error: invalid ? "Parâmetros de geração inválidos." : "Falha ao gerar exercícios de CMS" });
   }
 });
 
-// Simulated Storage and Cloud Functions API - Analyzes uploaded media using Gemini or robust local heuristics
-router.post("/cms/media-analyze", async (req: any, res) => {
+// Analyze an actual CMS media file already uploaded to Firebase Storage.
+router.post("/cms/media-analyze", requireAuth, async (req: any, res) => {
   try {
-    const { mediaType, fileName, fileUrl } = req.body;
-    if (!mediaType || !fileName) {
-      return res.status(400).json({ error: "Media type and file name are required." });
-    }
-
+    const input = validateCmsMediaInput(req.body);
     const timestamp = new Date().toISOString();
-    const systemInstruction = `You are a high-performance Cloud Functions analyzer for an Educational CMS.
-Analyze the file name and return a structured JSON configuration mimicking Cloud Functions and Whisper API auto-transcription/OCR pipelines.
-Do NOT wrap output in code blocks, return pure JSON.
-
-The response schema MUST be:
-{
-  "suggestedTitle": "string (a polished user-friendly title)",
-  "tags": ["array of 3 suggested tags"],
-  "whisperTranscript": "string (if mediaType is 'audio' or 'video', simulate Whisper API transcription. Else if image/pdf, extract hypothetical OCR text or summaries. Max 2 sentences)",
-  "suggestedMetadata": {
-    "language": "string (Portuguese / English / etc.)",
-    "proficiency": "Beginner" | "Intermediate" | "Advanced",
-    "estimatedDuration": "string (e.g. 5 min, 12 min)",
-    "description": "string (one-sentence description of the content)"
-  }
-}`;
-
-    const promptText = `Analyze this file and simulate Whisper API transcription or Image OCR/classification:
-File Name: ${fileName}
-Media Type: ${mediaType}
-URL: ${fileUrl || 'Local Workspace Blob'}`;
-
-    let resultJSON;
+    let response;
     try {
-      const response = await generateContentWithRetry({
-        model: 'gemini-3.6-flash',
-        contents: [{ role: 'user', parts: [{ text: promptText }] }],
+      response = await generateContentWithRetry({
+        model: "gemini-3.6-flash",
+        contents: [
+          { inlineData: { mimeType: input.mimeType, data: input.cleanBase64 } },
+          { text: `Analyze this real educational file. File name: ${input.fileName}. Media type: ${input.mediaType}.` },
+        ],
         config: {
-          systemInstruction: systemInstruction,
-          responseMimeType: "application/json"
-        }
+          systemInstruction: `You are an educational media analyst. Inspect only the supplied file bytes.
+For audio/video, transcribe the audible speech. For images/PDFs, extract visible text and summarize it.
+Never invent content that is not present. Return strict JSON metadata.`,
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              suggestedTitle: { type: Type.STRING },
+              tags: { type: Type.ARRAY, items: { type: Type.STRING } },
+              whisperTranscript: { type: Type.STRING },
+              suggestedMetadata: {
+                type: Type.OBJECT,
+                properties: {
+                  language: { type: Type.STRING },
+                  proficiency: { type: Type.STRING },
+                  estimatedDuration: { type: Type.STRING },
+                  description: { type: Type.STRING },
+                },
+                required: ["language", "proficiency", "estimatedDuration", "description"],
+              },
+            },
+            required: ["suggestedTitle", "tags", "whisperTranscript", "suggestedMetadata"],
+          },
+        },
       });
-      resultJSON = JSON.parse(response.text || "{}");
-    } catch (apiError: any) {
-      console.warn("Gemini call for media analyzer failed, using high-availability local rules:", apiError.message);
-      
-      // Robust fallbacks based on files
-      let suggestedTitle = fileName.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
-      suggestedTitle = suggestedTitle.charAt(0).toUpperCase() + suggestedTitle.slice(1);
-      
-      let tags = ["aula", "multimédia", "lingolive"];
-      let transcript = "Documento ou imagem analisados com sucesso pelo motor integrado.";
-      let estDur = "5 min";
-
-      if (mediaType === "audio" || mediaType === "video") {
-        tags = ["áudio-aula", "compreensão-oral", "pronúncia"];
-        transcript = "[Whisper API Transcrição Automática]: Olá a todos! Bem-vindos ao LingoLive. Hoje vamos abordar expressões cotidianas e culturais em Angola.";
-        estDur = "10 min";
-      } else if (mediaType === "image") {
-        tags = ["visual", "vocabulário-gráfico", "ilustração"];
-        transcript = "[OCR/Vision AI]: Imagem contendo ilustrações pedagógicas para identificação de objetos e ações do dia-a-dia.";
-        estDur = "3 min";
-      } else if (mediaType === "pdf") {
-        tags = ["leitura", "gramática", "pdf-exercícios"];
-        transcript = "[PDF Parser]: Sumário executivo da lição contendo explicações gramaticais detalhadas de nível intermédio e fichas de exercícios adicionais.";
-        estDur = "15 min";
-      }
-
-      resultJSON = {
-        suggestedTitle,
-        tags,
-        whisperTranscript: transcript,
-        suggestedMetadata: {
-          language: "Português (Angola)",
-          proficiency: "Intermediate",
-          estimatedDuration: estDur,
-          description: `Recurso educativo do tipo ${mediaType} processado automaticamente.`
-        }
-      };
+    } catch (error: any) {
+      console.warn("Real CMS media analysis unavailable:", error.message);
+      return res.status(503).json({
+        error: "CMS_MEDIA_ANALYSIS_UNAVAILABLE",
+        message: "A análise real do ficheiro está temporariamente indisponível. Nenhum recurso foi catalogado.",
+        retryable: true,
+      });
     }
 
-    // Generate real-time Cloud Functions logs
-    const processingLogs = [
-      `[${timestamp}] 🚀 Cloud Function "onMediaUploadedTrigger" started.`,
-      `[${timestamp}] 📁 Detected resource type: "${mediaType}" | FileName: "${fileName}"`,
-      mediaType === "audio" || mediaType === "video" 
-        ? `[${timestamp}] 🎙️ Routing to Whisper API v3 for high-fidelity audio transcription...`
-        : `[${timestamp}] 👁️ Routing to Google Cloud Vision API for OCR and visual tagging...`,
-      `[${timestamp}] 🧠 Correlating context with LLM Metadata Generator...`,
-      `[${timestamp}] 🏷️ Automatically generated tags: ${JSON.stringify(resultJSON.tags)}`,
-      `[${timestamp}] ✅ Processing complete. Firestore document updated securely.`
-    ];
+    const analysis = validateCmsMediaAnalysis(JSON.parse(response.text || "{}"));
+    const assetId = `media_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    const asset = {
+      id: assetId,
+      title: analysis.suggestedTitle || input.title,
+      fileName: input.fileName,
+      type: input.mediaType,
+      mimeType: input.mimeType,
+      size: `${(input.sizeBytes / (1024 * 1024)).toFixed(2)} MB`,
+      sizeBytes: input.sizeBytes,
+      tags: analysis.tags,
+      url: input.fileUrl,
+      whisperTranscript: analysis.whisperTranscript,
+      suggestedMetadata: analysis.suggestedMetadata,
+      author: req.user.name || req.user.email || req.user.uid,
+      createdBy: req.user.uid,
+      status: "active",
+      analysisSource: "gemini",
+      createdAt: timestamp,
+      analyzedAt: timestamp,
+    };
+    await safeSetDoc("media_assets", assetId, asset);
 
-    res.status(200).json({
-      ...resultJSON,
-      processingLogs,
-      processedAt: timestamp,
-      status: "success"
+    return res.status(200).json({
+      asset,
+      processingLogs: [
+        `[${timestamp}] Upload confirmado no Firebase Storage.`,
+        `[${timestamp}] Bytes reais analisados pelo Gemini.`,
+        `[${timestamp}] Metadados validados e recurso catalogado no Firestore.`,
+      ],
+      status: "success",
     });
-
   } catch (error: any) {
-    console.error("Error in media analysis function:", error);
-    res.status(500).json({ error: "Falha ao processar análise de mídia" });
+    console.error("Error in CMS media analysis:", error);
+    const invalid = String(error?.message || "").startsWith("INVALID_CMS_MEDIA_");
+    return res.status(invalid ? 400 : 500).json({
+      error: invalid ? "Ficheiro ou metadados inválidos." : "Falha ao processar análise de mídia",
+    });
   }
 });
 

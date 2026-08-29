@@ -2,7 +2,7 @@ import { Router } from "express";
 import { ai, generateContentWithRetry } from "../config/gemini";
 import { Type } from "@google/genai";
 import { requireAuth } from "../middleware/requireAuth";
-import { safeGetDoc, safeSetDoc, safeQueryDocs, localMemoryDb } from "../services/firestoreSafe.service";
+import { safeAddDoc, safeGetDoc, safeSetDoc, safeQueryDocs, localMemoryDb } from "../services/firestoreSafe.service";
 
 const router = Router();
 
@@ -282,9 +282,20 @@ router.post("/submit", requireAuth, async (req: any, res) => {
         language: exam.language,
         scorePercent,
         issueDate: new Date().toISOString(),
-        verificationCode: `LL-VAL-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+        verificationCode: `LL-VAL-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+        documentStatus: "pending",
+        deliveryStatus: "not_sent",
+        documentUrl: null,
       };
       await safeSetDoc("assessment_certificates", certificate.id, certificate);
+      await safeAddDoc("certificate_audit_events", {
+        certificateId: certificate.id,
+        userId,
+        actorId: userId,
+        action: "CERTIFICATE_ISSUED",
+        result: "success",
+        createdAt: certificate.issueDate,
+      });
       
       const certKey = `assessment_certificates_list_${userId}`;
       const userCerts = localMemoryDb.get(certKey) || [];

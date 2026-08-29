@@ -6,6 +6,7 @@ import { dbAdmin } from "../../config/firebaseAdmin";
 import { buildTutorSessionContext } from "../../../src/features/tutor/tutorSessionContextBuilder";
 import { composeTutorSystemInstruction } from "../../../src/features/tutor/tutorPromptComposer";
 import { resolveServerSideAgeGroup, buildAgeSafetyDirective, getSafetySettingsForAgeGroup } from "../childSafety.service";
+import { AIProviderError, normalizeProviderError } from "./orchestration/errors/AIProviderError";
 
 // Supported languages definition
 export type SupportedLanguage = "pt" | "en" | "fr" | "zh";
@@ -79,55 +80,11 @@ export interface ConversationSession {
 }
 
 export class MultilingualConversationEngine {
-  private aiClient: GoogleGenAI;
-  private fallbackResponses: Record<SupportedLanguage, any> = {
-    en: {
-      reply: "Excellent! Let's continue our conversation. How has your day been so far?",
-      topic: "general",
-      topicSwitched: false,
-      grammarCorrection: { hasMistake: false },
-      vocabularySuggestions: [{ original: "good", suggested: "splendid", context: "To sound more descriptive." }],
-      pronunciationHints: [{ word: "Excellent", phonetic: "EK-suh-lunt", tip: "Place stress on the first syllable." }],
-      turnScore: { grammar: 95, fluency: 90, vocabulary: 85, topicRelevance: 100, overall: 92 },
-      voiceGuidance: { recommendedVoiceRate: 1.0, intonationFocus: "friendly rise", estimatedSpeechDurationSeconds: 3.5 }
-    },
-    pt: {
-      reply: "Fantástico! Vamos continuar a nossa conversa. Como tem corrido o seu dia?",
-      topic: "geral",
-      topicSwitched: false,
-      grammarCorrection: { hasMistake: false },
-      vocabularySuggestions: [{ original: "bom", suggested: "esplêndido", context: "Para soar mais descritivo." }],
-      pronunciationHints: [{ word: "Fantástico", phonetic: "fan-TÁS-tee-co", tip: "Enfatize a sílaba tónica 'TÁS'." }],
-      turnScore: { grammar: 95, fluency: 90, vocabulary: 85, topicRelevance: 100, overall: 92 },
-      voiceGuidance: { recommendedVoiceRate: 1.0, intonationFocus: "amigável", estimatedSpeechDurationSeconds: 3.5 }
-    },
-    fr: {
-      reply: "Merveilleux! Continuons notre conversation. Comment se passe votre journée?",
-      topic: "général",
-      topicSwitched: false,
-      grammarCorrection: { hasMistake: false },
-      vocabularySuggestions: [{ original: "bien", suggested: "magnifique", context: "Pour être plus expressif." }],
-      pronunciationHints: [{ word: "Merveilleux", phonetic: "mair-vay-yuh", tip: "La finale est douce." }],
-      turnScore: { grammar: 95, fluency: 90, vocabulary: 85, topicRelevance: 100, overall: 92 },
-      voiceGuidance: { recommendedVoiceRate: 0.9, intonationFocus: "ton ascendant", estimatedSpeechDurationSeconds: 4.0 }
-    },
-    zh: {
-      reply: "太棒了！让我们继续聊聊。你今天过得怎么样？",
-      topic: "general",
-      topicSwitched: false,
-      grammarCorrection: { hasMistake: false },
-      vocabularySuggestions: [{ original: "好", suggested: "极好", context: "更丰富的口语表达。" }],
-      pronunciationHints: [{ word: "太棒了", phonetic: "Tài bàng le", tip: "注意去声(第四声)的发音。" }],
-      turnScore: { grammar: 95, fluency: 90, vocabulary: 85, topicRelevance: 100, overall: 92 },
-      voiceGuidance: { recommendedVoiceRate: 1.0, intonationFocus: "natural tones", estimatedSpeechDurationSeconds: 3.0 }
-    }
-  };
+  private aiClient: GoogleGenAI | null = null;
 
   constructor() {
     const apiKey = AI_CONFIG.providers.google.apiKey || process.env.GEMINI_API_KEY;
-    this.aiClient = new GoogleGenAI({
-      apiKey: apiKey || "MOCK_KEY"
-    });
+    if (apiKey) this.aiClient = new GoogleGenAI({ apiKey });
   }
 
   /**
@@ -248,12 +205,11 @@ Estruture a resposta OBRIGATORIAMENTE no seguinte formato JSON (sem blocos exter
     const promptMessage = `Histórico de Conversas Prévias:\n${historySummary}\n\nMensagem recente do Aluno: "${request.userMessage}"`;
 
     if (!AI_CONFIG.providers.google.apiKey && !process.env.GEMINI_API_KEY) {
-      AIOrchestrationLogger.warn("Gemini API Key missing for Multilingual Engine. Providing high-availability mock payload.");
-      return this.fallbackResponses[request.targetLanguage] || this.fallbackResponses.en;
+      throw new AIProviderError("AI_PROVIDER_NOT_CONFIGURED", "google", "GEMINI_API_KEY is not configured.", false);
     }
 
     try {
-      const response = await this.aiClient.models.generateContent({
+      const response = await this.aiClient!.models.generateContent({
         model: "gemini-3.5-flash",
         contents: promptMessage,
         config: {
@@ -279,7 +235,7 @@ Estruture a resposta OBRIGATORIAMENTE no seguinte formato JSON (sem blocos exter
 
     } catch (error: any) {
       AIOrchestrationLogger.error(`Failed to process turn in Multilingual Engine: ${error.message}`, error, "MultilingualConversationEngine");
-      return this.fallbackResponses[request.targetLanguage] || this.fallbackResponses.en;
+      throw normalizeProviderError("google", error);
     }
   }
 

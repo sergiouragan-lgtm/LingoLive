@@ -6,7 +6,8 @@ import {
   Check, Settings, Layers, Send, Lock, ChevronRight, Eye, AlertCircle
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { db, auth } from "../../firebase";
+import { db, auth, storage } from "../../firebase";
+import { deleteObject, getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { 
   collection, doc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, 
   query, where, orderBy, limit, Timestamp 
@@ -71,6 +72,8 @@ interface Exercise {
   type: "multiple-choice" | "true-false" | "fill-in-blanks" | "translation" | "pronunciation";
   tags: string[];
   createdAt: string;
+  status?: "Draft" | "In Review" | "Approved" | "Published";
+  source?: "gemini" | "manual";
 }
 
 interface VersionLog {
@@ -139,6 +142,7 @@ export const EducationalCMS: React.FC = () => {
 
   const [isMediaModalOpen, setIsMediaModalOpen] = useState(false);
   const [mediaForm, setMediaForm] = useState<Partial<MediaAsset>>({ type: "pdf" });
+  const [selectedMediaFile, setSelectedMediaFile] = useState<File | null>(null);
   const [analyzingMedia, setAnalyzingMedia] = useState(false);
   const [cloudFunctionLogs, setCloudFunctionLogs] = useState<string[]>([]);
 
@@ -163,321 +167,52 @@ export const EducationalCMS: React.FC = () => {
   const isTeacher = role === "TEACHER" || role === "teacher" || role === "Educator";
   const isAdminUser = role === "SUPER_ADMIN" || role === "PLATFORM_ADMIN" || role === "SCHOOL_ADMIN" || role === "school_admin" || role === "Admin" || user?.email === "sergio.uragan@gmail.com";
 
-  // Mock static data for immediate fallback
-  const mockCourses: Course[] = [
-    {
-      id: "course_1",
-      title: "Iniciação ao Português de Angola (Kimbundu & Gírias)",
-      description: "Curso focado na fluência falada com expressões populares de Luanda como 'kamba', 'fixe' e 'bazar'.",
-      language: "Português (Angola)",
-      cefrLevel: "A1",
-      ageGroup: "Teens",
-      tags: ["Cultura", "Gírias", "Conversação"],
-      author: "Professora Maria Antónia",
-      authorEmail: "maria.antonia@lingolive.ao",
-      version: "1.2",
-      status: "Published",
-      createdAt: "2026-05-01T10:00:00Z",
-      updatedAt: "2026-07-10T14:30:00Z"
-    },
-    {
-      id: "course_2",
-      title: "Inglês Instrumental para Negócios Tecnológicos",
-      description: "Vocabulário de design de produto, metodologias ágeis e compliance legal no mercado internacional.",
-      language: "Inglês",
-      cefrLevel: "B1",
-      ageGroup: "Teens",
-      tags: ["Business", "Tech", "Product Management"],
-      author: "Sérgio Uragan",
-      authorEmail: "sergio.uragan@gmail.com",
-      version: "1.0",
-      status: "Published",
-      createdAt: "2026-06-15T09:00:00Z",
-      updatedAt: "2026-06-15T09:00:00Z"
-    },
-    {
-      id: "course_3",
-      title: "Cultura Angolana e Tradições Orais",
-      description: "Aprofunde-se no folclore, gastronomia (calulu, funge) e na rica história das províncias angolanas.",
-      language: "Português (Angola)",
-      cefrLevel: "C1",
-      ageGroup: "PreTeens",
-      tags: ["História", "Cultura", "Tradições"],
-      author: "Professor João Baptista",
-      authorEmail: "joao.baptista@lingolive.ao",
-      version: "0.9",
-      status: "In Review",
-      createdAt: "2026-07-01T11:00:00Z",
-      updatedAt: "2026-07-12T16:45:00Z"
-    }
-  ];
-
-  const mockLessons: Lesson[] = [
-    {
-      id: "lesson_1_1",
-      courseId: "course_1",
-      title: "O que é um 'Kamba'? Expressões de Amizade",
-      description: "Aprenda a saudar os seus amigos em Luanda usando termos afetuosos da nossa cultura.",
-      order: 1,
-      duration: "10 min",
-      contentMarkdown: "# O Kamba\nEm Angola, 'kamba' significa amigo ou companheiro. \n\n## Exemplo:\n'Aquele mambo correu bem, o meu kamba ajudou-me!'",
-      status: "Published",
-      version: "1.1",
-      author: "Professora Maria Antónia",
-      createdAt: "2026-05-01T10:30:00Z"
-    },
-    {
-      id: "lesson_1_2",
-      courseId: "course_1",
-      title: "Bazar e Ficar Fixe: Verbos de Movimento e Estado",
-      description: "Aprenda a expressar despedidas e concordância coloquial luandense de forma natural.",
-      order: 2,
-      duration: "12 min",
-      contentMarkdown: "# Bazar e Ficar Fixe\n'Bazar' significa ir embora ou sair rapidamente.\n'Fixe' indica que tudo está excelente, legal ou de acordo.",
-      status: "Published",
-      version: "1.0",
-      author: "Professora Maria Antónia",
-      createdAt: "2026-05-02T11:00:00Z"
-    },
-    {
-      id: "lesson_3_1",
-      courseId: "course_3",
-      title: "A preparação tradicional do Funge de Bombo",
-      description: "Abordagem linguística sobre termos culinários, rituais e expressões de mesa.",
-      order: 1,
-      duration: "20 min",
-      contentMarkdown: "# O Funge de Bombo\nAprenda o vocabulário por trás do prato nacional. A mandioca pilada cozida ao ponto ideal.",
-      status: "In Review",
-      version: "1.0",
-      author: "Professor João Baptista",
-      createdAt: "2026-07-01T11:30:00Z"
-    }
-  ];
-
-  const mockMedia: MediaAsset[] = [
-    {
-      id: "media_1",
-      title: "Ilustração Infográfico do Funge",
-      fileName: "infografico_funge_bom_apetite.png",
-      type: "image",
-      size: "1.4 MB",
-      tags: ["funge", "gastronomia", "angola"],
-      url: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=400",
-      whisperTranscript: "[OCR Vision AI]: Infográfico colorido descrevendo os ingredientes principais e a preparação do funge em Angola, acompanhado de peixe seco.",
-      author: "Professor João Baptista",
-      status: "active",
-      createdAt: "2026-07-01T12:00:00Z"
-    },
-    {
-      id: "media_2",
-      title: "Pronúncia do Kamba de Angola (Áudio)",
-      fileName: "pronuncia_luanda_kamba.mp3",
-      type: "audio",
-      size: "3.2 MB",
-      tags: ["pronuncia", "kamba", "gírias"],
-      url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-      whisperTranscript: "[Whisper API Transcrição]: Olá! Para falar corretamente 'kamba' com sotaque angolano, abra a primeira vogal. Diga: KAHM-bah. Significa o meu querido amigo.",
-      author: "Professora Maria Antónia",
-      status: "active",
-      createdAt: "2026-05-01T11:00:00Z"
-    },
-    {
-      id: "media_3",
-      title: "Guia PDF de Compliance Legal e Contratos",
-      fileName: "compliance_legal_international_v2.pdf",
-      type: "pdf",
-      size: "5.8 MB",
-      tags: ["legal", "business", "compliance"],
-      url: "https://example.com/compliance_sample.pdf",
-      whisperTranscript: "[PDF Extractor]: Este manual detalha as cláusulas padrão de privacidade, leis de exportação de tecnologia e licenciamento corporativo de softwares na União Europeia.",
-      author: "Sérgio Uragan",
-      status: "active",
-      createdAt: "2026-06-15T09:15:00Z"
-    }
-  ];
-
-  const mockExercises: Exercise[] = [
-    {
-      id: "ex_1",
-      question: "O que significa dizer que alguém é seu 'kamba' em Angola?",
-      options: [
-        "Significa que é seu colega de trabalho formal.",
-        "Significa que é seu amigo ou companheiro próximo.",
-        "Significa que é um turista estrangeiro.",
-        "Significa que é um chefe de cozinha tradicional."
-      ],
-      answer: "Significa que é seu amigo ou companheiro próximo.",
-      explanation: "Kamba é uma das gírias e empréstimos linguísticos do Kimbundu mais populares em Angola para designar um amigo de confiança.",
-      difficulty: "Beginner",
-      language: "Português (Angola)",
-      topic: "Expressões de Amizade",
-      type: "multiple-choice",
-      tags: ["gírias", "vocabulário"],
-      createdAt: "2026-05-01T12:00:00Z"
-    },
-    {
-      id: "ex_2",
-      question: "Como se conjuga o verbo 'bazar' na primeira pessoa do plural do presente do indicativo?",
-      options: [
-        "Nós bazamos.",
-        "Nós bazamos-nos.",
-        "Nós bazam.",
-        "Nós bazo."
-      ],
-      answer: "Nós bazamos.",
-      explanation: "O verbo 'bazar' é regular do primeiro grupo (-ar) e segue as desinências padrão da conjugação informal angolana.",
-      difficulty: "Intermediate",
-      language: "Português (Angola)",
-      topic: "Verbos Coloquiais",
-      type: "multiple-choice",
-      tags: ["verbos", "gramática"],
-      createdAt: "2026-05-02T12:00:00Z"
-    }
-  ];
-
-  const mockApprovalRequests: ApprovalRequest[] = [
-    {
-      id: "req_1",
-      entityId: "course_3",
-      entityType: "course",
-      entityTitle: "Cultura Angolana e Tradições Orais",
-      authorName: "Professor João Baptista",
-      authorEmail: "joao.baptista@lingolive.ao",
-      status: "Pending",
-      createdAt: "2026-07-12T17:00:00Z"
-    }
-  ];
-
-  const mockLogs: VersionLog[] = [
-    {
-      id: "log_1",
-      entityId: "course_1",
-      entityType: "course",
-      version: "1.2",
-      changeSummary: "Atualização de termos e adição do módulo de gírias modernas.",
-      author: "Professora Maria Antónia",
-      createdAt: "2026-07-10T14:30:00Z",
-      dataSnapshot: JSON.stringify(mockCourses[0])
-    },
-    {
-      id: "log_2",
-      entityId: "lesson_1_1",
-      entityType: "lesson",
-      version: "1.1",
-      changeSummary: "Adicionado exemplo de frase idiomática em Kimbundu.",
-      author: "Professora Maria Antónia",
-      createdAt: "2026-05-05T09:00:00Z"
-    }
-  ];
-
-  // Load Content (Firestore + Cache Splicing)
+  // Load content from persistent collections. Empty collections remain empty.
   useEffect(() => {
     const loadCmsData = async () => {
       setLoading(true);
       setIsFirebaseSyncing(true);
-
-      // Check for locally cached CMS changes so the user keeps state on reload
-      const cachedCms = localStorage.getItem("lingolive_cms_cache");
-      let localCourses = [...mockCourses];
-      let localLessons = [...mockLessons];
-      let localMedia = [...mockMedia];
-      let localExercises = [...mockExercises];
-      let localApprovals = [...mockApprovalRequests];
-      let localLogs = [...mockLogs];
-
-      if (cachedCms) {
-        try {
-          const parsedCache = JSON.parse(cachedCms);
-          if (parsedCache.courses) localCourses = parsedCache.courses;
-          if (parsedCache.lessons) localLessons = parsedCache.lessons;
-          if (parsedCache.mediaAssets) localMedia = parsedCache.mediaAssets;
-          if (parsedCache.exercises) localExercises = parsedCache.exercises;
-          if (parsedCache.approvalRequests) localApprovals = parsedCache.approvalRequests;
-          if (parsedCache.versionLogs) localLogs = parsedCache.versionLogs;
-        } catch (e) {
-          console.warn("Failed parsing local CMS cache", e);
-        }
-      }
-
-      // Sincronizar com Firestore se logado
       try {
-        const coursesSnap = await getDocs(collection(db, "courses"));
-        if (!coursesSnap.empty) {
-          const fsCourses: Course[] = [];
-          coursesSnap.forEach((doc) => {
-            fsCourses.push({ id: doc.id, ...doc.data() } as Course);
-          });
-          // Merge unique Firestore items with our cache
-          fsCourses.forEach(fsc => {
-            const index = localCourses.findIndex(lc => lc.id === fsc.id);
-            if (index !== -1) localCourses[index] = fsc;
-            else localCourses.unshift(fsc);
-          });
-        }
-      } catch (err: any) {
-        console.warn("Firestore collection 'courses' not fully accessible or empty. Falling back gracefully.", err.message);
+        const [coursesSnap, lessonsSnap, mediaSnap, exercisesSnap, approvalsSnap, logsSnap] = await Promise.all([
+          getDocs(collection(db, "courses")),
+          getDocs(collection(db, "lessons")),
+          getDocs(collection(db, "media_assets")),
+          getDocs(collection(db, "exercises")),
+          getDocs(collection(db, "approval_requests")),
+          getDocs(collection(db, "version_logs")),
+        ]);
+        const toList = <T,>(snapshot: any): T[] =>
+          snapshot.docs.map((item: any) => ({ id: item.id, ...item.data() } as T));
+
+        const persistedCourses = toList<Course>(coursesSnap)
+          .sort((a, b) => (b.updatedAt || b.createdAt).localeCompare(a.updatedAt || a.createdAt));
+        const persistedLessons = toList<Lesson>(lessonsSnap);
+        const persistedMedia = toList<MediaAsset>(mediaSnap);
+        const persistedExercises = toList<Exercise>(exercisesSnap);
+        const persistedApprovals = toList<ApprovalRequest>(approvalsSnap);
+        const persistedLogs = toList<VersionLog>(logsSnap);
+
+        setCourses(persistedCourses);
+        setLessons(persistedLessons);
+        setMediaAssets(persistedMedia);
+        setExercises(persistedExercises);
+        setApprovalRequests(persistedApprovals);
+        setVersionLogs(persistedLogs);
+        updateCache({
+          courses: persistedCourses,
+          lessons: persistedLessons,
+          mediaAssets: persistedMedia,
+          exercises: persistedExercises,
+          approvalRequests: persistedApprovals,
+          versionLogs: persistedLogs,
+        });
+      } catch (error: any) {
+        console.warn("Não foi possível carregar as coleções reais do CMS.", error.message);
         setFirebaseWarning(true);
+      } finally {
+        setIsFirebaseSyncing(false);
+        setLoading(false);
       }
-
-      // Try loading media_assets
-      try {
-        const mediaSnap = await getDocs(collection(db, "media_assets"));
-        if (!mediaSnap.empty) {
-          const fsMedia: MediaAsset[] = [];
-          mediaSnap.forEach((doc) => {
-            fsMedia.push({ id: doc.id, ...doc.data() } as MediaAsset);
-          });
-          fsMedia.forEach(fsm => {
-            const index = localMedia.findIndex(lm => lm.id === fsm.id);
-            if (index !== -1) localMedia[index] = fsm;
-            else localMedia.unshift(fsm);
-          });
-        }
-      } catch (e) {
-        console.log("Firestore media_assets not readable, using cache/mock.");
-      }
-
-      // Try loading exercises
-      try {
-        const exSnap = await getDocs(collection(db, "exercises"));
-        if (!exSnap.empty) {
-          const fsEx: Exercise[] = [];
-          exSnap.forEach((doc) => {
-            fsEx.push({ id: doc.id, ...doc.data() } as Exercise);
-          });
-          fsEx.forEach(fse => {
-            const index = localExercises.findIndex(le => le.id === fse.id);
-            if (index !== -1) localExercises[index] = fse;
-            else localExercises.unshift(fse);
-          });
-        }
-      } catch (e) {
-        console.log("Firestore exercises not readable, using cache/mock.");
-      }
-
-      // Sort courses by status (Published, In Review, Draft) and updatedAt/createdAt
-      localCourses.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-
-      // Commit combined state to react
-      setCourses(localCourses);
-      setLessons(localLessons);
-      setMediaAssets(localMedia);
-      setExercises(localExercises);
-      setApprovalRequests(localApprovals);
-      setVersionLogs(localLogs);
-
-      // Save merged to LocalStorage
-      updateCache({
-        courses: localCourses,
-        lessons: localLessons,
-        mediaAssets: localMedia,
-        exercises: localExercises,
-        approvalRequests: localApprovals,
-        versionLogs: localLogs
-      });
-
-      setIsFirebaseSyncing(false);
-      setLoading(false);
     };
 
     loadCmsData();
@@ -781,76 +516,85 @@ export const EducationalCMS: React.FC = () => {
     setIsLessonModalOpen(false);
   };
 
-  // Media Library Upload & Analysis simulation (Cloud Functions & Whisper)
+  // Upload actual bytes to Firebase Storage and request authenticated analysis.
   const handleMediaUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!mediaForm.fileName || !mediaForm.title) {
-      addToast("Nome de arquivo e título são obrigatórios.", "error");
+    if (!selectedMediaFile || !mediaForm.title) {
+      addToast("Selecione um ficheiro real e informe o título.", "error");
+      return;
+    }
+    if (selectedMediaFile.size > 15 * 1024 * 1024) {
+      addToast("O ficheiro excede o limite de 15 MB.", "error");
+      return;
+    }
+
+    const allowedTypes = new Set([
+      "audio/mpeg", "audio/wav", "audio/x-wav", "audio/webm",
+      "video/mp4", "video/webm", "image/png", "image/jpeg", "image/webp", "application/pdf",
+    ]);
+    if (!allowedTypes.has(selectedMediaFile.type)) {
+      addToast("Formato não suportado. Use MP3, WAV, WebM, MP4, PNG, JPG, WebP ou PDF.", "error");
+      return;
+    }
+
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      addToast("É necessária uma sessão autenticada para enviar mídia.", "error");
       return;
     }
 
     setAnalyzingMedia(true);
-    setCloudFunctionLogs([`[${new Date().toISOString()}] 🚀 Upload simulado em andamento...`]);
-
-    const timestamp = new Date().toISOString();
+    setCloudFunctionLogs([`[${new Date().toISOString()}] A enviar bytes reais para o Firebase Storage...`]);
+    const safeName = selectedMediaFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const storageRef = ref(storage, `cms/${currentUser.uid}/${Date.now()}_${safeName}`);
 
     try {
+      await uploadBytes(storageRef, selectedMediaFile, { contentType: selectedMediaFile.type });
+      const fileUrl = await getDownloadURL(storageRef);
+      setCloudFunctionLogs((logs) => [...logs, `[${new Date().toISOString()}] Upload concluído. A iniciar análise real...`]);
+      const fileBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ""));
+        reader.onerror = () => reject(reader.error || new Error("Falha ao ler o ficheiro."));
+        reader.readAsDataURL(selectedMediaFile);
+      });
+      const idToken = await currentUser.getIdToken();
+      const mediaType = selectedMediaFile.type === "application/pdf" ? "pdf" : selectedMediaFile.type.split("/")[0];
       const response = await fetch("/api/cms/media-analyze", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`,
+        },
         body: JSON.stringify({
-          mediaType: mediaForm.type,
-          fileName: mediaForm.fileName,
-          fileUrl: `https://storage.googleapis.com/lingolive-media-bucket/${mediaForm.fileName}`
-        })
+          title: mediaForm.title,
+          mediaType,
+          fileName: selectedMediaFile.name,
+          fileUrl,
+          mimeType: selectedMediaFile.type,
+          fileBase64,
+        }),
       });
-
       const parsed = await response.json();
-
-      if (parsed.processingLogs) {
-        setCloudFunctionLogs(parsed.processingLogs);
+      if (!response.ok || !parsed.asset) {
+        await deleteObject(storageRef).catch(() => undefined);
+        throw new Error(parsed.message || parsed.error || "Falha na análise real do ficheiro.");
       }
 
-      // Prepare complete media asset
-      const mediaId = `media_${Date.now()}`;
-      const newMedia: MediaAsset = {
-        id: mediaId,
-        title: parsed.suggestedTitle || mediaForm.title!,
-        fileName: mediaForm.fileName!,
-        type: mediaForm.type || "pdf",
-        size: mediaForm.size || "2.1 MB",
-        tags: parsed.tags || ["automático"],
-        url: parsed.fileUrl || `https://storage.googleapis.com/lingolive-media-bucket/${mediaForm.fileName}`,
-        whisperTranscript: parsed.whisperTranscript || "",
-        author: user?.displayName || "Sérgio Uragan",
-        status: "active",
-        createdAt: timestamp
-      };
-
+      setCloudFunctionLogs(parsed.processingLogs || []);
+      const newMedia = parsed.asset as MediaAsset;
       const updatedMedia = [newMedia, ...mediaAssets];
       setMediaAssets(updatedMedia);
-      updateCache({
-        courses,
-        lessons,
-        mediaAssets: updatedMedia,
-        exercises,
-        approvalRequests,
-        versionLogs
-      });
-
-      await handleSave("media_assets", mediaId, newMedia, "Recurso de mídia arquivado e analisado");
-      addToast(`Análise concluída via Cloud Functions! Tags auto-geradas: ${newMedia.tags.join(", ")}`, "success");
-      
-      // Keep logs visible briefly then close
-      setTimeout(() => {
-        setAnalyzingMedia(false);
-        setIsMediaModalOpen(false);
-        setCloudFunctionLogs([]);
-      }, 3500);
-
-    } catch (error) {
+      updateCache({ courses, lessons, mediaAssets: updatedMedia, exercises, approvalRequests, versionLogs });
+      addToast(`Recurso real enviado, analisado e catalogado: ${newMedia.title}`, "success");
+      setSelectedMediaFile(null);
+      setMediaForm({ type: "pdf" });
+      setIsMediaModalOpen(false);
+      setCloudFunctionLogs([]);
+    } catch (error: any) {
       console.error(error);
-      addToast("Erro na simulação do processador de mídia.", "error");
+      addToast(error.message || "Erro ao enviar ou analisar o ficheiro.", "error");
+    } finally {
       setAnalyzingMedia(false);
     }
   };
@@ -866,9 +610,14 @@ export const EducationalCMS: React.FC = () => {
     addToast("Chamando o modelo de linguagem Gemini AI para formular exercícios premium...", "info");
 
     try {
+      const idToken = await auth.currentUser?.getIdToken();
+      if (!idToken) throw new Error("Sessão autenticada necessária.");
       const response = await fetch("/api/cms/generate-exercise", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`,
+        },
         body: JSON.stringify({
           language: aiGenLanguage,
           proficiency: aiGenLevel,
@@ -878,16 +627,10 @@ export const EducationalCMS: React.FC = () => {
       });
 
       const data = await response.json();
+      if (!response.ok) throw new Error(data.message || data.error || "Falha na geração real de exercícios.");
 
       if (data.exercises && data.exercises.length > 0) {
-        // Map unique IDs
-        const newExercises: Exercise[] = data.exercises.map((ex: any, idx: number) => ({
-          ...ex,
-          id: `ex_ai_${Date.now()}_${idx}`,
-          language: aiGenLanguage,
-          topic: aiGenTopic,
-          createdAt: new Date().toISOString()
-        }));
+        const newExercises: Exercise[] = data.exercises;
 
         const merged = [...newExercises, ...exercises];
         setExercises(merged);
@@ -900,18 +643,13 @@ export const EducationalCMS: React.FC = () => {
           versionLogs
         });
 
-        // Try persisting to Firestore
-        for (const ex of newExercises) {
-          await handleSave("exercises", ex.id, ex, "Exercício de IA catalogado");
-        }
-
-        addToast(`Sucesso! Foram gerados ${newExercises.length} exercícios premium pelo Gemini AI.`, "success");
+        addToast(`Sucesso! ${newExercises.length} exercícios reais foram validados e guardados como rascunho.`, "success");
       } else {
         addToast("A API do Gemini retornou uma resposta sem exercícios formatados.", "error");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      addToast("Erro crítico ao conectar com o gerador cognitivo Gemini.", "error");
+      addToast(err.message || "Erro crítico ao conectar com o gerador cognitivo Gemini.", "error");
     } finally {
       setGeneratingAI(false);
     }
@@ -1526,6 +1264,7 @@ export const EducationalCMS: React.FC = () => {
                   <button
                     onClick={() => {
                       setMediaForm({ type: "audio" });
+                      setSelectedMediaFile(null);
                       setIsMediaModalOpen(true);
                     }}
                     className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 w-full md:w-auto"
@@ -2190,7 +1929,7 @@ export const EducationalCMS: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL: STORAGE MEDIA UPLOAD AND CLOUD FUNCTIONS SIMULATOR */}
+      {/* MODAL: REAL STORAGE MEDIA UPLOAD AND ANALYSIS */}
       {isMediaModalOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
           <motion.div 
@@ -2209,12 +1948,32 @@ export const EducationalCMS: React.FC = () => {
 
             <form onSubmit={handleMediaUpload} className="p-6 space-y-4">
               
-              {/* Fake Drag & drop card */}
-              <div className="border-2 border-dashed border-slate-200 p-6 rounded-2xl text-center bg-slate-50 relative">
+              <label className="border-2 border-dashed border-slate-200 p-6 rounded-2xl text-center bg-slate-50 relative cursor-pointer hover:border-indigo-300 block">
                 <Volume2 className="w-8 h-8 text-indigo-500 mx-auto mb-2 animate-bounce" />
-                <span className="text-xs font-bold text-slate-700 block">Solte os seus ficheiros de áudio, imagem ou PDF aqui</span>
+                <span className="text-xs font-bold text-slate-700 block">
+                  {selectedMediaFile ? selectedMediaFile.name : "Selecione um ficheiro de áudio, vídeo, imagem ou PDF"}
+                </span>
                 <span className="text-[10px] text-slate-400 block mt-1">Suporta MP3, WAV, PNG, JPG, PDF (Max 15MB)</span>
-              </div>
+                <input
+                  type="file"
+                  required
+                  accept="audio/mpeg,audio/wav,audio/webm,video/mp4,video/webm,image/png,image/jpeg,image/webp,application/pdf"
+                  className="sr-only"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0] || null;
+                    setSelectedMediaFile(file);
+                    if (file) {
+                      const type = file.type === "application/pdf" ? "pdf" : file.type.split("/")[0];
+                      setMediaForm({
+                        ...mediaForm,
+                        fileName: file.name,
+                        size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
+                        type: type as MediaAsset["type"],
+                      });
+                    }
+                  }}
+                />
+              </label>
 
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Título do Recurso</label>
@@ -2233,20 +1992,19 @@ export const EducationalCMS: React.FC = () => {
                   <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nome do Arquivo</label>
                   <input
                     type="text"
-                    required
+                    readOnly
                     value={mediaForm.fileName || ""}
-                    onChange={(e) => setMediaForm({ ...mediaForm, fileName: e.target.value })}
-                    placeholder="Ex: pronuncia_kamba.mp3"
-                    className="w-full px-3 py-2 bg-white rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 font-mono"
+                    placeholder="Selecione um ficheiro"
+                    className="w-full px-3 py-2 bg-slate-50 rounded-xl border border-slate-200 text-xs font-mono"
                   />
                 </div>
 
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tipo de Mídia</label>
                   <select
+                    disabled
                     value={mediaForm.type || "pdf"}
-                    onChange={(e) => setMediaForm({ ...mediaForm, type: e.target.value as any })}
-                    className="w-full px-3 py-2 bg-white rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 bg-slate-50 rounded-xl border border-slate-200 text-xs"
                   >
                     <option value="audio">Áudio (Whisper Auto-Transcribe)</option>
                     <option value="image">Imagem (Vision AI Auto-OCR)</option>
@@ -2256,11 +2014,11 @@ export const EducationalCMS: React.FC = () => {
                 </div>
               </div>
 
-              {/* Cloud Function logs terminal simulation */}
+              {/* Processing log */}
               {analyzingMedia && (
                 <div className="bg-slate-900 text-green-400 p-4 rounded-xl font-mono text-[10px] space-y-1.5 max-h-32 overflow-y-auto">
                   <div className="text-white border-b border-slate-800 pb-1 flex justify-between items-center">
-                    <span>TERMINAL DE LOGS DA CLOUD FUNCTION</span>
+                    <span>ESTADO DO PROCESSAMENTO REAL</span>
                     <RefreshCw className="w-3 h-3 animate-spin text-green-400" />
                   </div>
                   {cloudFunctionLogs.map((log, idx) => (

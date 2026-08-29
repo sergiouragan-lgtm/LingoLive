@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import { IProvider, ProviderResponse, ProviderOptions } from "../interfaces/IProvider";
 import { AIOrchestrationLogger } from "../utils/Logger";
 import { AI_CONFIG } from "../config/AIConfig";
+import { AIProviderError, normalizeProviderError } from "../errors/AIProviderError";
 
 export class OpenAIProvider implements IProvider {
   private openai: OpenAI | null = null;
@@ -27,8 +28,7 @@ export class OpenAIProvider implements IProvider {
     AIOrchestrationLogger.info(`Sending request to OpenAI with model: ${model}`);
 
     if (!this.openai || !AI_CONFIG.providers.openai.apiKey) {
-      AIOrchestrationLogger.warn("OpenAI API key is missing or client is uninitialized. Using local mock response.");
-      return this.generateMockResponse(prompt, model, start);
+      throw new AIProviderError("AI_PROVIDER_NOT_CONFIGURED", "openai", "OPENAI_API_KEY is not configured.", false);
     }
 
     try {
@@ -75,24 +75,7 @@ export class OpenAIProvider implements IProvider {
       };
     } catch (error: any) {
       AIOrchestrationLogger.error(`OpenAI generation failed: ${error.message}`, error, "OpenAIProvider");
-      throw error;
+      throw normalizeProviderError("openai", error);
     }
-  }
-
-  private generateMockResponse(prompt: string, model: string, start: Date | number): ProviderResponse {
-    const latencyMs = Date.now() - Number(start);
-    const mockText = `[Simulado - OpenAI GPT] Obrigado pelo seu prompt: "${prompt.substring(0, 40)}...". Este é um fallback de alta disponibilidade porque não foi configurado um OPENAI_API_KEY no servidor de desenvolvimento.`;
-    return {
-      text: mockText,
-      usage: {
-        promptTokens: Math.ceil(prompt.length / 4),
-        completionTokens: Math.ceil(mockText.length / 4),
-        totalTokens: Math.ceil((prompt.length + mockText.length) / 4),
-        estimatedCostUsd: 0,
-      },
-      latencyMs,
-      providerName: this.providerName,
-      modelName: model,
-    };
   }
 }

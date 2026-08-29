@@ -11,6 +11,7 @@ import {
 import { ModelSelector } from "../managers/ModelSelector";
 import { AIOrchestrationLogger } from "../utils/Logger";
 import { AI_CONFIG } from "../config/AIConfig";
+import { AIProviderError } from "../errors/AIProviderError";
 
 export class AIOrchestratorService implements IAIOrchestrator {
   constructor(
@@ -99,19 +100,17 @@ export class AIOrchestratorService implements IAIOrchestrator {
         );
       } catch (fallbackError: any) {
         AIOrchestrationLogger.error(
-          `Fallback provider '${fallbackProviderName}' failed as well. Handing over to emergency local mock response.`,
+          `Fallback provider '${fallbackProviderName}' failed as well. No AI response will be fabricated.`,
           fallbackError,
           "AIOrchestratorService"
         );
-        
-        // Final fallback: local simulation
-        providerResponse = {
-          text: `[Fallback de Contingência LingoLIVE] Olá! Desculpe-nos pelo inconveniente. Atualmente nossos provedores de IA estão com picos de tráfego. Como professor virtuoso, recomendo praticar frases básicas: "Estou a aprender muito bem!"`,
-          usage: { promptTokens: 10, completionTokens: 10, totalTokens: 20, estimatedCostUsd: 0 },
-          latencyMs: Date.now() - start,
-          providerName: "google",
-          modelName: "mock-emergency-model"
-        };
+        throw new AIProviderError(
+          "AI_PROVIDERS_UNAVAILABLE",
+          `${targetModel.provider},${fallbackProviderName}`,
+          "Primary and fallback AI providers are unavailable.",
+          true,
+          503,
+        );
       }
     }
 
@@ -127,11 +126,7 @@ export class AIOrchestratorService implements IAIOrchestrator {
       const validation = this.responseValidator.validate(providerResponse.text, request.options.schema);
       if (!validation.valid) {
         AIOrchestrationLogger.warn(`Response validation failed! Error: ${validation.error}`);
-        // Try fallback default JSON structure to avoid crash
-        providerResponse.text = JSON.stringify({
-          error: "Response format validation failed.",
-          message: providerResponse.text
-        });
+        throw new AIProviderError("AI_RESPONSE_INVALID", providerResponse.providerName, validation.error || "Invalid structured response.", true, 502);
       }
     }
 
