@@ -32,12 +32,14 @@ describe("canonical learning records are backend-owned", () => {
     expect(block).toContain("allow read, create, update, delete: if false");
   });
 
-  it.each(["marketplace_items", "marketplace_orders", "marketplace_entitlements", "marketplace_ledger"])("bloqueia escritas diretas no Marketplace em %s", (collection) => {
-    expect(matchBlock(collection)).toContain("allow create, update, delete: if false");
+  it.each(["marketplace_items", "marketplace_orders", "marketplace_entitlements", "marketplace_ledger"])("bloqueia acesso direto no Marketplace em %s", (collection) => {
+    expect(matchBlock(collection)).toContain("allow read, write: if false");
   });
 
-  it("isola pedidos e direitos de acesso pelo utilizador autenticado", () => {
-    expect(matchBlock("marketplace_orders")).toContain("existing().userId == request.auth.uid");
-    expect(matchBlock("marketplace_entitlements")).toContain("existing().userId == request.auth.uid");
+  it("impede que pedidos e direitos sejam enumerados diretamente por qualquer cliente", () => {
+    expect(matchBlock("marketplace_orders")).not.toContain("allow get");
+    expect(matchBlock("marketplace_orders")).not.toContain("allow list");
+    expect(matchBlock("marketplace_entitlements")).not.toContain("allow get");
+    expect(matchBlock("marketplace_entitlements")).not.toContain("allow list");
   });
 });
