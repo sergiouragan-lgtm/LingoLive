@@ -7,6 +7,7 @@ import { PronunciationTipModal } from '../PronunciationTipModal';
 import { AudioVisualizer } from '../AudioVisualizer';
 import { SmartProfile } from "../../../profile/types";
 import { buildTutorSessionContext, TutorSessionContext } from "../../../features/tutor/tutorSessionContextBuilder";
+import { useLocalization } from "../../../context/LocalizationContext";
 import { 
   Mic, 
   MicOff, 
@@ -79,14 +80,29 @@ export default function PracticeRoom({
     return null;
   });
 
+  // Motor GeoLinguístico: o LocalizationContext detém o perfil geo-cultural
+  // real do utilizador (deteção automática por IP no primeiro acesso, ou
+  // escolha manual guardada), independente do smartProfile estruturado de
+  // onboarding — que muitas vezes ainda não foi preenchido. Usamo-lo como
+  // base (storedPreferences), com o smartProfile a sobrepor-se quando presente.
+  const { linguisticIdentity } = useLocalization();
+
   const effectiveSessionContext = useMemo<TutorSessionContext>(() => {
     if (propSessionContext) return propSessionContext;
     return buildTutorSessionContext({
       smartProfile: propSmartProfile || userProfile,
       targetLanguage: language.name || language.code,
       cefrLevel: proficiency,
+      geoInput: {
+        storedPreferences: {
+          countryCode: linguisticIdentity.regionalVariant || null,
+          primaryLanguage: linguisticIdentity.nativeLanguage || null,
+          interfaceLanguage: linguisticIdentity.interfaceLanguage || null,
+          languageVariant: linguisticIdentity.preferredDialect || null,
+        },
+      },
     });
-  }, [propSessionContext, propSmartProfile, userProfile, language, proficiency]);
+  }, [propSessionContext, propSmartProfile, userProfile, language, proficiency, linguisticIdentity]);
 
   // Session UI states
   const [sessionStatus, setSessionStatus] = useState<"connecting" | "ready" | "closed" | "error">("connecting");
@@ -693,11 +709,31 @@ export default function PracticeRoom({
           }
         }
 
-        const wsUrl = `${protocol}//${window.location.host}/live?language=${encodeURIComponent(
-          language.name
-        )}&proficiency=${encodeURIComponent(proficiency)}&ageGroup=${encodeURIComponent(ageGroup)}&scenario=${encodeURIComponent(
-          scenario.promptContext
-        )}&voice=${encodeURIComponent(voice.name)}&token=${encodeURIComponent(token)}`;
+        // Motor GeoLinguístico: encaminha o perfil geo-cultural já resolvido
+        // (país, idioma primário, idioma de interface, variante regional) para
+        // o gateway, que o usa para personalizar culturalmente o prompt do
+        // tutor de IA (ver server/websocket/live.gateway.ts normalizeGatewayParams
+        // + buildTutorSessionContext). Sem isto, o perfil calculado no cliente
+        // (effectiveSessionContext) só era usado para as etiquetas da UI, nunca
+        // chegando de facto ao modelo.
+        const geoProfile = effectiveSessionContext.geoLinguisticProfile;
+        const wsParams = new URLSearchParams({
+          language: language.name,
+          proficiency,
+          ageGroup,
+          scenario: scenario.promptContext,
+          voice: voice.name,
+          token,
+        });
+        if (geoProfile.countryCode) wsParams.set("countryCode", geoProfile.countryCode);
+        if (geoProfile.primaryLanguage) wsParams.set("primaryLanguage", geoProfile.primaryLanguage);
+        if (geoProfile.interfaceLanguage) wsParams.set("interfaceLanguage", geoProfile.interfaceLanguage);
+        if (geoProfile.languageVariant) wsParams.set("regionalVariant", geoProfile.languageVariant);
+        for (const goal of effectiveSessionContext.sessionGoals) {
+          wsParams.append("sessionGoal", goal);
+        }
+
+        const wsUrl = `${protocol}//${window.location.host}/live?${wsParams.toString()}`;
 
         const ws = new WebSocket(wsUrl);
         wsRef.current = ws;
@@ -793,7 +829,7 @@ export default function PracticeRoom({
       active = false;
       cleanupResources();
     };
-  }, [language, proficiency, scenario, voice]);
+  }, [language, proficiency, scenario, voice, effectiveSessionContext]);
 
   // Clean up mic capture, process loop, WebSocket, and sound outputs
   function cleanupResources() {
