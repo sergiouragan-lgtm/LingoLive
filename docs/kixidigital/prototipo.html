@@ -408,7 +408,7 @@ footer{padding:56px 0 80px; border-top:1px solid var(--linha); color:var(--musgo
 
               <div class="cartao">
                 <div class="rot">Feed de actividade</div>
-                <div class="hist"><span>João pagou 25.000 Kz</span><small>há 4 min</small></div>
+                <div class="hist"><span>Manuel Cabral pagou 25.000 Kz</span><small>há 4 min</small></div>
                 <div class="hist"><span>Ana Ferreira entrou no grupo</span><small>ontem</small></div>
               </div>
 
@@ -417,7 +417,7 @@ footer{padding:56px 0 80px; border-top:1px solid var(--linha); color:var(--musgo
                 <button class="btn btn-fant" id="pc-atalho-lembrar">Lembrar atrasados</button>
                 <button class="btn btn-fant" data-ir="novogrupo">Novo grupo</button>
               </div>
-              <button class="btn btn-fant">Exportar relatório PDF</button>
+              <button class="btn btn-fant" id="pc-exportar">Exportar relatório PDF</button>
             </div>
 
             <!-- 5 grupo -->
@@ -442,7 +442,7 @@ footer{padding:56px 0 80px; border-top:1px solid var(--linha); color:var(--musgo
                   <div class="membro" data-pago="0"><div class="av">AF</div><div style="flex:1"><b>Ana Ferreira</b><small>25.000 Kz esta semana</small></div><span class="selo s-pend">Pendente</span></div>
                   <div class="membro" data-pago="1"><div class="av">MC</div><div style="flex:1"><b>Manuel Cabral</b><small>Pago a 10/08 via KWiK</small></div><span class="selo s-pago">Pago ✓</span></div>
                 </div>
-                <button class="btn btn-fant" style="margin-top:12px">Lembrar via WhatsApp</button>
+                <button class="btn btn-fant" id="grupo-lembrar" style="margin-top:12px">Lembrar via WhatsApp</button>
               </div>
 
               <div class="cartao" style="text-align:center">
@@ -452,7 +452,8 @@ footer{padding:56px 0 80px; border-top:1px solid var(--linha); color:var(--musgo
                 <small style="color:var(--tinta-fraca)">O membro aponta a câmara e paga 25.000 Kz.</small>
               </div>
 
-              <button class="btn btn-fant">+ Adicionar membro</button>
+              <button class="btn btn-fant" id="grupo-adicionar">+ Adicionar membro</button>
+              <div class="toast" id="grupo-toast-adicionar" hidden>Link de convite copiado — partilhe com o novo membro.</div>
               <button class="btn btn-cta" data-modal="abrir">💸 Confirmar entrega</button>
             </div>
 
@@ -946,6 +947,22 @@ footer{padding:56px 0 80px; border-top:1px solid var(--linha); color:var(--musgo
     }
     document.getElementById('pc-celebracao').hidden = false;
   }
+
+  // ---- Acções por acabar do dashboard e da gestão de grupo ---------------
+  document.getElementById('pc-exportar').addEventListener('click', function(){
+    var original = this.textContent;
+    this.textContent = 'Relatório exportado ✓';
+    var btn = this;
+    setTimeout(function(){ btn.textContent = original; }, 2200);
+  });
+
+  document.getElementById('grupo-lembrar').addEventListener('click', function(){
+    this.textContent = 'Lembrete enviado ✓';
+  });
+
+  document.getElementById('grupo-adicionar').addEventListener('click', function(){
+    document.getElementById('grupo-toast-adicionar').hidden = false;
+  });
 
   pcAtualizar();
 })();
