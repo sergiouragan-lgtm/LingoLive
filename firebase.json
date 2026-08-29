@@ -1,11 +1,8 @@
 {
   "firestore": {
+    "database": "ai-studio-lingoliveai-669e2e6d-3566-4aa0-ba62-227975dc5edd",
     "rules": "firestore.rules",
-    "indexes": "firestore.indexes.json"
-  },
-  "functions": {
-    "codebase": "default",
-    "source": "functions"
+    "indexes": "firebase/indexes/firestore.indexes.json"
   },
   "emulators": {
     "auth": {

@@ -1,5 +1,4 @@
-import admin from "firebase-admin";
-import { cert } from "firebase-admin/app";
+import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 import path from "path";
@@ -23,7 +22,7 @@ try {
   }
 
   let app: any;
-  if (admin.getApps().length === 0) {
+  if (getApps().length === 0) {
     const options: any = {};
     const ambientProjectId = process.env.GOOGLE_CLOUD_PROJECT || process.env.GCP_PROJECT;
 
@@ -54,9 +53,9 @@ try {
         console.log(`[Firebase Admin] Using ambient GCP Project ID: ${ambientProjectId}`);
       }
     }
-    app = admin.initializeApp(options);
+    app = initializeApp(options);
   } else {
-    app = admin.getApps()[0];
+    app = getApps()[0];
   }
 
   if (firestoreDatabaseId) {
@@ -76,10 +75,9 @@ export async function verifyFirebaseConnection() {
   if (!dbAdmin) {
     throw new Error("Firebase Admin (Firestore) is not initialized.");
   }
-  // Optional: Perform a dummy operation to verify connectivity
-  // await dbAdmin.app().name();
+  await dbAdmin.collection("__health_checks").limit(1).get();
   return true;
 }
 
-export { admin, dbAdmin };
-export const authAdmin = admin.getApps().length > 0 ? getAuth() : null;
+export { dbAdmin };
+export const authAdmin = getApps().length > 0 ? getAuth(getApps()[0]) : null;
