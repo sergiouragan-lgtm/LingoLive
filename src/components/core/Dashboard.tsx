@@ -1054,13 +1054,8 @@ export default function Dashboard(props: DashboardProps) {
   const isAdult = !isKid && !isTeen;
 
   // Dynamic gamified level & XP system
-  const quizzesCount = achievementsData?.quizzesCompleted || 0;
-  const languagesCount = achievementsData?.languagesExplored?.length || 0;
-  const wordsCount = props.savedWords?.length || 0;
-  const streakCount = props.streakData?.count || 0;
-
-  // XP calculation
-  const currentXp = 500 + (quizzesCount * 150) + (languagesCount * 250) + (wordsCount * 45) + (streakCount * 120);
+  // XP is server-owned. Never derive rewards from client state or sample baselines.
+  const currentXp = Number(realtimeUserGamification?.xp ?? realtimeUserGamification?.totalXp ?? 0);
 
   // Determine Level numerical value and boundaries
   let levelNum = 1;

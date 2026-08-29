@@ -2085,7 +2085,10 @@ function AppContent() {
             savedWords={savedWords}
             onAddWords={handleAddWords}
             onBack={() => setView("dashboard")}
-            onCompleteQuiz={(result) => addToast(`Quiz concluído: ${result.score}%`, "success")}
+            onCompleteQuiz={(result) => {
+              window.dispatchEvent(new CustomEvent("lingolive_learning_progress_updated", { detail: { type: "quiz" } }));
+              addToast(`Quiz concluído: ${result.score}%`, "success");
+            }}
             selectedAgeGroup={selectedAgeGroup}
             userAge={userProfile?.age}
           />

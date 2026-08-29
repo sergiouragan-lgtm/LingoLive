@@ -41,10 +41,13 @@ router.post("/award-xp", requireAuth, async (req: any, res) => {
       });
     }
 
-    const { eventId, eventType, lessonId, quizAttemptId, activityId } = req.body;
+    const { eventId, eventType, quizAttemptId } = req.body;
 
     if (!eventId || !eventType) {
       return res.status(400).json({ error: "Os parâmetros 'eventId' e 'eventType' são obrigatórios." });
+    }
+    if (!Object.prototype.hasOwnProperty.call(REWARD_MATRIX, eventType)) {
+      return res.status(400).json({ error: "Tipo de evento de recompensa inválido." });
     }
 
     // 2. Resolve user document for tenant scoping and profile details
@@ -74,38 +77,31 @@ router.post("/award-xp", requireAuth, async (req: any, res) => {
     const province = userDoc.province || "Luanda";
 
     // 3. Pedagogical Validation of the event
-    if (eventType === "quiz_attempt" && quizAttemptId) {
+    if (eventType === "quiz_attempt") {
+      if (!quizAttemptId || quizAttemptId !== eventId) return res.status(400).json({ error: "Tentativa de quiz inválida." });
       let attemptDoc = null;
       try {
         if (dbAdmin) {
-          const attSnap = await dbAdmin.collection("assessment_attempts").doc(quizAttemptId).get();
+          const attSnap = await dbAdmin.collection("quiz_sessions").doc(quizAttemptId).get();
           if (attSnap.exists) attemptDoc = attSnap.data();
         }
       } catch (e) {
-        attemptDoc = await safeGetDoc("assessment_attempts", quizAttemptId);
+        const fallback = await safeGetDoc("quiz_sessions", quizAttemptId);
+        attemptDoc = fallback.exists ? fallback.data() : null;
       }
-      if (attemptDoc && attemptDoc.userId && attemptDoc.userId !== userId) {
-        return res.status(403).json({ error: "O evento de avaliação pertence a outro utilizador." });
-      }
+      if (!attemptDoc || attemptDoc.userId !== userId || attemptDoc.status !== "completed") return res.status(404).json({ error: "Quiz concluído não encontrado." });
+      return res.status(409).json({ error: "O XP do quiz já é atribuído atomicamente na submissão." });
     }
 
     // 4. Calculate server reward
-    const reward = REWARD_MATRIX[eventType] || { xp: 20, coins: 5 };
+    const reward = REWARD_MATRIX[eventType];
 
     // 5. Compute Audit ID for strict server-side idempotency
     const rawAuditString = `${userId}_${organizationId}_${eventType}_${eventId}`;
     const auditId = crypto.createHash("sha256").update(rawAuditString).digest("hex");
 
     if (!dbAdmin) {
-      // Memory / Mock fallback if dbAdmin is offline
-      return res.json({
-        success: true,
-        awardedXp: reward.xp,
-        awardedCoins: reward.coins,
-        newTotalXp: reward.xp,
-        newLevel: 1,
-        auditId
-      });
+      return res.status(503).json({ error: "Persistência de recompensas indisponível." });
     }
 
     // 6. Execute atomic Firestore transaction

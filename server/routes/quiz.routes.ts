@@ -3,10 +3,11 @@ import { Type } from "@google/genai";
 import { requireAuth } from "../middleware/requireAuth";
 import { generateContentWithRetry } from "../config/gemini";
 import { safeGetDoc, safeSetDoc } from "../services/firestoreSafe.service";
-import { getLearningProgress, recordLearningEvent } from "../services/learningProgress.repository";
+import { getLearningProgress } from "../services/learningProgress.repository";
 import { buildAdaptiveQuizPrompt, isQuizSessionExpired, QUIZ_SESSION_TTL_MS, validateGeneratedQuiz, weakestSkills } from "../services/adaptiveQuiz.service";
 import { normalizeTutorMemory } from "../services/tutorMemory.service";
 import { quizGenerationLimiter, quizSubmissionLimiter } from "../middleware/rateLimit";
+import { completeQuiz, QuizCompletionError } from "../services/quizCompletion.repository";
 
 const router = Router();
 const allowedLevels = new Set(["A1", "A2", "B1", "B2", "C1", "C2"]);
@@ -64,29 +65,8 @@ router.post("/generate", requireAuth, quizGenerationLimiter, async (req: any, re
 });
 
 router.post("/:sessionId/submit", requireAuth, quizSubmissionLimiter, async (req: any, res) => {
-  const session = await safeGetDoc("quiz_sessions", req.params.sessionId);
-  if (!session.exists) return res.status(404).json({ error: "Quiz não encontrado." });
-  const data = session.data();
-  if (data.userId !== req.user.uid) return res.status(404).json({ error: "Quiz não encontrado." });
-  if (data.status === "completed" && data.result) return res.json(data.result);
-  if (data.status !== "active") return res.status(409).json({ error: "Quiz indisponível para submissão." });
-  if (isQuizSessionExpired(data.expiresAt)) {
-    await safeSetDoc("quiz_sessions", req.params.sessionId, { status: "expired" });
-    return res.status(410).json({ error: "Este quiz expirou. Gere uma nova avaliação." });
-  }
-  const answers = Array.isArray(req.body.answers) ? req.body.answers : [];
-  if (answers.length !== data.questions.length || answers.some((answer: unknown) => !Number.isInteger(answer))) return res.status(400).json({ error: "Respostas inválidas." });
-  const results = data.questions.map((question: any, index: number) => ({
-    questionId: question.id, correct: answers[index] === question.correctAnswerIndex,
-    correctAnswerIndex: question.correctAnswerIndex, explanation: question.explanation, skill: question.skill,
-  }));
-  const correctAnswers = results.filter((result: any) => result.correct).length;
-  const score = Math.round(correctAnswers / results.length * 100);
-  const durationMinutes = Math.max(0.1, Math.min(120, Number(req.body.durationMinutes) || 0.1));
-  const result = { score, correctAnswers, totalQuestions: results.length, results };
-  await safeSetDoc("quiz_sessions", req.params.sessionId, { status: "completed", answers, score, result, completedAt: new Date().toISOString() });
-  await recordLearningEvent(req.user.uid, { id: `quiz_${req.params.sessionId}`, type: "quiz", language: data.language, occurredAt: new Date().toISOString(), durationMinutes, score, skills: [...new Set(data.questions.map((question: any) => question.skill))] as any });
-  res.json(result);
+  try { res.json(await completeQuiz(req.user.uid, req.params.sessionId, Array.isArray(req.body.answers) ? req.body.answers : [], req.body.durationMinutes)); }
+  catch (error) { const code = error instanceof QuizCompletionError ? error.code : "INTERNAL"; const statuses: Record<string, number> = { NOT_FOUND: 404, INVALID_ANSWERS: 400, EXPIRED: 410, UNAVAILABLE: 409, INTEGRITY_CONFLICT: 409, STORAGE_UNAVAILABLE: 503 }; res.status(statuses[code] || 500).json({ error: code }); }
 });
 
 export default router;

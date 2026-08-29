@@ -23,7 +23,8 @@ import {
 } from "lucide-react";
 import { Language, Proficiency, Scenario, SavedWord, FeedbackReport } from "../../types";
 import { SCENARIOS } from "../../data";
-import { auth } from "../../firebase";
+import { auth, db } from "../../firebase";
+import { doc, onSnapshot } from "firebase/firestore";
 import { learningProgressService, LearningProgress } from "../../services/learningProgress.service";
 
 interface LearningPathProps {
@@ -49,22 +50,19 @@ export const LearningPath: React.FC<LearningPathProps> = ({
   
   // Regional slang unlocking system states
   const [profile, setProfile] = useState<any>(null);
-  const [currentXp, setCurrentXp] = useState<number>(500);
+  const [currentXp, setCurrentXp] = useState<number>(0);
   const [learningProgress, setLearningProgress] = useState<LearningProgress | null>(null);
   const [progressUnavailable, setProgressUnavailable] = useState(false);
 
   useEffect(() => {
     let active = true;
     if (!auth.currentUser) return;
-    learningProgressService.getProgress()
-      .then((progress) => {
-        if (active) setLearningProgress(progress);
-      })
-      .catch(() => {
-        if (active) setProgressUnavailable(true);
-      });
+    const refresh = () => learningProgressService.getProgress().then((progress) => { if (active) { setLearningProgress(progress); setProgressUnavailable(false); } }).catch(() => { if (active) setProgressUnavailable(true); });
+    void refresh();
+    window.addEventListener("lingolive_learning_progress_updated", refresh);
     return () => {
       active = false;
+      window.removeEventListener("lingolive_learning_progress_updated", refresh);
     };
   }, []);
 
@@ -79,29 +77,10 @@ export const LearningPath: React.FC<LearningPathProps> = ({
         } catch (e) {}
       }
 
-      const storedAch = localStorage.getItem(`lingolive_achievements_${currentUser.uid}`);
-      let quizzesCount = 0;
-      let languagesCount = 0;
-      let streakCount = 0;
-      if (storedAch) {
-        try {
-          const parsedAch = JSON.parse(storedAch);
-          quizzesCount = parsedAch.quizzesCompleted || 0;
-          languagesCount = parsedAch.languagesExplored?.length || 0;
-        } catch (e) {}
-      }
-      
-      const wordsCount = savedWords?.length || 0;
-      const streakStored = localStorage.getItem("lingolive_streak");
-      if (streakStored) {
-        try {
-          const parsedStreak = JSON.parse(streakStored);
-          streakCount = parsedStreak.count || 0;
-        } catch (e) {}
-      }
-
-      const calculatedXp = 500 + (quizzesCount * 150) + (languagesCount * 250) + (wordsCount * 45) + (streakCount * 120);
-      setCurrentXp(calculatedXp);
+      return onSnapshot(doc(db, "user_gamification", currentUser.uid), snapshot => {
+        const data = snapshot.exists() ? snapshot.data() : null;
+        setCurrentXp(Number(data?.xp ?? data?.totalXp ?? 0));
+      }, () => setCurrentXp(0));
     }
   }, [savedWords]);
 

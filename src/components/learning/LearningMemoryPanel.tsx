@@ -21,6 +21,8 @@ export interface LearningMemory {
   cefrLevel: string;
   totalTutorTurns: number;
   lastSessionAt: string | null;
+  recentQuizEvidence: string[];
+  lastQuizAt: string | null;
 }
 
 const EMPTY_MEMORY: LearningMemory = {
@@ -34,6 +36,8 @@ const EMPTY_MEMORY: LearningMemory = {
   cefrLevel: "A1",
   totalTutorTurns: 0,
   lastSessionAt: null,
+  recentQuizEvidence: [],
+  lastQuizAt: null,
 };
 
 export function parseMemoryList(value: string): string[] {
@@ -209,6 +213,14 @@ export const LearningMemoryPanel: React.FC<{ userId?: string }> = ({ userId }) =
               </div>
             ))}
           </div>
+
+          {memory.recentQuizEvidence.length > 0 ? (
+            <div className="p-4 rounded-2xl bg-indigo-50 border border-indigo-100">
+              <p className="text-xs font-bold text-indigo-900">Evidência do último quiz</p>
+              <p className="text-sm text-indigo-700 mt-1">{memory.recentQuizEvidence.join(" · ")}</p>
+              <p className="text-[11px] text-indigo-500 mt-1">Atualizado em {formatDate(memory.lastQuizAt)}</p>
+            </div>
+          ) : null}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <label className="space-y-1.5 text-xs font-bold text-slate-700">

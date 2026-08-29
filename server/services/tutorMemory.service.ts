@@ -12,6 +12,8 @@ export interface TutorMemory {
   readonly cefrLevel: string;
   readonly totalTutorTurns: number;
   readonly lastSessionAt: string | null;
+  readonly recentQuizEvidence: readonly string[];
+  readonly lastQuizAt: string | null;
   readonly privacyLevel: "private" | "anonymized";
 }
 
@@ -91,6 +93,8 @@ export function normalizeTutorMemory(raw: unknown, userId: string): TutorMemory 
     cefrLevel: safeString(memory.cefrLevel, 8) || "A1",
     totalTutorTurns: boundedCount(memory.totalTutorTurns),
     lastSessionAt: safeString(memory.lastSessionAt, 40),
+    recentQuizEvidence: Object.freeze(safeList(memory.recentQuizEvidence, 6)),
+    lastQuizAt: safeString(memory.lastQuizAt, 40),
     privacyLevel: memory.privacyLevel === "anonymized" ? "anonymized" : "private",
   });
 }
