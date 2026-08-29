@@ -3,6 +3,7 @@ import { ai, generateContentWithRetry } from "../config/gemini";
 import { Type } from "@google/genai";
 import { requireAuth } from "../middleware/requireAuth";
 import { safeGetDoc, safeSetDoc, localMemoryDb } from "../services/firestoreSafe.service";
+import { completePronunciation, getCompletedPronunciation, PracticeCompletionError } from "../services/canonicalPracticeCompletion.service";
 import { OpenAI } from "openai";
 import fs from "fs";
 import path from "path";
@@ -128,13 +129,18 @@ router.post("/transcribe", requireAuth, async (req: any, res) => {
 // 1. Evaluate Pronunciation (Gemini Powered)
 router.post("/evaluate", requireAuth, async (req: any, res) => {
   const userId = req.user.uid;
-  const { targetText, audioBase64, language, mimeType } = req.body;
+  const { targetText, audioBase64, language, mimeType, attemptId, durationMinutes } = req.body;
 
   if (!targetText || !audioBase64) {
     return res.status(400).json({ error: "Parâmetros 'targetText' e 'audioBase64' são obrigatórios." });
   }
+  if (typeof attemptId !== "string" || !/^[A-Za-z0-9_-]{8,80}$/.test(attemptId)) {
+    return res.status(400).json({ error: "Identificador de tentativa inválido." });
+  }
 
   try {
+    const completed = await getCompletedPronunciation(userId, attemptId);
+    if (completed) return res.json({ ...completed, duplicate: true, xpAwarded: 0 });
     // Attempt OpenAI Whisper Speech Recognition first if configured
     let whisperTranscription: string | null = null;
 
@@ -356,22 +362,19 @@ router.post("/evaluate", requireAuth, async (req: any, res) => {
     }
 
     // Append standard operational keys
-    evaluationResult.id = `eval_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    evaluationResult.id = attemptId;
     evaluationResult.userId = userId;
     evaluationResult.targetText = targetText;
     evaluationResult.timestamp = new Date().toISOString();
 
-    // Persist result to secure database
-    await safeSetDoc("pronunciation_results", evaluationResult.id, evaluationResult);
-
-    // Update list of results in memory database for quick lookup query
-    const listKey = `pronunciation_results_list_${userId}`;
-    const existingList = localMemoryDb.get(listKey) || [];
-    localMemoryDb.set(listKey, [evaluationResult, ...existingList]);
-
-    return res.json(evaluationResult);
+    const completion = await completePronunciation(userId, attemptId, evaluationResult, language, durationMinutes);
+    return res.status(completion.duplicate ? 200 : 201).json({ ...evaluationResult, ...completion });
 
   } catch (err: any) {
+    if (err instanceof PracticeCompletionError) {
+      const status = err.code === "EVENT_ID_COLLISION" || err.code === "INTEGRITY_CONFLICT" ? 409 : err.code === "STORAGE_UNAVAILABLE" ? 503 : 400;
+      return res.status(status).json({ error: err.code });
+    }
     console.error("[Pronunciation Service] General evaluation failure:", err);
     return res.status(500).json({ error: err.message });
   }

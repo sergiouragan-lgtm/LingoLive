@@ -37,7 +37,6 @@ import {
 } from "recharts";
 import { PronunciationService } from "../../services/pronunciation.service";
 import { PronunciationResult, PronunciationReport } from "../../types/pronunciation";
-import { learningProgressService } from "../../services/learningProgress.service";
 
 interface PronunciationModuleProps {
   onAddXp?: (xp: number) => void;
@@ -239,19 +238,14 @@ export const PronunciationModule: React.FC<PronunciationModuleProps> = ({ onAddX
         targetText,
         recordedBase64,
         languageName,
-        "audio/webm"
+        "audio/webm",
+        `attempt_${crypto.randomUUID()}`,
+        Math.max(0.1, recordingDuration / 60)
       );
 
       setResult(evaluation);
-      void learningProgressService.recordEvent({
-        type: "pronunciation",
-        language: languageCode,
-        durationMinutes: Math.max(0.1, recordingDuration / 60),
-        score: evaluation.overallScore,
-        skills: ["speaking", "listening"],
-      }).catch((error) => console.warn("Pronunciation progress sync failed:", error));
-      if (onAddXp) {
-        onAddXp(evaluation.overallScore >= 80 ? 100 : 50);
+      if (onAddXp && evaluation.xpAwarded && !evaluation.duplicate) {
+        onAddXp(evaluation.xpAwarded);
       }
     } catch (err: any) {
       if (err.message === "OFFLINE_MODE_SAVED") {

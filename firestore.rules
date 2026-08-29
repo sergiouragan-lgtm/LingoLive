@@ -643,6 +643,11 @@ service cloud.firestore {
       allow read, create, update, delete: if false;
     }
 
+    // Flashcard review receipts and SRS evidence are API-only.
+    match /flashcard_sessions/{sessionId} {
+      allow read, create, update, delete: if false;
+    }
+
     // 35. Settings Collection
     match /settings/{settingsId} {
       allow read: if isSignedIn();

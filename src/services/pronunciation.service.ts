@@ -24,7 +24,9 @@ export class PronunciationService {
     targetText: string, 
     audioBase64: string, 
     language: string, 
-    mimeType = 'audio/webm'
+    mimeType = 'audio/webm',
+    attemptId = `attempt_${crypto.randomUUID()}`,
+    durationMinutes = 0.1
   ): Promise<PronunciationResult> {
     const user = auth.currentUser;
     if (!user) throw new Error("Usuário não autenticado");
@@ -47,7 +49,7 @@ export class PronunciationService {
     const res = await fetch('/api/pronunciation/evaluate', {
       method: 'POST',
       headers,
-      body: JSON.stringify({ targetText, audioBase64, language, mimeType })
+      body: JSON.stringify({ targetText, audioBase64, language, mimeType, attemptId, durationMinutes })
     });
 
     if (!res.ok) {
@@ -56,6 +58,7 @@ export class PronunciationService {
     }
 
     const result: PronunciationResult = await res.json();
+    window.dispatchEvent(new CustomEvent('lingolive_learning_progress_updated'));
     return result;
   }
 
@@ -160,7 +163,9 @@ export class PronunciationService {
         const res = await this.evaluatePronunciation(
           item.targetText,
           item.audioBlobBase64,
-          'Inglês'
+          'Inglês',
+          'audio/webm',
+          item.id
         );
         if (onProgress) {
           onProgress(res);

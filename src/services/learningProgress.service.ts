@@ -58,6 +58,16 @@ class LearningProgressService {
     });
     if (!response.ok) throw new Error("Falha ao sincronizar progresso de aprendizagem.");
   }
+
+  async completeFlashcardSession(input: { sessionId: string; language: string; durationMinutes: number; ratings: Array<{ cardId: string; word: string; rating: "known" | "learning" }> }) {
+    const response = await this.request(`/api/learning/flashcard-sessions/${encodeURIComponent(input.sessionId)}/complete`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "Falha ao concluir a revisão de flashcards.");
+    window.dispatchEvent(new CustomEvent("lingolive_learning_progress_updated"));
+    return payload as { xpAwarded: number; newTotalXp: number; duplicate: boolean; progress: LearningProgress };
+  }
 }
 
 export const learningProgressService = new LearningProgressService();

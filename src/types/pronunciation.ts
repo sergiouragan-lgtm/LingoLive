@@ -29,6 +29,9 @@ export interface PronunciationResult {
   improvementTips: string[];
   
   audioUrl?: string; // Optional URL if saved
+  xpAwarded?: number;
+  newTotalXp?: number;
+  duplicate?: boolean;
 }
 
 export interface PronunciationReport {

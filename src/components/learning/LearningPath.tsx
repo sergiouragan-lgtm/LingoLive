@@ -94,11 +94,12 @@ export const LearningPath: React.FC<LearningPathProps> = ({
   // Game 2: Flashcard State
   const [game2Active, setGame2Active] = useState(false);
   const [currentFlashcardIndex, setCurrentFlashcardIndex] = useState(0);
-  const [flashcards, setFlashcards] = useState<{ word: string; meaning: string; pronunciation: string }[]>([]);
+  const [flashcards, setFlashcards] = useState<{ id: string; word: string; meaning: string; pronunciation: string }[]>([]);
   const [showFlashcardMeaning, setShowFlashcardMeaning] = useState(false);
   const [flashcardScores, setFlashcardScores] = useState<Record<string, 'known' | 'learning'>>({});
   const [flashcardCompleted, setFlashcardCompleted] = useState(false);
   const flashcardStartedAt = useRef<number>(0);
+  const flashcardSessionId = useRef<string>("");
 
   useEffect(() => {
     // Attempt to load from storage
@@ -162,6 +163,7 @@ export const LearningPath: React.FC<LearningPathProps> = ({
   // Set up Flashcards exclusively from vocabulary saved by this learner.
   const initFlashcards = () => {
     const list = savedWords.map(w => ({
+      id: w.id,
       word: w.word,
       meaning: w.meaning,
       pronunciation: w.pronunciation || ""
@@ -173,6 +175,7 @@ export const LearningPath: React.FC<LearningPathProps> = ({
     setFlashcardScores({});
     setFlashcardCompleted(false);
     flashcardStartedAt.current = Date.now();
+    flashcardSessionId.current = `session_${crypto.randomUUID()}`;
     setGame2Active(true);
   };
 
@@ -197,7 +200,7 @@ export const LearningPath: React.FC<LearningPathProps> = ({
     }
   };
 
-  const handleFlashcardRating = (rating: 'known' | 'learning') => {
+  const handleFlashcardRating = async (rating: 'known' | 'learning') => {
     const card = flashcards[currentFlashcardIndex];
     setFlashcardScores(prev => ({ ...prev, [card.word]: rating }));
     
@@ -206,15 +209,18 @@ export const LearningPath: React.FC<LearningPathProps> = ({
       setShowFlashcardMeaning(false);
     } else {
       const finalScores = { ...flashcardScores, [card.word]: rating };
-      const finalKnownCount = Object.values(finalScores).filter(value => value === "known").length;
-      setFlashcardCompleted(true);
-      void learningProgressService.recordEvent({
-        type: "vocabulary",
-        language: selectedLanguage.code,
-        durationMinutes: Math.max(0.1, (Date.now() - flashcardStartedAt.current) / 60_000),
-        score: Math.round((finalKnownCount / flashcards.length) * 100),
-        skills: ["vocabulary", "reading"],
-      }).catch((error) => console.warn("Flashcard progress sync failed:", error));
+      try {
+        await learningProgressService.completeFlashcardSession({
+          sessionId: flashcardSessionId.current,
+          language: selectedLanguage.code,
+          durationMinutes: Math.max(0.1, (Date.now() - flashcardStartedAt.current) / 60_000),
+          ratings: flashcards.map(item => ({ cardId: item.id, word: item.word, rating: finalScores[item.word] || "learning" })),
+        });
+        setFlashcardCompleted(true);
+      } catch (error) {
+        console.warn("Flashcard progress sync failed:", error);
+        setProgressUnavailable(true);
+      }
     }
   };
 

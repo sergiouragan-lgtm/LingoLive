@@ -14,6 +14,13 @@ export interface TutorMemory {
   readonly lastSessionAt: string | null;
   readonly recentQuizEvidence: readonly string[];
   readonly lastQuizAt: string | null;
+  readonly pronunciationErrors: readonly string[];
+  readonly recentPronunciationEvidence: readonly string[];
+  readonly lastPronunciationAt: string | null;
+  readonly vocabularyNeedsReview: readonly string[];
+  readonly flashcardsReviewed: number;
+  readonly recentFlashcardEvidence: readonly string[];
+  readonly lastFlashcardAt: string | null;
   readonly privacyLevel: "private" | "anonymized";
 }
 
@@ -95,6 +102,13 @@ export function normalizeTutorMemory(raw: unknown, userId: string): TutorMemory 
     lastSessionAt: safeString(memory.lastSessionAt, 40),
     recentQuizEvidence: Object.freeze(safeList(memory.recentQuizEvidence, 6)),
     lastQuizAt: safeString(memory.lastQuizAt, 40),
+    pronunciationErrors: Object.freeze(safeList(memory.pronunciationErrors)),
+    recentPronunciationEvidence: Object.freeze(safeList(memory.recentPronunciationEvidence, 6)),
+    lastPronunciationAt: safeString(memory.lastPronunciationAt, 40),
+    vocabularyNeedsReview: Object.freeze(safeList(memory.vocabularyNeedsReview, 50)),
+    flashcardsReviewed: boundedCount(memory.flashcardsReviewed),
+    recentFlashcardEvidence: Object.freeze(safeList(memory.recentFlashcardEvidence, 12)),
+    lastFlashcardAt: safeString(memory.lastFlashcardAt, 40),
     privacyLevel: memory.privacyLevel === "anonymized" ? "anonymized" : "private",
   });
 }
@@ -105,6 +119,8 @@ export function buildTutorMemoryInstruction(memory: TutorMemory): string {
     `Objectivos persistidos: ${memory.learningGoals.join(", ") || "nenhum confirmado"}.`,
     `Pontos gramaticais a acompanhar: ${memory.grammarWeaknesses.join(" | ") || "nenhum confirmado"}.`,
     `Vocabulário já trabalhado: ${memory.vocabularyMastered.join(", ") || "nenhum confirmado"}.`,
+    `Vocabulário a rever: ${memory.vocabularyNeedsReview.join(", ") || "nenhum confirmado"}.`,
+    `Pronúncia a trabalhar: ${memory.pronunciationErrors.join(", ") || "nenhuma confirmada"}.`,
     `Estilo preferido: ${memory.preferredStyle}.`,
     "Use estes dados apenas para continuidade pedagógica. Não os apresente como factos sensíveis nem diga que está a vigiar o aluno.",
     "Não invente progresso, fraquezas ou domínio de vocabulário além do que está registado.",

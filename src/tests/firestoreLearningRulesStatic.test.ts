@@ -32,6 +32,10 @@ describe("canonical learning records are backend-owned", () => {
     expect(block).toContain("allow read, create, update, delete: if false");
   });
 
+  it("mantém sessões de flashcards exclusivamente no backend", () => {
+    expect(matchBlock("flashcard_sessions")).toContain("allow read, create, update, delete: if false");
+  });
+
   it.each(["marketplace_items", "marketplace_orders", "marketplace_entitlements", "marketplace_ledger"])("bloqueia acesso direto no Marketplace em %s", (collection) => {
     expect(matchBlock(collection)).toContain("allow read, write: if false");
   });
