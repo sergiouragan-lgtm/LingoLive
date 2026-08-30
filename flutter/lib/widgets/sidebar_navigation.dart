@@ -122,7 +122,7 @@ class SidebarNavigation extends StatelessWidget {
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 16,
-                fontWeight: FontWeight.black,
+                fontWeight: FontWeight.w900,
                 letterSpacing: -0.2,
               ),
             ),
@@ -183,7 +183,7 @@ class SidebarNavigation extends StatelessWidget {
                 style: TextStyle(
                   color: isSelected ? Colors.white : const Color(0xFF94A3B8),
                   fontSize: 12.5,
-                  fontWeight: isSelected ? FontWeight.black : FontWeight.w600,
+                  fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
                 ),
               ),
             ],
