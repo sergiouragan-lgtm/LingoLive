@@ -732,6 +732,17 @@ export default function PracticeRoom({
         for (const goal of effectiveSessionContext.sessionGoals) {
           wsParams.append("sessionGoal", goal);
         }
+        // Preferências do Perfil Inteligente (estilo de correção, personalidade
+        // do tutor) — o gateway só aceita valores de uma lista fechada, ver
+        // ALLOWED_CORRECTION_STYLES/ALLOWED_TUTOR_PERSONALITIES em live.gateway.ts.
+        const preferredCorrectionStyle = effectiveSessionContext.preferences?.preferredCorrectionStyle;
+        if (typeof preferredCorrectionStyle === "string") {
+          wsParams.set("preferredCorrectionStyle", preferredCorrectionStyle);
+        }
+        const preferredTutorPersonality = effectiveSessionContext.preferences?.preferredTutorPersonality;
+        if (typeof preferredTutorPersonality === "string") {
+          wsParams.set("preferredTutorPersonality", preferredTutorPersonality);
+        }
 
         const wsUrl = `${protocol}//${window.location.host}/live?${wsParams.toString()}`;
 

@@ -10,6 +10,8 @@ import { buildTutorSessionContext, TutorSessionContext } from "../../src/feature
 import { composeTutorSystemInstruction } from "../../src/features/tutor/tutorPromptComposer";
 
 const ALLOWED_CEFR_LEVELS = new Set(["A1", "A2", "B1", "B2", "C1", "C2"]);
+const ALLOWED_CORRECTION_STYLES = new Set(["gentle", "direct", "delayed", "balanced"]);
+const ALLOWED_TUTOR_PERSONALITIES = new Set(["encouraging", "warm_mentor", "neutral", "strict"]);
 
 export function sanitizeGatewayString(raw: unknown, maxLength: number): string | null {
   if (typeof raw !== "string") return null;
@@ -109,6 +111,18 @@ export function normalizeGatewayParams(searchParams: URLSearchParams) {
 
   const sessionGoals = normalizeSessionGoals(searchParams);
 
+  // Perfil Inteligente (SmartProfile): preferências de correção e personalidade
+  // do tutor, tal como configuradas pelo utilizador. Vêm de uma lista fechada
+  // de valores aceites — nunca texto livre — para não abrir superfície de
+  // injeção de prompt através de um parâmetro de URL.
+  const rawCorrectionStyle = sanitizeCode(searchParams.get("preferredCorrectionStyle"), 20);
+  const preferredCorrectionStyle =
+    rawCorrectionStyle && ALLOWED_CORRECTION_STYLES.has(rawCorrectionStyle) ? rawCorrectionStyle : null;
+
+  const rawTutorPersonality = sanitizeCode(searchParams.get("preferredTutorPersonality"), 20);
+  const preferredTutorPersonality =
+    rawTutorPersonality && ALLOWED_TUTOR_PERSONALITIES.has(rawTutorPersonality) ? rawTutorPersonality : null;
+
   return {
     language,
     cefrLevel,
@@ -119,6 +133,10 @@ export function normalizeGatewayParams(searchParams: URLSearchParams) {
       languageVariant,
     },
     sessionGoals,
+    preferences: {
+      ...(preferredCorrectionStyle ? { preferredCorrectionStyle } : {}),
+      ...(preferredTutorPersonality ? { preferredTutorPersonality } : {}),
+    },
   };
 }
 
@@ -259,12 +277,14 @@ export function setupWebSocket(server: http.Server) {
 
   Your strict conversational guidelines:
   1. SPEAK ONLY IN THE TARGET LANGUAGE: ${language}. Never use English unless the student explicitly asks you for help or translation of a specific word.
-  2. Response Length: Keep responses extremely concise to minimize latency in Live audio streaming. Maximum 2 sentences for older cohorts (Cohort 3 & 4), and maximum 4 words per sentence/turn for the youngest cohort (Cohort 1).
+  2. Response Length: Keep responses extremely concise to minimize latency in Live audio streaming. Maximum 2-3 sentences for older cohorts (Cohort 3 & 4), and maximum 4 words per sentence/turn for the youngest cohort (Cohort 1).
   3. Strictly adapt your linguistic complexity to match their proficiency level (${proficiency}).
   4. SAFETY (GUARDRAILS): You are operating in a protected school/daycare environment. Strictly refuse to engage in, comment on, or generate content regarding adult topics, politics, violence, or religion.
+  5. RECIPROCITY: Unless the student explicitly ends the conversation, close every turn with a short, open-ended question directed back at the student, to keep the exchange conversational rather than a monologue.
+  6. RECASTING (HIDDEN CORRECTION): Do not stop the conversation to give a grammar lesson. When the student makes an error, echo the corrected form naturally inside your reply, as a native speaker would when confirming what someone said. Example: student says "Eu fui à loja ontem" (with an error) → you reply "Ah, [corrected phrase]! What did you get there?" — never say "that's wrong" or "the correct form is".
 
   ${buildAgeSafetyDirective(ageGroup)}
-  5. TEACHER INTEGRATION & DATA LOGGING:
+  7. TEACHER INTEGRATION & DATA LOGGING:
   To power the school's dashboard and allow educators to track student progress, you MUST analyze the student's language performance in the background. At the very end of your response, if the student made a notable grammatical or phonetic error, output a data payload using hidden XML tags exactly like this:
   <analytics>
   {
@@ -283,6 +303,7 @@ export function setupWebSocket(server: http.Server) {
       cefrLevel: normalizedGateway.cefrLevel,
       geoInput: normalizedGateway.geoInput,
       sessionGoals: normalizedGateway.sessionGoals,
+      preferences: normalizedGateway.preferences,
     });
 
     const finalSystemInstruction = composeTutorSystemInstruction({
@@ -305,6 +326,16 @@ export function setupWebSocket(server: http.Server) {
           safetySettings: getSafetySettingsForAgeGroup(ageGroup),
           inputAudioTranscription: {},
           outputAudioTranscription: {},
+          // VAD (deteção de atividade de voz) explícito: distingue hesitações
+          // normais de fala ("hmm", pausas curtas) do fim real de um turno.
+          // 600ms de silêncio antes de fechar o turno do utilizador — dentro
+          // da janela recomendada (400-700ms) para equilibrar naturalidade
+          // (não cortar o aluno a meio de uma pausa) e latência de resposta.
+          realtimeInputConfig: {
+            automaticActivityDetection: {
+              silenceDurationMs: 600,
+            },
+          },
         },
         callbacks: {
           onmessage: (message: LiveServerMessage) => {
