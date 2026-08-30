@@ -11,7 +11,7 @@ abstract final class DefaultFirebaseOptions {
     if (kIsWeb) return web;
     return switch (defaultTargetPlatform) {
       TargetPlatform.android => android,
-      TargetPlatform.iOS || TargetPlatform.macOS => ios,
+      TargetPlatform.iOS => ios,
       _ => throw UnsupportedError('Plataforma ainda não configurada no FlutterFire.'),
     };
   }

@@ -37,19 +37,25 @@ class _AuthScreenState extends State<AuthScreen> {
           password: _password.text,
         );
         final user = credential.user!;
-        await user.updateDisplayName(_name.text.trim());
-        await FirebaseServices.firestore.collection('users').doc(user.uid).set({
-          'uid': user.uid,
-          'email': user.email,
-          'displayName': _name.text.trim(),
-          'role': 'LEARNER',
-          'subscriptionActive': false,
-          'paymentCompleted': false,
-          'onboardingCompleted': false,
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-        await user.sendEmailVerification();
+        try {
+          await user.updateDisplayName(_name.text.trim());
+          await user.sendEmailVerification();
+          await FirebaseServices.firestore.collection('users').doc(user.uid).set({
+            'uid': user.uid,
+            'email': user.email,
+            'displayName': _name.text.trim(),
+            'role': 'LEARNER',
+            'subscriptionActive': false,
+            'paymentCompleted': false,
+            'onboardingCompleted': false,
+            'createdAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        } catch (_) {
+          await user.delete().catchError((_) {});
+          await FirebaseAuth.instance.signOut();
+          rethrow;
+        }
       } else {
         await FirebaseAuth.instance.signInWithEmailAndPassword(
           email: _email.text.trim().toLowerCase(),
@@ -57,6 +63,7 @@ class _AuthScreenState extends State<AuthScreen> {
         );
       }
     } on FirebaseAuthException catch (error) {
+      if (!mounted) return;
       setState(() => _error = switch (error.code) {
         'invalid-credential' => 'E-mail ou palavra-passe inválidos.',
         'email-already-in-use' => 'Este e-mail já está registado.',
@@ -64,7 +71,7 @@ class _AuthScreenState extends State<AuthScreen> {
         _ => 'Não foi possível autenticar. Tente novamente.',
       });
     } catch (_) {
-      setState(() => _error = 'Não foi possível concluir a operação.');
+      if (mounted) setState(() => _error = 'Não foi possível concluir a operação.');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -76,8 +83,15 @@ class _AuthScreenState extends State<AuthScreen> {
       setState(() => _error = 'Introduza primeiro um e-mail válido.');
       return;
     }
-    await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('E-mail de recuperação enviado.')));
+    setState(() { _busy = true; _error = null; });
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('E-mail de recuperação enviado.')));
+    } on FirebaseAuthException {
+      if (mounted) setState(() => _error = 'Não foi possível enviar a recuperação.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override

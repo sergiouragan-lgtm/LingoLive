@@ -36,6 +36,8 @@ class _MemoryControlScreenState extends State<MemoryControlScreen> {
         _frequency = data['studyFrequency'] as String? ?? _frequency;
         _goals = data['personalGoals'] as String? ?? _goals;
       }
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Não foi possível carregar as preferências.')));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -51,7 +53,7 @@ class _MemoryControlScreenState extends State<MemoryControlScreen> {
         'correctionStyle': _correction,
         'studyFrequency': _frequency,
         'personalGoals': _goals,
-        'updatedAt': DateTime.now().toUtc().toIso8601String(),
+        'updatedAt': FieldValue.serverTimestamp(),
       });
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Preferências guardadas.')));
     } catch (_) {

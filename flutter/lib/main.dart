@@ -5,8 +5,31 @@ import 'firebase_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  runApp(const LingoLiveApp());
+  try {
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    runApp(const LingoLiveApp());
+  } catch (_) {
+    runApp(const _StartupFailureApp());
+  }
+}
+
+class _StartupFailureApp extends StatelessWidget {
+  const _StartupFailureApp();
+
+  @override
+  Widget build(BuildContext context) => const MaterialApp(
+    debugShowCheckedModeBanner: false,
+    home: Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Text('Não foi possível iniciar o LingoLIVE. Verifique a ligação e tente novamente.', textAlign: TextAlign.center),
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 class LingoLiveApp extends StatelessWidget {
