@@ -12,6 +12,7 @@
     "lint": "tsc --noEmit",
     "test": "vitest",
     "test:firestore-rules:static": "vitest run src/tests/firestoreUsersRules.test.ts src/tests/firestoreLearningRulesStatic.test.ts src/tests/firestoreMarketplaceRulesStatic.test.ts",
+    "test:flutter:static": "node scripts/auditFlutterMobile.mjs",
     "test:firestore-rules": "firebase emulators:exec --only firestore \"vitest run src/tests/firestoreRulesEmulator.test.ts src/tests/firestoreLearningSecurityRules.test.ts\""
   },
   "dependencies": {

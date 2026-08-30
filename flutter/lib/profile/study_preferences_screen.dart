@@ -15,19 +15,16 @@ class StudyPreferencesScreen extends StatefulWidget {
 
 class _StudyPreferencesScreenState extends State<StudyPreferencesScreen> {
   static const _goals = ['Conversação', 'Trabalho', 'Viagens', 'Exames'];
-  static const _frequencies = ['Diária', '3 vezes por semana', 'Semanal'];
+  static const _frequencies = <int, String>{1: '1 dia por semana', 3: '3 dias por semana', 5: '5 dias por semana', 7: 'Todos os dias'};
   String? _learningGoal;
-  String? _studyFrequency;
+  int? _studyFrequency;
   double _dailyGoal = 15;
   bool _loading = true;
   bool _saving = false;
   String? _error;
 
-  DocumentReference<Map<String, dynamic>> get _reference => FirebaseServices.firestore
-      .collection('users')
-      .doc(widget.user.uid)
-      .collection('settings')
-      .doc('study_preferences');
+  DocumentReference<Map<String, dynamic>> get _reference =>
+      FirebaseServices.firestore.collection('users').doc(widget.user.uid);
 
   @override
   void initState() {
@@ -40,10 +37,10 @@ class _StudyPreferencesScreenState extends State<StudyPreferencesScreen> {
       final data = (await _reference.get()).data();
       if (data != null) {
         final goal = data['learningGoal'] as String?;
-        final frequency = data['studyFrequency'] as String?;
+        final frequency = data['studyFrequency'];
         _learningGoal = _goals.contains(goal) ? goal : null;
-        _studyFrequency = _frequencies.contains(frequency) ? frequency : null;
-        final minutes = data['dailyGoalMinutes'];
+        _studyFrequency = frequency is num && _frequencies.containsKey(frequency.toInt()) ? frequency.toInt() : null;
+        final minutes = data['dailyGoal'];
         if (minutes is num && minutes >= 5 && minutes <= 120) _dailyGoal = minutes.toDouble();
       }
     } catch (_) {
@@ -62,7 +59,7 @@ class _StudyPreferencesScreenState extends State<StudyPreferencesScreen> {
       await _reference.set({
         'learningGoal': _learningGoal,
         'studyFrequency': _studyFrequency,
-        'dailyGoalMinutes': _dailyGoal.round(),
+        'dailyGoal': _dailyGoal.round(),
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Preferências guardadas.')));
@@ -82,7 +79,7 @@ class _StudyPreferencesScreenState extends State<StudyPreferencesScreen> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            DropdownButtonFormField<String>(
+            DropdownButtonFormField<int>(
               initialValue: _learningGoal,
               decoration: const InputDecoration(labelText: 'Objetivo de aprendizagem', border: OutlineInputBorder()),
               items: _goals.map((value) => DropdownMenuItem(value: value, child: Text(value))).toList(),
@@ -92,7 +89,7 @@ class _StudyPreferencesScreenState extends State<StudyPreferencesScreen> {
             DropdownButtonFormField<String>(
               initialValue: _studyFrequency,
               decoration: const InputDecoration(labelText: 'Frequência de estudo', border: OutlineInputBorder()),
-              items: _frequencies.map((value) => DropdownMenuItem(value: value, child: Text(value))).toList(),
+              items: _frequencies.entries.map((entry) => DropdownMenuItem(value: entry.key, child: Text(entry.value))).toList(),
               onChanged: (value) => setState(() => _studyFrequency = value),
             ),
             const SizedBox(height: 24),

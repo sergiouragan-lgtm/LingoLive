@@ -45,8 +45,6 @@ class _AuthScreenState extends State<AuthScreen> {
             'email': user.email,
             'displayName': _name.text.trim(),
             'role': 'LEARNER',
-            'subscriptionActive': false,
-            'paymentCompleted': false,
             'onboardingCompleted': false,
             'createdAt': FieldValue.serverTimestamp(),
             'updatedAt': FieldValue.serverTimestamp(),

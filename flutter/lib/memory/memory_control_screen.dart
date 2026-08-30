@@ -1,6 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import '../firebase_services.dart';
+import 'tutor_memory_repository.dart';
 
 class MemoryControlScreen extends StatefulWidget {
   final User user;
@@ -18,6 +18,7 @@ class _MemoryControlScreenState extends State<MemoryControlScreen> {
   String _goals = 'Por definir';
   bool _loading = true;
   bool _saving = false;
+  final _repository = TutorMemoryRepository();
 
   @override
   void initState() {
@@ -27,16 +28,11 @@ class _MemoryControlScreenState extends State<MemoryControlScreen> {
 
   Future<void> _load() async {
     try {
-      final snapshot = await FirebaseServices.firestore
-          .collection('users').doc(widget.user.uid)
-          .collection('settings').doc('memory').get();
-      final data = snapshot.data();
-      if (data != null) {
-        _enabled = data['enabled'] as bool? ?? true;
-        _correction = data['correctionStyle'] as String? ?? _correction;
-        _frequency = data['studyFrequency'] as String? ?? _frequency;
-        _goals = data['personalGoals'] as String? ?? _goals;
-      }
+      final memory = await _repository.load();
+      _enabled = memory.enabled;
+      _correction = const {'gentle': 'Suave', 'balanced': 'Equilibrado', 'direct': 'Direto'}[memory.preferredStyle] ?? 'Equilibrado';
+      _frequency = memory.studyFrequency.isEmpty ? 'Por definir' : memory.studyFrequency;
+      _goals = memory.learningGoals.isEmpty ? 'Por definir' : memory.learningGoals.first;
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Não foi possível carregar as preferências.')));
     } finally {
@@ -47,18 +43,46 @@ class _MemoryControlScreenState extends State<MemoryControlScreen> {
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
-      await FirebaseServices.firestore
-          .collection('users').doc(widget.user.uid)
-          .collection('settings').doc('memory').set({
-        'enabled': _enabled,
-        'correctionStyle': _correction,
-        'studyFrequency': _frequency,
-        'personalGoals': _goals,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      await _repository.save(TutorMemory(
+        enabled: _enabled,
+        preferredStyle: const {'Suave': 'gentle', 'Equilibrado': 'balanced', 'Direto': 'direct'}[_correction] ?? 'balanced',
+        learningGoals: _goals == 'Por definir' ? const [] : [_goals],
+        studyFrequency: _frequency == 'Por definir' ? '' : _frequency,
+      ));
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Preferências guardadas.')));
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Não foi possível guardar as alterações.')));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _deleteMemory() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar toda a memória?'),
+        content: const Text('Esta ação remove permanentemente a memória personalizada do tutor.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Eliminar')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    setState(() => _saving = true);
+    try {
+      await _repository.delete();
+      if (!mounted) return;
+      setState(() {
+        _enabled = false;
+        _correction = 'Equilibrado';
+        _frequency = 'Por definir';
+        _goals = 'Por definir';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Memória eliminada.')));
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Não foi possível eliminar a memória.')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -126,7 +150,7 @@ class _MemoryControlScreenState extends State<MemoryControlScreen> {
             const SizedBox(height: 12),
             OutlinedButton.icon(onPressed: _enabled ? () => setState(() => _enabled = false) : null, icon: const Icon(Icons.shield_outlined), label: const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Text('Desativar preserva os dados e impede o uso.'))),
             const SizedBox(height: 10),
-            OutlinedButton.icon(onPressed: null, icon: const Icon(Icons.delete_outline), label: const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Text('Eliminar toda a memória pelo portal de privacidade'))),
+            OutlinedButton.icon(onPressed: _saving ? null : _deleteMemory, icon: const Icon(Icons.delete_outline), label: const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Text('Eliminar toda a memória'))),
           ],
         ),
       ),

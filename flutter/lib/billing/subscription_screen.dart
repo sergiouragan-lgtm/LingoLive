@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'billing_repository.dart';
@@ -23,10 +24,14 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   }
 
   @override Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return const Scaffold(body: Center(child: Text('Sessão expirada. Volte a iniciar sessão.')));
+    }
+    final uid = user.uid;
     return Scaffold(
       appBar: AppBar(title: const Text('Plano e faturação')),
-      body: StreamBuilder(
+      body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
         stream: _repository.watchSubscription(uid),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
@@ -49,13 +54,12 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             ] else ...[
               const SizedBox(height: 24),
               ...const [
-                ('Essencial', 'individual_monthly', ['Lições essenciais', 'Vocabulário', 'Prática diária']),
-                ('Fluente', 'quarterly', ['Tudo do Essencial', 'Conversação', 'Pronúncia']),
-                ('Premium IA', 'yearly', ['Tudo do Fluente', 'Tutor IA contextual', 'Percurso inteligente']),
+                ('Plano mensal individual', 'individual_monthly'),
+                ('Plano trimestral', 'quarterly'),
+                ('Plano anual', 'yearly'),
               ].map((plan) => Card(margin: const EdgeInsets.only(bottom: 12), child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(plan.$1, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
-                const Text('Preço carregado no pagamento seguro'), const SizedBox(height: 10),
-                ...(plan.$3 as List<String>).map((feature) => Text('✓ $feature')),
+                const Text('Preço e benefícios confirmados no pagamento seguro.'),
                 const SizedBox(height: 14),
                 SizedBox(width: double.infinity, child: FilledButton(onPressed: _busy ? null : () => _checkout(plan.$2), child: const Text('Continuar'))),
               ])))),

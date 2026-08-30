@@ -1,11 +1,12 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../billing/subscription_screen.dart';
-import '../firebase_services.dart';
-import '../school/school_dashboard_screen.dart';
 
 import 'student_profile_screen.dart';
 import 'study_preferences_screen.dart';
+import 'account_security_screen.dart';
+import 'privacy_data_screen.dart';
+import 'user_settings_screen.dart';
 
 class ProfileHubScreen extends StatelessWidget {
   final User user;
@@ -67,30 +68,20 @@ class ProfileHubScreen extends StatelessWidget {
                     onTap: () => _open(context, StudyPreferencesScreen(user: user)),
                   ),
                   const Divider(height: 1),
+                  ListTile(leading: const Icon(Icons.lock_outline), title: const Text('Conta e autenticação'), trailing: const Icon(Icons.chevron_right), onTap: () => _open(context, AccountSecurityScreen(user: user))),
+                  const Divider(height: 1),
+                  ListTile(leading: const Icon(Icons.notifications_outlined), title: const Text('Notificações'), trailing: const Icon(Icons.chevron_right), onTap: () => _open(context, NotificationSettingsScreen(user: user))),
+                  const Divider(height: 1),
+                  ListTile(leading: const Icon(Icons.accessibility_new), title: const Text('Acessibilidade e aparência'), trailing: const Icon(Icons.chevron_right), onTap: () => _open(context, AccessibilitySettingsScreen(user: user))),
+                  const Divider(height: 1),
+                  ListTile(leading: const Icon(Icons.privacy_tip_outlined), title: const Text('Privacidade e dados'), trailing: const Icon(Icons.chevron_right), onTap: () => _open(context, PrivacyDataScreen(user: user))),
+                  const Divider(height: 1),
                   ListTile(
                     leading: const Icon(Icons.credit_card_outlined),
                     title: const Text('Plano e faturação'),
                     subtitle: const Text('Subscrição e pagamento seguro'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => _open(context, const SubscriptionScreen()),
-                  ),
-                  StreamBuilder(
-                    stream: FirebaseServices.firestore.collection('users').doc(user.uid).snapshots(),
-                    builder: (context, snapshot) {
-                      final role = snapshot.data?.data()?['role']?.toString().toUpperCase();
-                      final allowed = {'SCHOOL_ADMIN', 'ORG_ADMIN', 'ADMIN', 'SUPER_ADMIN'}.contains(role);
-                      if (!allowed) return const SizedBox.shrink();
-                      return Column(children: [
-                        const Divider(height: 1),
-                        ListTile(
-                          leading: const Icon(Icons.school_outlined),
-                          title: const Text('Painel da escola'),
-                          subtitle: const Text('Acesso institucional protegido'),
-                          trailing: const Icon(Icons.chevron_right),
-                          onTap: () => _open(context, const SchoolDashboardScreen()),
-                        ),
-                      ]);
-                    },
                   ),
                 ],
               ),

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
@@ -12,15 +13,19 @@ class BillingRepository {
 
   Future<Uri> createCheckout(String planId) async {
     if (apiBaseUrl.isEmpty) throw StateError('Pagamento indisponível: API_BASE_URL não configurado.');
-    final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+    final token = await FirebaseAuth.instance.currentUser?.getIdToken(true);
     if (token == null) throw StateError('Sessão expirada.');
     final response = await http.post(
       Uri.parse('$apiBaseUrl/api/create-checkout-session'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       body: jsonEncode({'planId': planId}),
-    );
-    if (response.statusCode != 200) throw StateError('Não foi possível iniciar o pagamento.');
-    final url = (jsonDecode(response.body) as Map<String, dynamic>)['url'] as String?;
+    ).timeout(const Duration(seconds: 20));
+    if (response.statusCode == 401) throw StateError('Sessão expirada. Inicie sessão novamente.');
+    if (response.statusCode == 429) throw StateError('Muitas tentativas. Aguarde antes de tentar novamente.');
+    if (response.statusCode < 200 || response.statusCode >= 300) throw StateError('Não foi possível iniciar o pagamento.');
+    final decoded = jsonDecode(response.body);
+    if (decoded is! Map<String, dynamic>) throw const FormatException('Resposta de pagamento inválida.');
+    final url = decoded['url'] as String?;
     final uri = url == null ? null : Uri.tryParse(url);
     if (uri == null || uri.scheme != 'https') throw StateError('Resposta de pagamento inválida.');
     return uri;
