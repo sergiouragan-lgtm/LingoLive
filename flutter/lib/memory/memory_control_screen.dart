@@ -4,7 +4,8 @@ import '../firebase_services.dart';
 
 class MemoryControlScreen extends StatefulWidget {
   final User user;
-  const MemoryControlScreen({super.key, required this.user});
+  final bool embedded;
+  const MemoryControlScreen({super.key, required this.user, this.embedded = false});
 
   @override
   State<MemoryControlScreen> createState() => _MemoryControlScreenState();
@@ -90,7 +91,7 @@ class _MemoryControlScreenState extends State<MemoryControlScreen> {
         centerTitle: true,
         actions: [IconButton(tooltip: 'Terminar sessão', onPressed: FirebaseAuth.instance.signOut, icon: const Icon(Icons.logout_rounded))],
       ),
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: widget.embedded ? null : NavigationBar(
         selectedIndex: 2,
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Início'),

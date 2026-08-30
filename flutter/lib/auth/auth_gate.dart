@@ -1,6 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import '../memory/memory_control_screen.dart';
+import '../shell/app_shell.dart';
 import 'auth_screen.dart';
 import 'email_verification_screen.dart';
 
@@ -18,7 +18,7 @@ class AuthGate extends StatelessWidget {
         final user = snapshot.data;
         if (user == null) return const AuthScreen();
         if (!user.emailVerified) return EmailVerificationScreen(user: user);
-        return MemoryControlScreen(user: user);
+        return AppShell(user: user);
       },
     );
   }
