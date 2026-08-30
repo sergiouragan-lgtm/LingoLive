@@ -10,6 +10,15 @@ const matchBlock = (collection: string) => {
 };
 
 describe("canonical learning records are backend-owned", () => {
+  it("permite ler apenas a própria atribuição de acesso por email verificado no token", () => {
+    const block = matchBlock("email_permissions");
+    expect(block).toContain("request.auth.token.email == emailId");
+    expect(block).toContain("allow create, update, delete: if false");
+  });
+
+  it("permite ao utilizador carregar apenas a sua subscrição canónica", () => {
+    expect(matchBlock("subscriptions")).toContain("subId == request.auth.uid + '_sub'");
+  });
   it("permite apenas get do progresso ao proprietário e bloqueia escritas", () => {
     const block = matchBlock("learning_progress");
     expect(block).toContain("allow get:");

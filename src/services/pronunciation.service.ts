@@ -67,19 +67,11 @@ export class PronunciationService {
     const user = auth.currentUser;
     if (!user) return [];
     
-    if (this.isOnline()) {
-      try {
-        const headers = await this.getAuthHeaders();
-        const res = await fetch('/api/pronunciation/results', { headers });
-        if (res.ok) {
-          const results = await res.json();
-          return results;
-        }
-      } catch (err) {
-        console.warn('[PronunciationService] Failed to load from server, falling back to repository cache:', err);
-      }
-    }
-    return this.repository.getResults(user.uid);
+    if (!this.isOnline()) throw new Error("Ligue-se à internet para consultar resultados canónicos.");
+    const headers = await this.getAuthHeaders();
+    const res = await fetch('/api/pronunciation/results', { headers });
+    if (!res.ok) throw new Error("Não foi possível carregar os resultados do Firebase.");
+    return res.json();
   }
 
   // --- REPORTS ---
@@ -87,60 +79,21 @@ export class PronunciationService {
     const user = auth.currentUser;
     if (!user) throw new Error("Usuário não autenticado");
 
-    if (this.isOnline()) {
-      try {
-        const headers = await this.getAuthHeaders();
-        const res = await fetch('/api/pronunciation/reports/generate', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ language })
-        });
-        if (res.ok) {
-          const report = await res.json();
-          await this.repository.saveReport(report);
-          return report;
-        }
-      } catch (err) {
-        console.warn('[PronunciationService] Failed to generate server report:', err);
-      }
-    }
-
-    const cached = await this.repository.getReport(user.uid);
-    if (cached) return cached;
-
-    // Starter placeholder report
-    return {
-      id: `rep_${user.uid}`,
-      userId: user.uid,
-      language,
-      averageOverall: 0,
-      averageAccuracy: 0,
-      averageFluency: 0,
-      totalAttempts: 0,
-      commonErrorPhonemes: [],
-      timelineData: [],
-      feedbackSummary: "Grave o seu primeiro áudio para gerar um relatório completo de pronúncia do LingoLIVE.",
-      generatedAt: new Date().toISOString()
-    };
+    if (!this.isOnline()) throw new Error("Ligue-se à internet para gerar o relatório canónico.");
+    const headers = await this.getAuthHeaders();
+    const res = await fetch('/api/pronunciation/reports/generate', { method: 'POST', headers, body: JSON.stringify({ language }) });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(payload.error || "Não foi possível gerar o relatório.");
+    return payload;
   }
 
   async getTeacherReport(): Promise<any> {
-    if (this.isOnline()) {
-      try {
-        const headers = await this.getAuthHeaders();
-        const res = await fetch('/api/pronunciation/reports/teacher', { headers });
-        if (res.ok) return await res.json();
-      } catch (e) {
-        console.warn(e);
-      }
-    }
-    return {
-      averageClassFluency: 78,
-      averageClassAccuracy: 75,
-      activeStudentsScoredCount: 8,
-      criticalPhonemesToWorkOn: ["θ (TH)", "ɪ (Short I)"],
-      pedagogicalActionPlan: "Dedicar mais atenção síncrona a fricativas."
-    };
+    if (!this.isOnline()) throw new Error("Ligue-se à internet para consultar relatórios.");
+    const headers = await this.getAuthHeaders();
+    const res = await fetch('/api/pronunciation/reports/teacher', { headers });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(payload.error || "Relatório de turma indisponível.");
+    return payload;
   }
 
   // --- OFFLINE SYNC QUEUE ---

@@ -117,7 +117,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ setView }) => {
   // Helper to save user locally
   const saveRememberedUser = (userObj: any, method: string) => {
     const photoURL = userObj.photoURL || "";
-    const dispName = userObj.displayName || name || "Sérgio Silva";
+    const dispName = userObj.displayName || name || String(userObj.email || "").split("@")[0] || "Estudante";
     const userEmail = userObj.email;
     const uid = userObj.uid;
     const lastLogin = new Date().toISOString();
@@ -135,16 +135,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ setView }) => {
     localStorage.setItem('lingolive_remembered_user', JSON.stringify(rememberedData));
     setRememberedUser(rememberedData);
 
-    // Save initial demo learning activity if not already present
-    const lastActivity = localStorage.getItem('lingolive_last_activity');
-    if (!lastActivity) {
-      localStorage.setItem('lingolive_last_activity', JSON.stringify({
-        lastSession: new Date().toISOString(),
-        unit: "Unidade 5",
-        lesson: "Lição 3",
-        progress: 87
-      }));
-    }
   };
 
   // Helper to configure Firebase Session Persistence based on "Manter sessão iniciada"

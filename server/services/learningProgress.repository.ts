@@ -1,10 +1,9 @@
 import { createHash } from "crypto";
 import { dbAdmin } from "../config/firebaseAdmin";
-import { ENABLE_SANDBOX_FALLBACK } from "../config/env";
 import { localMemoryDb } from "./firestoreSafe.service";
 import { applyLearningEvent, LearningActivityEvent, LearningProgress, normalizeLearningProgress } from "./learningProgress.service";
 
-const allowVolatileStorage = ENABLE_SANDBOX_FALLBACK || process.env.NODE_ENV === "test" || process.env.VITEST === "true";
+const allowVolatileStorage = process.env.NODE_ENV === "test" || process.env.VITEST === "true";
 
 export class LearningStorageUnavailableError extends Error {}
 export class LearningEventCollisionError extends Error {}

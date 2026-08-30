@@ -2,8 +2,8 @@ import { Router } from "express";
 import { ai, generateContentWithRetry } from "../config/gemini";
 import { Type } from "@google/genai";
 import { requireAuth } from "../middleware/requireAuth";
-import { safeGetDoc, safeSetDoc, localMemoryDb } from "../services/firestoreSafe.service";
 import { completePronunciation, getCompletedPronunciation, PracticeCompletionError } from "../services/canonicalPracticeCompletion.service";
+import { dbAdmin } from "../config/firebaseAdmin";
 import { OpenAI } from "openai";
 import fs from "fs";
 import path from "path";
@@ -384,12 +384,9 @@ router.post("/evaluate", requireAuth, async (req: any, res) => {
 router.get("/results", requireAuth, async (req: any, res) => {
   const userId = req.user.uid;
   try {
-    const listKey = `pronunciation_results_list_${userId}`;
-    const cachedList = localMemoryDb.get(listKey) || [];
-    
-    // In standard setup, if we have results in Firestore we could fetch them. 
-    // But localMemoryDb serves as high-availability fallback. Let's return them.
-    return res.json(cachedList);
+    if (!dbAdmin) return res.status(503).json({ error: "Persistência Firebase indisponível." });
+    const snapshot = await dbAdmin.collection("pronunciation_results").where("userId", "==", userId).orderBy("timestamp", "desc").limit(50).get();
+    return res.json(snapshot.docs.map((document: any) => document.data()));
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }
@@ -401,8 +398,9 @@ router.post("/reports/generate", requireAuth, async (req: any, res) => {
   const { language } = req.body;
 
   try {
-    const listKey = `pronunciation_results_list_${userId}`;
-    const results = localMemoryDb.get(listKey) || [];
+    if (!dbAdmin) return res.status(503).json({ error: "Persistência Firebase indisponível." });
+    const snapshot = await dbAdmin.collection("pronunciation_results").where("userId", "==", userId).orderBy("timestamp", "desc").limit(50).get();
+    const results = snapshot.docs.map((document: any) => document.data());
 
     if (results.length === 0) {
       return res.status(404).json({
@@ -424,7 +422,7 @@ router.post("/reports/generate", requireAuth, async (req: any, res) => {
       - Média de Pontuação Geral: ${avgOverall}%
       - Média de Precisão de Fonemas: ${avgAccuracy}%
       - Média de Fluência (Velocidade/Rhythm): ${avgFluency}%
-      - Sotaques Detectados Recorrentemente: ${results[0]?.accentDetected || 'Sotaque Angolano'}
+      - Sotaques Detectados Recorrentemente: ${results[0]?.accentDetected || 'não determinado'}
       
       Gere um resumo pedagógico construtivo com recomendações e indique 3 fonemas que mais necessitam de prática.
     `;
@@ -457,6 +455,7 @@ router.post("/reports/generate", requireAuth, async (req: any, res) => {
       score: r.overallScore
     }));
 
+    if (!Array.isArray(parsedSummary.commonErrorPhonemes) || typeof parsedSummary.feedbackSummary !== "string") throw new Error("Relatório de IA inválido.");
     const finalReport = {
       id: `rep_${Date.now()}`,
       userId,
@@ -465,14 +464,13 @@ router.post("/reports/generate", requireAuth, async (req: any, res) => {
       averageAccuracy: avgAccuracy,
       averageFluency: avgFluency,
       totalAttempts: count,
-      commonErrorPhonemes: parsedSummary.commonErrorPhonemes || ["θ (TH)", "ɹ (R)"],
+      commonErrorPhonemes: parsedSummary.commonErrorPhonemes,
       timelineData: timeline,
-      feedbackSummary: parsedSummary.feedbackSummary || "Apresenta um bom ritmo geral, necessitando de ajustes de aspiração na terminação de palavras consonantais.",
+      feedbackSummary: parsedSummary.feedbackSummary,
       generatedAt: new Date().toISOString()
     };
 
-    await safeSetDoc("pronunciation_reports", finalReport.id, finalReport);
-    localMemoryDb.set(`pronunciation_reports_${userId}`, finalReport);
+    await dbAdmin.collection("pronunciation_reports").doc(finalReport.id).create(finalReport);
 
     return res.json(finalReport);
 
@@ -484,18 +482,7 @@ router.post("/reports/generate", requireAuth, async (req: any, res) => {
 
 // 4. Get active teacher reports for students
 router.get("/reports/teacher", requireAuth, async (req: any, res) => {
-  // Mock listing reports of students assigned to teacher
-  const sampleTeacherReport = {
-    teacherId: req.user.uid,
-    classId: "turma_A",
-    className: "Turma de Conversação Avançada",
-    averageClassFluency: 82,
-    averageClassAccuracy: 79,
-    activeStudentsScoredCount: 12,
-    criticalPhonemesToWorkOn: ["θ (TH)", "v (V vocalizado)", "æ (Vogal aberta)"],
-    pedagogicalActionPlan: "Dedicar os primeiros 10 minutos da próxima aula síncrona a exercícios de sopro e fricção interdental."
-  };
-  return res.json(sampleTeacherReport);
+  return res.status(501).json({ error: "Relatórios de turma exigem uma associação professor-aluno real." });
 });
 
 export default router;

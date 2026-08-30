@@ -2,12 +2,12 @@ import { Router } from "express";
 import { Type } from "@google/genai";
 import { requireAuth } from "../middleware/requireAuth";
 import { generateContentWithRetry } from "../config/gemini";
-import { safeGetDoc, safeSetDoc } from "../services/firestoreSafe.service";
 import { getLearningProgress } from "../services/learningProgress.repository";
 import { buildAdaptiveQuizPrompt, isQuizSessionExpired, QUIZ_SESSION_TTL_MS, validateGeneratedQuiz, weakestSkills } from "../services/adaptiveQuiz.service";
 import { normalizeTutorMemory } from "../services/tutorMemory.service";
 import { quizGenerationLimiter, quizSubmissionLimiter } from "../middleware/rateLimit";
 import { completeQuiz, QuizCompletionError } from "../services/quizCompletion.repository";
+import { dbAdmin } from "../config/firebaseAdmin";
 
 const router = Router();
 const allowedLevels = new Set(["A1", "A2", "B1", "B2", "C1", "C2"]);
@@ -17,9 +17,10 @@ router.post("/generate", requireAuth, quizGenerationLimiter, async (req: any, re
   if (!language) return res.status(400).json({ error: "Idioma obrigatório." });
     const requestedLevel = allowedLevels.has(req.body.level) ? req.body.level : null;
   try {
+    if (!dbAdmin) return res.status(503).json({ error: "Persistência Firebase indisponível." });
     const [progress, memoryDoc] = await Promise.all([
       getLearningProgress(req.user.uid),
-      safeGetDoc("user_memory", req.user.uid),
+      dbAdmin.collection("user_memory").doc(req.user.uid).get(),
     ]);
     const memory = normalizeTutorMemory(memoryDoc.exists ? memoryDoc.data() : null, req.user.uid);
     const level = allowedLevels.has(memory.cefrLevel) ? memory.cefrLevel : requestedLevel || "A1";
@@ -52,11 +53,11 @@ router.post("/generate", requireAuth, quizGenerationLimiter, async (req: any, re
     const sessionId = `quiz_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
     const questions = generated.map((question, index) => ({ ...question, id: `${sessionId}_${index + 1}` }));
     const createdAt = new Date();
-    await safeSetDoc("quiz_sessions", sessionId, {
+    await dbAdmin.collection("quiz_sessions").doc(sessionId).create({
       userId: req.user.uid, language, level, questions, status: "active",
       createdAt: createdAt.toISOString(),
       expiresAt: new Date(createdAt.getTime() + QUIZ_SESSION_TTL_MS).toISOString(),
-    }, false);
+    });
     res.status(201).json({ sessionId, questions: questions.map(({ correctAnswerIndex: _answer, explanation: _explanation, ...question }) => question) });
   } catch (error) {
     console.error("Adaptive quiz generation failed:", error);

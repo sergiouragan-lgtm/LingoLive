@@ -894,14 +894,14 @@ function AppContent() {
           count: parsed.count || 0,
           lastDate: parsed.lastDate || "",
           history: parsed.history || [],
-          practicePoints: parsed.practicePoints !== undefined ? parsed.practicePoints : 100, // 100 starter practice points
+          practicePoints: parsed.practicePoints !== undefined ? parsed.practicePoints : 0,
           streakFreezes: parsed.streakFreezes !== undefined ? parsed.streakFreezes : 0
         };
       } catch (e) {
         // ignore JSON syntax errors
       }
     }
-    return { count: 0, lastDate: "", history: [], practicePoints: 100, streakFreezes: 0 };
+    return { count: 0, lastDate: "", history: [], practicePoints: 0, streakFreezes: 0 };
   });
 
   // Automated Local Notification system for Streak Risk Warning
@@ -1401,7 +1401,7 @@ function AppContent() {
 
   const handleProtectStreakWithPoints = () => {
     setStreakData((prev) => {
-      const points = prev.practicePoints ?? 100;
+      const points = prev.practicePoints ?? 0;
       const freezes = prev.streakFreezes ?? 0;
 
       if (freezes <= 0 && points < 50) {

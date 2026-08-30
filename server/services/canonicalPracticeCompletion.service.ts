@@ -1,11 +1,10 @@
 import crypto from "crypto";
 import { dbAdmin } from "../config/firebaseAdmin";
-import { ENABLE_SANDBOX_FALLBACK } from "../config/env";
 import { localMemoryDb } from "./firestoreSafe.service";
 import { applyLearningEvent, LearningActivityEvent, normalizeLearningProgress } from "./learningProgress.service";
 import { normalizeTutorMemory } from "./tutorMemory.service";
 
-const volatileAllowed = ENABLE_SANDBOX_FALLBACK || process.env.NODE_ENV === "test" || process.env.VITEST === "true";
+const volatileAllowed = process.env.NODE_ENV === "test" || process.env.VITEST === "true";
 export class PracticeCompletionError extends Error { constructor(public code: string) { super(code); } }
 
 type Completion = {

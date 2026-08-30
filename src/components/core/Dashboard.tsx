@@ -58,6 +58,7 @@ import { subscribeToAchievements, UserAchievements, Badge } from "../../lib/Achi
 import { COUNTRY_DETAILS, TRANSLATIONS, formatDate } from "../../data/localizationData";
 import { useLocalization, useLanguageChanged } from "../../context/LocalizationContext";
 import { LANGUAGES } from "../../data";
+import type { LearningProgress } from "../../services/learningProgress.service";
 
 const ProfileAdaptedWidgetBanner = React.memo<{ selectedAgeGroup: AgeGroup; onStartPractice: () => void; onNavigate?: (view: string) => void }>(({ selectedAgeGroup, onStartPractice, onNavigate }) => {
   const isChild = selectedAgeGroup === 'Kids' || selectedAgeGroup === 'CHILD' || selectedAgeGroup === 'Infancy';
@@ -464,16 +465,16 @@ StatIndicatorItem.displayName = "StatIndicatorItem";
 
 interface QuickSummaryIndicatorsProps {
   currentXp: number;
-  streakHistory: string[];
   proficiency: string;
-  progressPercent: number;
+  totalActivities: number;
+  totalMinutes: number;
 }
 
 const QuickSummaryIndicators = React.memo<QuickSummaryIndicatorsProps>(({
   currentXp,
-  streakHistory,
   proficiency,
-  progressPercent
+  totalActivities,
+  totalMinutes
 }) => (
   <motion.div
     initial={{ opacity: 0, y: 8 }}
@@ -487,19 +488,11 @@ const QuickSummaryIndicators = React.memo<QuickSummaryIndicatorsProps>(({
       icon={<Sparkles size={20} />}
       bgClass="bg-amber-50 text-amber-600"
     />
-    <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs flex items-center gap-3">
-      <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
-        <Flame size={20} className="fill-orange-500/20" />
-      </div>
-      <div className="truncate">
-        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 truncate">Sequência</div>
-        <StudyStreakTracker history={streakHistory} />
-      </div>
-    </div>
+    <StatIndicatorItem label="Atividades" value={totalActivities} icon={<CheckCircle size={20} />} bgClass="bg-orange-50 text-orange-600" />
     <CurrentLevelWidget level={proficiency} />
     <StatIndicatorItem
-      label="Progresso"
-      value={`${Math.round(progressPercent)}%`}
+      label="Tempo real"
+      value={`${Math.round(totalMinutes)} min`}
       icon={<Target size={20} />}
       bgClass="bg-emerald-50 text-emerald-600"
     />
@@ -740,6 +733,7 @@ export default function Dashboard(props: DashboardProps) {
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [realtimeNextClass, setRealtimeNextClass] = useState<any>(null);
   const [realtimeUserGamification, setRealtimeUserGamification] = useState<any>(null);
+  const [canonicalProgress, setCanonicalProgress] = useState<LearningProgress | null>(null);
   const [isGamificationLoading, setIsGamificationLoading] = useState(true);
   const [isGamificationError, setIsGamificationError] = useState(false);
 
@@ -772,6 +766,7 @@ export default function Dashboard(props: DashboardProps) {
     const currentUser = auth.currentUser;
     let unsubClass: (() => void) | undefined;
     let unsubGamification: (() => void) | undefined;
+    let unsubProgress: (() => void) | undefined;
 
     if (currentUser?.uid) {
       const classId = props.userProfile?.classId || props.userProfile?.turma;
@@ -814,12 +809,19 @@ export default function Dashboard(props: DashboardProps) {
         setIsGamificationLoading(false);
         setIsGamificationError(true);
       });
+      unsubProgress = onSnapshot(doc(db, 'learning_progress', currentUser.uid), (snapshot) => {
+        setCanonicalProgress(snapshot.exists() ? snapshot.data() as LearningProgress : null);
+      }, (error) => {
+        console.warn('[Dashboard] Canonical learning progress unavailable:', error);
+        setCanonicalProgress(null);
+      });
     }
 
     return () => {
       if (unsubAnn) unsubAnn();
       if (unsubClass) unsubClass();
       if (unsubGamification) unsubGamification();
+      if (unsubProgress) unsubProgress();
     };
   }, [props.userProfile, props.userId]);
 
@@ -1177,7 +1179,7 @@ export default function Dashboard(props: DashboardProps) {
   };
 
   const firstName = props.studentName;
-  const hasStartedPractice = (props.streakData?.history?.length || 0) > 0 || (props.savedWords?.length || 0) > 0;
+  const hasStartedPractice = Number(canonicalProgress?.totalActivities || 0) > 0;
   const lessonProgressPercent = hasStartedPractice ? Math.min(100, Math.max(0, Math.round(progressPercent))) : 0;
   const nextClassScheduled = realtimeNextClass || profile?.nextClass || null;
 
@@ -1243,9 +1245,9 @@ export default function Dashboard(props: DashboardProps) {
           {/* BLOCO 4: Resumo Rápido (Indicadores) */}
           <QuickSummaryIndicators
             currentXp={currentXp}
-            streakHistory={props.streakData?.history || []}
             proficiency={props.selectedProficiency || profile?.proficiency || "A1-A2"}
-            progressPercent={progressPercent}
+            totalActivities={Number(canonicalProgress?.totalActivities || 0)}
+            totalMinutes={Number(canonicalProgress?.totalMinutes || 0)}
           />
         </div>
 
@@ -1565,7 +1567,7 @@ export default function Dashboard(props: DashboardProps) {
                       <span>Pontos de Prática:</span>
                     </div>
                     <span className="bg-indigo-600 text-white font-black px-2 py-0.5 rounded-full text-[10px] min-w-[24px] text-center shadow-xs">
-                      {props.streakData.practicePoints ?? 100} PTS
+                      {props.streakData.practicePoints ?? 0} PTS
                     </span>
                   </div>
 
@@ -1582,9 +1584,9 @@ export default function Dashboard(props: DashboardProps) {
                   {/* Purchase Button */}
                   <button
                     onClick={props.onBuyStreakFreeze}
-                    disabled={(props.streakData.practicePoints ?? 100) < 50}
+                    disabled={(props.streakData.practicePoints ?? 0) < 50}
                     className={`w-full py-1.5 px-3 rounded-lg text-[10px] font-black transition cursor-pointer flex items-center justify-center gap-1.5 border ${
-                      (props.streakData.practicePoints ?? 100) >= 50
+                      (props.streakData.practicePoints ?? 0) >= 50
                         ? 'bg-sky-500 hover:bg-sky-600 text-white border-sky-600 shadow-sm'
                         : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
                     }`}
@@ -1620,7 +1622,7 @@ export default function Dashboard(props: DashboardProps) {
                           </span>
                           <button
                             onClick={props.onProtectStreakWithPoints}
-                            disabled={(props.streakData.practicePoints ?? 100) < 50}
+                            disabled={(props.streakData.practicePoints ?? 0) < 50}
                             className="w-full py-1 bg-amber-600 hover:bg-amber-700 text-white font-extrabold rounded-md shadow-xs border border-amber-700 text-[10px] cursor-pointer"
                           >
                             Congelar e Salvar Ofensiva (50 PTS)
@@ -1915,7 +1917,7 @@ export default function Dashboard(props: DashboardProps) {
                          <Clock className="text-orange-500" size={14} />
                       </div>
                       <span className="text-[10px] text-slate-400 font-bold uppercase block truncate">Minutos</span>
-                      <span className="text-lg font-bold text-indigo-950 block mt-0.5"><StudyTimeTracker userId={props.userId} /></span>
+                      <span className="text-lg font-bold text-indigo-950 block mt-0.5"><StudyTimeTracker userId={props.userId} totalMinutes={Number(canonicalProgress?.totalMinutes || 0)} /></span>
                    </div>
                 </div>
              </div>

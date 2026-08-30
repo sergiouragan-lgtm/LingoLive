@@ -243,7 +243,7 @@ service cloud.firestore {
 
     // 7. Subscriptions Collection
     match /subscriptions/{subId} {
-      allow get: if isSignedIn() && (isOwner(existing().ownerId) || isAdmin());
+      allow get: if isSignedIn() && (subId == request.auth.uid + '_sub' || isOwner(existing().ownerId) || isAdmin());
       allow list: if isAdmin();
 
       function isValidSubscription(data) {
@@ -367,6 +367,14 @@ service cloud.firestore {
     // Admin SDK operations do not use client Security Rules.
     match /marketplace_items/{itemId} {
       allow read, write: if false;
+    }
+
+    // Entry-flow role assignment: a user may read only the document whose ID
+    // exactly matches the verified email in the Firebase Auth token.
+    match /email_permissions/{emailId} {
+      allow get: if isSignedIn() && (request.auth.token.email == emailId || isAdmin());
+      allow list: if isAdmin();
+      allow create, update, delete: if false;
     }
     match /marketplace_orders/{orderId} {
       allow read, write: if false;
