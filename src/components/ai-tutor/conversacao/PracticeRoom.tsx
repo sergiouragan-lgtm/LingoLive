@@ -385,13 +385,16 @@ export default function PracticeRoom({
   }, [isBetaExpired]);
 
   const getPronunciationTip = (): string => {
-    const tips = [
-      "Tente articular melhor os sons das vogais finais.",
-      "Cuidado com a entonação em perguntas; ela deve subir no final.",
-      "Pratique o som do 'r' inicial, ele é mais forte do que parece.",
-      "Tente não correr tanto na fala; respire entre as frases."
-    ];
-    return tips[Math.floor(Math.random() * tips.length)];
+    const analytics = lastAnalyticsRef.current;
+    if (analytics?.pedagogical_note) {
+      return analytics.pedagogical_note;
+    }
+    if (analytics?.correction && analytics?.detected_error) {
+      return `Em vez de "${analytics.detected_error}", experimente: "${analytics.correction}".`;
+    }
+    // Honesto e neutro quando ainda não há feedback real desta sessão —
+    // nunca um "tip" genérico e aleatório desligado do que foi praticado.
+    return "Ainda não foi detetada nenhuma correção nesta sessão. Continue a praticar!";
   };
 
   // Real-time conversation captions
@@ -604,6 +607,19 @@ export default function PracticeRoom({
   const activeSourcesRef = useRef<AudioBufferSourceNode[]>([]);
   const nextStartTimeRef = useRef<number>(0);
 
+  // Feedback pedagógico REAL gerado pela IA a cada turno (payload <analytics>
+  // definido em server/websocket/live.gateway.ts), acumulado sem cortes até ao
+  // fim do turno. Substitui a antiga "dica de pronúncia" aleatória — ver
+  // getPronunciationTip() abaixo — por feedback efetivamente derivado do que o
+  // aluno disse nesta sessão, não por um padrão fixo desligado da conversa.
+  const rawModelTurnBufferRef = useRef<string>("");
+  const lastAnalyticsRef = useRef<{
+    detected_error?: string;
+    correction?: string;
+    pedagogical_note?: string;
+    vocabulary_acquired?: string[];
+  } | null>(null);
+
   // Session audio recording toggle and references
   const [saveAudioEnabled, setSaveAudioEnabled] = useState(true);
   const [sessionAudioUrl, setSessionAudioUrl] = useState<string | null>(null);
@@ -776,7 +792,13 @@ export default function PracticeRoom({
               // User spoke over AI, immediately stop all scheduled sounds
               stopAllPlayback();
               setIsSpeaking(false);
+              rawModelTurnBufferRef.current = "";
             } else if (msg.type === "model-text") {
+              // Acumula o texto bruto (com <analytics>) num ref à parte — o
+              // estado visível (lastModelCaption) continua limpo para o utilizador,
+              // mas o payload de feedback real não se perde entre chunks.
+              rawModelTurnBufferRef.current += msg.text;
+
               // Append to real-time caption
               setLastModelCaption((prev) => {
                 const raw = prev + msg.text;
@@ -794,6 +816,23 @@ export default function PracticeRoom({
                 updateTranscriptItem("model", clean);
                 return clean;
               });
+            } else if (msg.type === "turn-complete") {
+              // Extrai o feedback pedagógico real que a IA gerou sobre este
+              // turno específico (ver contrato <analytics> no system prompt,
+              // server/websocket/live.gateway.ts). Substitui qualquer feedback
+              // anterior — mantemos sempre o mais recente e relevante.
+              const match = rawModelTurnBufferRef.current.match(/<analytics>([\s\S]*?)<\/analytics>/);
+              if (match) {
+                try {
+                  const parsed = JSON.parse(match[1].trim());
+                  if (parsed && typeof parsed === "object") {
+                    lastAnalyticsRef.current = parsed;
+                  }
+                } catch (e) {
+                  console.warn("Failed to parse <analytics> payload:", e);
+                }
+              }
+              rawModelTurnBufferRef.current = "";
             } else if (msg.type === "user-text") {
               setIsListening(true);
               setIsSpeaking(false);
