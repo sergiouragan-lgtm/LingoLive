@@ -750,6 +750,26 @@ service cloud.firestore {
       allow create, update, delete: if false; // Direct client writes prohibited!
     }
 
+    // 41. Marketplace v2 — all mutations are mediated by authenticated backend routes.
+    match /marketplace_listings/{listingId} {
+      allow read: if isSignedIn() && resource.data.status == 'active';
+      allow create, update, delete: if false;
+    }
+    match /marketplace_orders/{orderId} {
+      allow get: if isSignedIn() && (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid || isAdmin());
+      allow list: if isAdmin();
+      allow create, update, delete: if false;
+    }
+    match /marketplace_entitlements/{entitlementId} {
+      allow get: if isSignedIn() && (resource.data.buyerId == request.auth.uid || isAdmin());
+      allow list: if isAdmin();
+      allow create, update, delete: if false;
+    }
+    match /marketplace_reviews/{reviewId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if false;
+    }
+
     // Global Deny-All Catch-all Safety Net
     match /{document=**} {
       allow read, write: if false;
