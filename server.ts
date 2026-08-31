@@ -39,6 +39,7 @@ import adminPaymentRouter from "./server/routes/adminPayment.routes";
 import geoRouter from "./server/routes/geo.routes";
 import learningAnalyticsRouter from "./server/routes/learningAnalytics.routes";
 import certificationRouter from "./server/routes/certification.routes";
+import marketplaceRouter from "./server/routes/marketplace.routes";
 
 const app = express();
 
@@ -66,6 +67,7 @@ app.use("/api", adminPaymentRouter);
 app.use("/api/geo", geoRouter);
 app.use("/api/analytics", learningAnalyticsRouter);
 app.use("/api/certification", certificationRouter);
+app.use("/api/marketplace", marketplaceRouter);
 
 // Endpoint for Service Worker Background Sync of vocabulary updates
 app.post("/api/sync-vocabulary", async (req, res) => {
