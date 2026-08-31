@@ -4,6 +4,7 @@ import { dbAdmin } from "../config/firebaseAdmin";
 import { appBaseUrl } from "../config/env";
 import { PaymentEngineService } from "./paymentEngine.service";
 import { safeGetDoc } from "./firestoreSafe.service";
+import { MarketplaceService } from "./marketplace.service";
 
 // Ver nota equivalente em paymentEngine.service.ts: evita chamadas reais e
 // lentas ao Firestore durante testes automatizados (Vitest define VITEST=true).
@@ -88,6 +89,11 @@ export class StripeService {
 
       if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
         const session = event.data.object;
+        if (session.metadata?.purchaseType === "marketplace") {
+          const marketplaceResult = await MarketplaceService.completeStripeCheckout(session);
+          await PaymentEngineService.markEventProcessed(eventId, "stripe", event.type, marketplaceResult, session.metadata?.buyerId);
+          return { received: true, marketplace: true, ...marketplaceResult };
+        }
         const userId = session.client_reference_id || session.metadata?.userId;
         const planId = session.metadata?.planId;
 
@@ -402,4 +408,3 @@ export class StripeService {
     }
   }
 }
-
