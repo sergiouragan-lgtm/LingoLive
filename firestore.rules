@@ -68,7 +68,7 @@ service cloud.firestore {
             && (!('userId' in incoming()) || incoming().userId == userId)
             && (!('email' in incoming()) || incoming().email == request.auth.token.email)
             // Non-privileged role check on create
-            && (!('role' in incoming()) || !(incoming().role in ['SUPER_ADMIN', 'PLATFORM_ADMIN', 'Admin', 'admin', 'ADMIN', 'schoolAdmin', 'organizationRole']))
+            && (!('role' in incoming()) || !(incoming().role in ['SUPER_ADMIN', 'PLATFORM_ADMIN', 'SCHOOL_ADMIN', 'ORG_ADMIN', 'school_admin', 'org_admin', 'Admin', 'admin', 'ADMIN', 'schoolAdmin', 'organizationRole']))
             // Block privileged admin/RBAC flags on create
             && !('isAdmin' in incoming() && incoming().isAdmin == true)
             && !('admin' in incoming() && incoming().admin == true)
@@ -108,7 +108,7 @@ service cloud.firestore {
                 'subscriptionActive', 'paymentCompleted', 'learningIntent'
               ])
             // Security: role cannot be elevated to privileged admin roles on update
-            && (!('role' in incoming()) || incoming().role == existing().role || !(incoming().role in ['SUPER_ADMIN', 'PLATFORM_ADMIN', 'Admin', 'admin', 'ADMIN', 'schoolAdmin', 'organizationRole']))
+            && (!('role' in incoming()) || incoming().role == existing().role || !(incoming().role in ['SUPER_ADMIN', 'PLATFORM_ADMIN', 'SCHOOL_ADMIN', 'ORG_ADMIN', 'school_admin', 'org_admin', 'Admin', 'admin', 'ADMIN', 'schoolAdmin', 'organizationRole']))
             // Block privileged admin/RBAC flags on update
             && !('isAdmin' in incoming() && incoming().isAdmin == true)
             && !('admin' in incoming() && incoming().admin == true)
@@ -128,6 +128,20 @@ service cloud.firestore {
       match /settings/{settingId} {
         allow read: if isSignedIn() && (isOwner(userId) || isAdmin());
         allow write: if isSignedIn() && (isOwner(userId) || isAdmin());
+      }
+
+      // Private FCM registrations. A device can only manage its own account's
+      // token and cannot attach tenant, role or notification payload data.
+      match /devices/{deviceId} {
+        allow read: if isSignedIn() && (isOwner(userId) || isAdmin());
+        allow create, update: if isEmailVerified() && isOwner(userId)
+          && incoming().keys().hasOnly(['token', 'platform', 'enabled', 'updatedAt'])
+          && incoming().token is string
+          && incoming().token.size() >= 20
+          && incoming().token.size() <= 4096
+          && incoming().platform == 'flutter'
+          && incoming().enabled == true;
+        allow delete: if isSignedIn() && isOwner(userId);
       }
     }
 

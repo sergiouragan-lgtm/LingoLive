@@ -5,7 +5,8 @@ import 'tutor_memory_repository.dart';
 class MemoryControlScreen extends StatefulWidget {
   final User user;
   final bool embedded;
-  const MemoryControlScreen({super.key, required this.user, this.embedded = false});
+  const MemoryControlScreen(
+      {super.key, required this.user, this.embedded = false});
 
   @override
   State<MemoryControlScreen> createState() => _MemoryControlScreenState();
@@ -30,11 +31,21 @@ class _MemoryControlScreenState extends State<MemoryControlScreen> {
     try {
       final memory = await _repository.load();
       _enabled = memory.enabled;
-      _correction = const {'gentle': 'Suave', 'balanced': 'Equilibrado', 'direct': 'Direto'}[memory.preferredStyle] ?? 'Equilibrado';
-      _frequency = memory.studyFrequency.isEmpty ? 'Por definir' : memory.studyFrequency;
-      _goals = memory.learningGoals.isEmpty ? 'Por definir' : memory.learningGoals.first;
+      _correction = const {
+            'gentle': 'Suave',
+            'balanced': 'Equilibrado',
+            'direct': 'Direto'
+          }[memory.preferredStyle] ??
+          'Equilibrado';
+      _frequency =
+          memory.studyFrequency.isEmpty ? 'Por definir' : memory.studyFrequency;
+      _goals = memory.learningGoals.isEmpty
+          ? 'Por definir'
+          : memory.learningGoals.first;
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Não foi possível carregar as preferências.')));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Não foi possível carregar as preferências.')));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -45,13 +56,22 @@ class _MemoryControlScreenState extends State<MemoryControlScreen> {
     try {
       await _repository.save(TutorMemory(
         enabled: _enabled,
-        preferredStyle: const {'Suave': 'gentle', 'Equilibrado': 'balanced', 'Direto': 'direct'}[_correction] ?? 'balanced',
+        preferredStyle: const {
+              'Suave': 'gentle',
+              'Equilibrado': 'balanced',
+              'Direto': 'direct'
+            }[_correction] ??
+            'balanced',
         learningGoals: _goals == 'Por definir' ? const [] : [_goals],
         studyFrequency: _frequency == 'Por definir' ? '' : _frequency,
       ));
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Preferências guardadas.')));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Preferências guardadas.')));
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Não foi possível guardar as alterações.')));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Não foi possível guardar as alterações.')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -62,10 +82,15 @@ class _MemoryControlScreenState extends State<MemoryControlScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Eliminar toda a memória?'),
-        content: const Text('Esta ação remove permanentemente a memória personalizada do tutor.'),
+        content: const Text(
+            'Esta ação remove permanentemente a memória personalizada do tutor.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Eliminar')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar')),
+          FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Eliminar')),
         ],
       ),
     );
@@ -80,22 +105,29 @@ class _MemoryControlScreenState extends State<MemoryControlScreen> {
         _frequency = 'Por definir';
         _goals = 'Por definir';
       });
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Memória eliminada.')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Memória eliminada.')));
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Não foi possível eliminar a memória.')));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Não foi possível eliminar a memória.')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
   }
 
-  Future<void> _choose(String title, List<String> values, ValueChanged<String> onSelected) async {
+  Future<void> _choose(String title, List<String> values,
+      ValueChanged<String> onSelected) async {
     final selected = await showModalBottomSheet<String>(
       context: context,
       showDragHandle: true,
       builder: (context) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          ListTile(title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700))),
-          ...values.map((value) => ListTile(title: Text(value), onTap: () => Navigator.pop(context, value))),
+          ListTile(
+              title: Text(title,
+                  style: const TextStyle(fontWeight: FontWeight.w700))),
+          ...values.map((value) => ListTile(
+              title: Text(value), onTap: () => Navigator.pop(context, value))),
         ]),
       ),
     );
@@ -107,50 +139,137 @@ class _MemoryControlScreenState extends State<MemoryControlScreen> {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final dark = theme.brightness == Brightness.dark;
-    if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_loading)
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Controlo da memória'),
         centerTitle: true,
-        actions: [IconButton(tooltip: 'Terminar sessão', onPressed: FirebaseAuth.instance.signOut, icon: const Icon(Icons.logout_rounded))],
-      ),
-      bottomNavigationBar: widget.embedded ? null : NavigationBar(
-        selectedIndex: 2,
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Início'),
-          NavigationDestination(icon: Icon(Icons.menu_book_outlined), label: 'Aprender'),
-          NavigationDestination(icon: Icon(Icons.psychology_outlined), label: 'Memória'),
-          NavigationDestination(icon: Icon(Icons.person_outline), label: 'Perfil'),
+        actions: [
+          IconButton(
+              tooltip: 'Terminar sessão',
+              onPressed: FirebaseAuth.instance.signOut,
+              icon: const Icon(Icons.logout_rounded))
         ],
       ),
+      bottomNavigationBar: widget.embedded
+          ? null
+          : NavigationBar(
+              selectedIndex: 2,
+              destinations: const [
+                NavigationDestination(
+                    icon: Icon(Icons.home_outlined), label: 'Início'),
+                NavigationDestination(
+                    icon: Icon(Icons.menu_book_outlined), label: 'Aprender'),
+                NavigationDestination(
+                    icon: Icon(Icons.psychology_outlined), label: 'Memória'),
+                NavigationDestination(
+                    icon: Icon(Icons.person_outline), label: 'Perfil'),
+              ],
+            ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(22, 12, 22, 28),
           children: [
             const SizedBox(height: 8),
-            Center(child: Container(width: 82, height: 82, decoration: BoxDecoration(shape: BoxShape.circle, color: colors.primary.withValues(alpha: .08)), child: Icon(Icons.shield_outlined, size: 58, color: colors.primary))),
+            Center(
+                child: Container(
+                    width: 82,
+                    height: 82,
+                    decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: colors.primary.withValues(alpha: .08)),
+                    child: Icon(Icons.shield_outlined,
+                        size: 58, color: colors.primary))),
             const SizedBox(height: 20),
-            Text('Os seus dados de\naprendizagem pertencem-lhe.', textAlign: TextAlign.center, style: theme.textTheme.headlineSmall?.copyWith(fontFamily: 'serif', fontWeight: FontWeight.w700, height: 1.1)),
+            Text('Os seus dados de\naprendizagem pertencem-lhe.',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                    fontFamily: 'serif',
+                    fontWeight: FontWeight.w700,
+                    height: 1.1)),
             const SizedBox(height: 10),
-            Text('Controle como a sua memória é usada\npara personalizar a sua experiência.', textAlign: TextAlign.center, style: theme.textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant)),
+            Text(
+                'Controle como a sua memória é usada\npara personalizar a sua experiência.',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: colors.onSurfaceVariant)),
             const SizedBox(height: 28),
             Container(
-              decoration: BoxDecoration(color: dark ? colors.surfaceContainer : Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: colors.outlineVariant)),
+              decoration: BoxDecoration(
+                  color: dark ? colors.surfaceContainer : Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: colors.outlineVariant)),
               child: Column(children: [
-                SwitchListTile(title: const Text('Personalização com memória', style: TextStyle(fontWeight: FontWeight.w700)), subtitle: const Text('O tutor pode usar e atualizar a memória'), value: _enabled, onChanged: (value) => setState(() => _enabled = value)),
+                SwitchListTile(
+                    title: const Text('Personalização com memória',
+                        style: TextStyle(fontWeight: FontWeight.w700)),
+                    subtitle:
+                        const Text('O tutor pode usar e atualizar a memória'),
+                    value: _enabled,
+                    onChanged: (value) => setState(() => _enabled = value)),
                 const Divider(height: 1),
-                _SettingTile(icon: Icons.tune, label: 'Estilo de correção', value: _correction, onTap: () => _choose('Estilo de correção', ['Suave', 'Equilibrado', 'Direto'], (value) => _correction = value)),
-                _SettingTile(icon: Icons.calendar_month_outlined, label: 'Frequência de estudo', value: _frequency, onTap: () => _choose('Frequência de estudo', ['Diária', '3 vezes por semana', 'Semanal', 'Por definir'], (value) => _frequency = value)),
-                _SettingTile(icon: Icons.track_changes_outlined, label: 'Objetivos pessoais', value: _goals, onTap: () => _choose('Objetivos pessoais', ['Conversação', 'Trabalho', 'Viagens', 'Exames', 'Por definir'], (value) => _goals = value)),
+                _SettingTile(
+                    icon: Icons.tune,
+                    label: 'Estilo de correção',
+                    value: _correction,
+                    onTap: () => _choose(
+                        'Estilo de correção',
+                        ['Suave', 'Equilibrado', 'Direto'],
+                        (value) => _correction = value)),
+                _SettingTile(
+                    icon: Icons.calendar_month_outlined,
+                    label: 'Frequência de estudo',
+                    value: _frequency,
+                    onTap: () => _choose(
+                        'Frequência de estudo',
+                        [
+                          'Diária',
+                          '3 vezes por semana',
+                          'Semanal',
+                          'Por definir'
+                        ],
+                        (value) => _frequency = value)),
+                _SettingTile(
+                    icon: Icons.track_changes_outlined,
+                    label: 'Objetivos pessoais',
+                    value: _goals,
+                    onTap: () => _choose(
+                        'Objetivos pessoais',
+                        [
+                          'Conversação',
+                          'Trabalho',
+                          'Viagens',
+                          'Exames',
+                          'Por definir'
+                        ],
+                        (value) => _goals = value)),
               ]),
             ),
             const SizedBox(height: 16),
-            FilledButton(onPressed: _saving ? null : _save, child: Padding(padding: const EdgeInsets.symmetric(vertical: 14), child: Text(_saving ? 'A guardar…' : 'Guardar alterações'))),
+            FilledButton(
+                onPressed: _saving ? null : _save,
+                child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    child:
+                        Text(_saving ? 'A guardar…' : 'Guardar alterações'))),
             const SizedBox(height: 12),
-            OutlinedButton.icon(onPressed: _enabled ? () => setState(() => _enabled = false) : null, icon: const Icon(Icons.shield_outlined), label: const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Text('Desativar preserva os dados e impede o uso.'))),
+            OutlinedButton.icon(
+                onPressed:
+                    _enabled ? () => setState(() => _enabled = false) : null,
+                icon: const Icon(Icons.shield_outlined),
+                label: const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child:
+                        Text('Desativar preserva os dados e impede o uso.'))),
             const SizedBox(height: 10),
-            OutlinedButton.icon(onPressed: _saving ? null : _deleteMemory, icon: const Icon(Icons.delete_outline), label: const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Text('Eliminar toda a memória'))),
+            OutlinedButton.icon(
+                onPressed: _saving ? null : _deleteMemory,
+                icon: const Icon(Icons.delete_outline),
+                label: const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Text('Eliminar toda a memória'))),
           ],
         ),
       ),
@@ -163,13 +282,20 @@ class _SettingTile extends StatelessWidget {
   final String label;
   final String value;
   final VoidCallback onTap;
-  const _SettingTile({required this.icon, required this.label, required this.value, required this.onTap});
+  const _SettingTile(
+      {required this.icon,
+      required this.label,
+      required this.value,
+      required this.onTap});
 
   @override
   Widget build(BuildContext context) => ListTile(
-    leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
-    title: Text(label),
-    trailing: Row(mainAxisSize: MainAxisSize.min, children: [Text(value, style: Theme.of(context).textTheme.bodySmall), const Icon(Icons.chevron_right)]),
-    onTap: onTap,
-  );
+        leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
+        title: Text(label),
+        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+          Text(value, style: Theme.of(context).textTheme.bodySmall),
+          const Icon(Icons.chevron_right)
+        ]),
+        onTap: onTap,
+      );
 }

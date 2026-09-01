@@ -20,7 +20,9 @@ class TutorMemory {
   factory TutorMemory.fromJson(Map<String, dynamic> json) => TutorMemory(
         enabled: json['enabled'] as bool? ?? true,
         preferredStyle: json['preferredStyle'] as String? ?? 'balanced',
-        learningGoals: (json['learningGoals'] as List<dynamic>? ?? const []).whereType<String>().toList(),
+        learningGoals: (json['learningGoals'] as List<dynamic>? ?? const [])
+            .whereType<String>()
+            .toList(),
         studyFrequency: json['studyFrequency'] as String? ?? '',
       );
 
@@ -39,26 +41,40 @@ class TutorMemoryRepository {
     if (_apiBaseUrl.isEmpty) throw StateError('API_BASE_URL não configurado.');
     final token = await FirebaseAuth.instance.currentUser?.getIdToken(true);
     if (token == null) throw StateError('Sessão expirada.');
-    return {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'};
+    return {
+      'Authorization': 'Bearer $token',
+      'Content-Type': 'application/json'
+    };
   }
 
   Uri get _uri => Uri.parse('$_apiBaseUrl/api/tutor-memory');
 
   Future<TutorMemory> load() async {
-    final response = await http.get(_uri, headers: await _headers()).timeout(const Duration(seconds: 15));
-    if (response.statusCode != 200) throw StateError('Não foi possível carregar a memória.');
+    final response = await http
+        .get(_uri, headers: await _headers())
+        .timeout(const Duration(seconds: 15));
+    if (response.statusCode != 200)
+      throw StateError('Não foi possível carregar a memória.');
     final decoded = jsonDecode(response.body);
-    if (decoded is! Map<String, dynamic>) throw const FormatException('Resposta inválida.');
+    if (decoded is! Map<String, dynamic>)
+      throw const FormatException('Resposta inválida.');
     return TutorMemory.fromJson(decoded);
   }
 
   Future<void> save(TutorMemory memory) async {
-    final response = await http.patch(_uri, headers: await _headers(), body: jsonEncode(memory.toJson())).timeout(const Duration(seconds: 15));
-    if (response.statusCode < 200 || response.statusCode >= 300) throw StateError('Não foi possível guardar a memória.');
+    final response = await http
+        .patch(_uri,
+            headers: await _headers(), body: jsonEncode(memory.toJson()))
+        .timeout(const Duration(seconds: 15));
+    if (response.statusCode < 200 || response.statusCode >= 300)
+      throw StateError('Não foi possível guardar a memória.');
   }
 
   Future<void> delete() async {
-    final response = await http.delete(_uri, headers: await _headers()).timeout(const Duration(seconds: 15));
-    if (response.statusCode < 200 || response.statusCode >= 300) throw StateError('Não foi possível eliminar a memória.');
+    final response = await http
+        .delete(_uri, headers: await _headers())
+        .timeout(const Duration(seconds: 15));
+    if (response.statusCode < 200 || response.statusCode >= 300)
+      throw StateError('Não foi possível eliminar a memória.');
   }
 }

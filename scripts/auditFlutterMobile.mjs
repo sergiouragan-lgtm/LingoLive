@@ -48,7 +48,7 @@ check('firebase:android-app-id', androidClient?.client_info?.mobilesdk_app_id ==
 check('firebase:ios-bundle', /<key>BUNDLE_ID<\/key>\s*<string>com\.lingolive\.ai<\/string>/.test(plist));
 check('firebase:ios-app-id', plist.includes('1:995910450073:ios:24644446f4b0a957be3108'));
 check('firebase:options-project', options.includes("projectId = 'lingolive-ia-f5778'"));
-check('firestore:named-database', options.includes("databaseId = 'ai-studio-lingoliveai-669e2e6d-3566-4aa0-ba62-227975dc5edd'") && services.includes('DefaultFirebaseOptions.databaseId'));
+check('firestore:named-database', /databaseId\s*=\s*['\"]ai-studio-lingoliveai-669e2e6d-3566-4aa0-ba62-227975dc5edd['\"]/.test(options) && services.includes('DefaultFirebaseOptions.databaseId'));
 
 check('auth:user-changes', authGate.includes('userChanges()'));
 check('auth:verified-email', authGate.includes('emailVerified'));

@@ -6,8 +6,12 @@ analyzer:
     - conversation_wizard.dart
     - profile_view.dart
     - sidebar_navigation.dart
+    - build/**
+    - android/**
+    - ios/**
 
 linter:
   rules:
     avoid_print: true
     prefer_const_constructors: true
+    curly_braces_in_flow_control_structures: false

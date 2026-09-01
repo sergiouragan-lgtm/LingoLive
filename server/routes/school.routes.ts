@@ -3,9 +3,23 @@ import admin from "firebase-admin";
 import { requireAuth } from "../middleware/requireAuth";
 import { requireRole } from "../middleware/requireRole";
 import { dbAdmin } from "../config/firebaseAdmin";
-import { safeAddDoc, safeGetDoc } from "../services/firestoreSafe.service";
+import { safeAddDoc } from "../services/firestoreSafe.service";
 
 const router = Router();
+
+const SCHOOL_ROLES = new Set(["school_admin", "org_admin", "admin", "super_admin"]);
+
+// Mobile clients must authorize institutional navigation exclusively from
+// verified custom claims. Mutable fields in users/{uid} are never consulted.
+router.get("/school/mobile-context", requireAuth, async (req: any, res) => {
+  const role = String(req.user?.role || "").toLowerCase();
+  const schoolId = typeof req.user?.schoolId === "string" ? req.user.schoolId.trim() : "";
+  const tenantId = typeof req.user?.tenantId === "string" ? req.user.tenantId.trim() : "";
+  if (!SCHOOL_ROLES.has(role) || (!schoolId && !tenantId)) {
+    return res.status(403).json({ error: "Acesso institucional não atribuído." });
+  }
+  return res.json({ role, schoolId: schoolId || null, tenantId: tenantId || null });
+});
 
 // 1. API endpoint to add a teacher
 router.post(
@@ -47,79 +61,37 @@ router.post(
   }
 );
 
-// 2. API endpoint to send test push notifications (supports both real FCM and sandbox fallback)
+// 2. Real FCM delivery check. A learner can target only their own registered
+// devices; institutional operators are authorized exclusively by token claims.
 router.post("/send-test-push", requireAuth, async (req: any, res) => {
   const { userId, title, body } = req.body;
-  
-  if (!userId) {
+  if (typeof userId !== "string" || !userId) {
     return res.status(400).json({ error: "userId is required" });
+  }
+  const callerRole = String(req.user?.role || "").toLowerCase();
+  if (userId !== req.user.uid && !SCHOOL_ROLES.has(callerRole)) {
+    return res.status(403).json({ error: "Sem permissão para notificar este utilizador." });
+  }
+  if (typeof title !== "string" || typeof body !== "string" || !title.trim() || !body.trim() || title.length > 120 || body.length > 500) {
+    return res.status(400).json({ error: "Título ou mensagem inválidos." });
   }
 
   try {
-    const userDoc = await safeGetDoc("users", userId);
-    if (!userDoc.exists) {
-      return res.status(404).json({ error: "Perfil do usuário não encontrado." });
-    }
-    
-    const userData = userDoc.data();
-    const settings = userData?.notificationSettings;
-    const token = settings?.fcmToken;
-    
-    if (!token) {
-      return res.status(400).json({ 
-        error: "Nenhum token push registrado. Ative as notificações nas configurações primeiro." 
-      });
-    }
-
-    const notificationTitle = title || "LingoLive: Teste de Push! 🔔";
-    const notificationBody = body || "Suas notificações push estão configuradas e ativas com sucesso!";
-
-    console.log(`[Test Push] Sending push to User ID: ${userId}, Token: ${token}`);
-
-    if (token.startsWith("simulated_")) {
-      return res.json({
-        status: "simulated",
-        message: "Notificação simulada disparada com sucesso! Exibiremos o alerta localmente no seu navegador.",
-        title: notificationTitle,
-        body: notificationBody
-      });
-    }
-
     if (!dbAdmin) {
-      return res.status(500).json({ 
-        error: "Firebase Admin SDK não foi inicializado." 
-      });
+      return res.status(503).json({ error: "Firebase Admin SDK não foi inicializado." });
     }
-
-    try {
-      await (admin as any).messaging().send({
-        token: token,
-        notification: {
-          title: notificationTitle,
-          body: notificationBody,
-        },
-        data: {
-          type: "test_notification"
-        }
-      });
-      
-      res.json({
-        status: "success",
-        message: "Notificação Push Real enviada com sucesso via Firebase Cloud Messaging!"
-      });
-    } catch (fcmErr: any) {
-      console.warn("FCM real send failed, providing simulation fallback:", fcmErr.message);
-      res.status(200).json({
-        status: "simulated",
-        message: `Notificação Push disparada (FCM falhou: ${fcmErr.message}). Utilizando fallback de simulação local no navegador.`,
-        title: notificationTitle,
-        body: notificationBody,
-        fallback: true
-      });
-    }
+    const devices = await dbAdmin.collection("users").doc(userId).collection("devices").where("enabled", "==", true).limit(20).get();
+    const tokens = devices.docs.map((document: any) => document.data()?.token).filter((token: unknown): token is string => typeof token === "string" && token.length >= 20);
+    if (!tokens.length) return res.status(404).json({ error: "Nenhum dispositivo com notificações ativas." });
+    const result = await (admin as any).messaging().sendEachForMulticast({
+      tokens,
+      notification: { title: title.trim(), body: body.trim() },
+      data: { type: "delivery_check" },
+    });
+    return res.json({ status: "sent", successCount: result.successCount, failureCount: result.failureCount });
   } catch (err: any) {
     console.error("Test push endpoint error:", err);
-    res.status(500).json({ error: err.message });
+    res.status(502).json({ error: "Falha no envio FCM." });
   }
 });
 

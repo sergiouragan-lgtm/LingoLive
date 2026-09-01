@@ -45,7 +45,7 @@ router.post("/stripe-webhook", express.raw({ type: "*/*" }), async (req: any, re
 });
 
 router.post("/create-checkout-session", express.json(), requireAuth, paymentsLimiter, async (req: any, res: any) => {
-  const { planId } = req.body;
+  const { planId, client } = req.body;
   const userId = req.user.uid;
 
   if (!planId) {
@@ -59,7 +59,7 @@ router.post("/create-checkout-session", express.json(), requireAuth, paymentsLim
   console.log(`[Payment Route] Creating checkout session for userId: ${userId}, planId: ${planId}`);
 
   try {
-    const session = await StripeService.createCheckoutSession(userId, planId);
+    const session = await StripeService.createCheckoutSession(userId, planId, { mobile: client === "mobile" });
     console.log(`[Payment Route] Session created, URL: ${session.url}`);
     res.json({ url: session.url });
   } catch (error: any) {

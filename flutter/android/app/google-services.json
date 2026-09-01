@@ -4,17 +4,43 @@
     "project_id": "lingolive-ia-f5778",
     "storage_bucket": "lingolive-ia-f5778.firebasestorage.app"
   },
-  "client": [{
-    "client_info": {
-      "mobilesdk_app_id": "1:995910450073:android:b32b72f4060a3875be3108",
-      "android_client_info": { "package_name": "com.lingolive.ai" }
-    },
-    "oauth_client": [{
-      "client_id": "995910450073-s3m761f90ahr15ajnmra3mdh1q9quqgu.apps.googleusercontent.com",
-      "client_type": 3
-    }],
-    "api_key": [{ "current_key": "AIzaSyBn6v2RL6RGKweMf9dKJsOQi-KsWXTyGig" }],
-    "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
-  }],
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:995910450073:android:b32b72f4060a3875be3108",
+        "android_client_info": {
+          "package_name": "com.lingolive.ai"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "995910450073-s3m761f90ahr15ajnmra3mdh1q9quqgu.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBn6v2RL6RGKweMf9dKJsOQi-KsWXTyGig"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "995910450073-s3m761f90ahr15ajnmra3mdh1q9quqgu.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "995910450073-pd567latrhbljq9dv42e2gl8olemfbfq.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.lingolive.ai"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
   "configuration_version": "1"
 }

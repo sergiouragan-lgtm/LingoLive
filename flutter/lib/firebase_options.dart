@@ -1,9 +1,11 @@
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
-import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform, kIsWeb;
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 
 abstract final class DefaultFirebaseOptions {
   static const projectId = 'lingolive-ia-f5778';
-  static const databaseId = 'ai-studio-lingoliveai-669e2e6d-3566-4aa0-ba62-227975dc5edd';
+  static const databaseId =
+      'ai-studio-lingoliveai-669e2e6d-3566-4aa0-ba62-227975dc5edd';
   static const messagingSenderId = '995910450073';
   static const storageBucket = 'lingolive-ia-f5778.firebasestorage.app';
 
@@ -12,7 +14,8 @@ abstract final class DefaultFirebaseOptions {
     return switch (defaultTargetPlatform) {
       TargetPlatform.android => android,
       TargetPlatform.iOS => ios,
-      _ => throw UnsupportedError('Plataforma ainda não configurada no FlutterFire.'),
+      _ => throw UnsupportedError(
+          'Plataforma ainda não configurada no FlutterFire.'),
     };
   }
 

@@ -10,7 +10,7 @@ import { safeGetDoc } from "./firestoreSafe.service";
 const isRunningUnderTests = process.env.VITEST === "true" || process.env.NODE_ENV === "test";
 
 export class StripeService {
-  static async createCheckoutSession(userId: string, planId: string) {
+  static async createCheckoutSession(userId: string, planId: string, options: { mobile?: boolean } = {}) {
     const stripe = getStripeClient();
     if (!stripe) {
       throw new Error("Stripe is not configured in this environment.");
@@ -44,7 +44,7 @@ export class StripeService {
         },
       ],
       mode: 'subscription',
-      success_url: `${appBaseUrl}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${appBaseUrl}/billing/success?session_id={CHECKOUT_SESSION_ID}${options.mobile ? "&client=mobile" : ""}`,
       cancel_url: `${appBaseUrl}/billing/cancel`,
       metadata: {
         userId: userId,
