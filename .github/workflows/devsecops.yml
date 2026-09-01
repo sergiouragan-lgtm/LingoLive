@@ -96,6 +96,9 @@ jobs:
       - name: Lint estrito (verificação de tipos TypeScript)
         run: npm run lint
 
+      - name: Validar contrato OpenAPI mobile
+        run: npm run test:openapi:mobile
+
       - name: Testes unitários e de integração (Vitest)
         run: npx vitest run
 

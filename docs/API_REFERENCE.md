@@ -100,6 +100,8 @@ O LingoLIVE IA possui um ecossistema abrangente de recursos integrados que apoia
 
 As rotas internas servem o ecossistema principal do LingoLIVE. O endereço de ingresso de todas as chamadas de produção inicia no prefixo `/api`.
 
+O contrato executável e canónico consumido pelo Flutter encontra-se em [`openapi/mobile.openapi.yaml`](../openapi/mobile.openapi.yaml). Em caso de divergência nos sete endpoints mobile certificados, esse contrato e as rotas do servidor prevalecem sobre exemplos narrativos desta página.
+
 ### 4.1 Pronúncia (Avaliador Baseado em Whisper e Gemini)
 * **Endpoint:** `POST /api/pronunciation/evaluate`
 * **Autenticação:** Obrigatória (`Bearer ID_TOKEN`)
