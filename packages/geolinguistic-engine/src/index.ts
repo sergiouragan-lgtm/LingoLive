@@ -9,7 +9,7 @@ function isWordChar(char?: string): boolean { return Boolean(char && /[\p{L}\p{N
 function hasBoundaries(text: string, start: number, length: number): boolean { return !isWordChar(text[start - 1]) && !isWordChar(text[start + length]); }
 export function resolveRegionalLanguageProfile(input: { selectedLanguage: string; targetLanguage?: string; explicitVariant?: string; deviceLocale?: string; country?: string; region?: string; }): RegionalLanguageProfile {
   const selected = baseLanguage(input.selectedLanguage) ?? input.selectedLanguage.toLowerCase(); const country = input.country?.toUpperCase(); const device = normalizeLocale(input.deviceLocale); const deviceBase = baseLanguage(device); const explicit = normalizeLocale(input.explicitVariant); const common = { country: input.country, region: input.region, deviceLocale: input.deviceLocale, selectedLanguage: input.selectedLanguage, targetLanguage: input.targetLanguage };
-  if (explicit) return { ...common, variant: explicit, confidence: 1, sources: ['explicit', 'selected'] };
+  if (explicit && baseLanguage(explicit) === selected) return { ...common, variant: explicit, confidence: 1, sources: ['explicit', 'selected'] };
   if (device && deviceBase === selected && device.includes('-')) return { ...common, variant: device, confidence: 0.9, sources: ['selected', 'device'] };
   const countryVariant = country ? COUNTRY_VARIANTS[selected]?.[country] : undefined; if (countryVariant) return { ...common, variant: countryVariant, confidence: 0.75, sources: ['selected', 'country'] };
   return { ...common, variant: selected, confidence: 0.5, sources: ['selected'] };
