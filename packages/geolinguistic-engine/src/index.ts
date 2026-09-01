@@ -1,4 +1,4 @@
-export type LanguageVariant = `${string}-${string}` | string;
+export type LanguageVariant = string;
 
 export interface RegionalLanguageProfile {
   country?: string;
@@ -31,9 +31,7 @@ const COUNTRY_VARIANTS: Record<string, Record<string, string>> = {
   fr: { FR: 'fr-FR', CA: 'fr-CA' },
 };
 
-function baseLanguage(locale?: string): string | undefined {
-  return locale?.trim().replace('_', '-').split('-')[0]?.toLowerCase();
-}
+function baseLanguage(locale?: string): string | undefined { return locale?.trim().replace('_', '-').split('-')[0]?.toLowerCase(); }
 
 export function resolveRegionalLanguageProfile(input: { selectedLanguage: string; targetLanguage?: string; explicitVariant?: string; deviceLocale?: string; country?: string; region?: string; }): RegionalLanguageProfile {
   const selected = baseLanguage(input.selectedLanguage) ?? input.selectedLanguage.toLowerCase();
@@ -41,7 +39,6 @@ export function resolveRegionalLanguageProfile(input: { selectedLanguage: string
   const device = input.deviceLocale?.replace('_', '-');
   const deviceBase = baseLanguage(device);
   const common = { country: input.country, region: input.region, deviceLocale: input.deviceLocale, selectedLanguage: input.selectedLanguage, targetLanguage: input.targetLanguage };
-
   if (input.explicitVariant) return { ...common, variant: input.explicitVariant, confidence: 1, sources: ['explicit', 'selected'] };
   if (device && deviceBase === selected && device.includes('-')) return { ...common, variant: device, confidence: 0.9, sources: ['selected', 'device'] };
   const countryVariant = country ? COUNTRY_VARIANTS[selected]?.[country] : undefined;
@@ -51,7 +48,6 @@ export function resolveRegionalLanguageProfile(input: { selectedLanguage: string
 
 export class RegionalExpressionEngine {
   constructor(private readonly entries: RegionalExpression[] = []) {}
-
   detect(text: string, profile: RegionalLanguageProfile): ExpressionMatch[] {
     const normalized = text.toLocaleLowerCase();
     const language = baseLanguage(profile.variant) ?? baseLanguage(profile.selectedLanguage);
@@ -69,7 +65,6 @@ export class RegionalExpressionEngine {
     }
     return matches.sort((a, b) => a.start - b.start || b.expression.length - a.expression.length);
   }
-
   classifyForCorrection(match: ExpressionMatch, profile: RegionalLanguageProfile) {
     return { isRegionalism: true, shouldMarkAsError: false, isExpectedVariant: match.variants.includes(profile.variant), explanation: match.meaning, standardEquivalent: match.standardEquivalent, register: match.register, regions: match.regions };
   }
