@@ -18,12 +18,14 @@ describe('Tutor Geo integration', () => {
     expect(corrections).toEqual([{ original: 'bom', replacement: 'ótimo' }]);
   });
 
-  it('emits telemetry without raw learner text', async () => {
+  it('emits privacy-preserving telemetry without the raw expression or learner text', async () => {
     const emit = vi.fn();
     const engine = new RegionalExpressionEngine(entries);
     const profile = resolveRegionalLanguageProfile({ selectedLanguage: 'pt', country: 'AO' });
     await protectRegionalExpressions({ text: 'bué', profile, engine, corrections: [], telemetry: { emit } });
     expect(emit).toHaveBeenCalledWith('regional_expression_detected', expect.objectContaining({ languageVariant: 'pt-AO', register: 'slang' }));
-    expect(JSON.stringify(emit.mock.calls)).not.toContain('Isso é');
+    const payload = emit.mock.calls[0][1];
+    expect(payload).not.toHaveProperty('text');
+    expect(payload).not.toHaveProperty('expression');
   });
 });
