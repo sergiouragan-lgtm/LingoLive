@@ -3,37 +3,34 @@
 Incremental regional-language layer. It does not replace existing learning flows.
 
 ## Implemented
-
-- Variant resolution with explicit learner choice > matching device locale > country signal > selected base language.
+- Variant resolution: explicit learner choice > matching device locale > country signal > selected base language.
 - Locale normalization and cross-language guardrails.
-- Regional-expression detection with Unicode word boundaries and repeated-match support.
-- Correction protection for known expressions valid in the active variant.
-- Tutor context instruction for variant-aware responses.
-- Privacy-preserving telemetry metadata; raw learner text and detected expressions are not emitted.
-- Telemetry failure isolation so analytics cannot break learner corrections.
-- Initial reviewed seed structure for Portuguese variants (`pt-AO`, `pt-PT`, `pt-BR`).
-- `GeoAwareTutorPipeline`: injects GeoLinguistic context before the correction model and filters generic normalization after model output.
-- `attachGeoLinguisticCorrectionPipeline`: adapter boundary for the application `AIEngineOrchestrator`.
-- Independent TypeScript typecheck and Vitest CI workflow.
+- Regional-expression detection with Unicode boundaries and repeated matches.
+- Protection from generic normalization only for expressions valid in the active variant.
+- Tutor context injection before correction-model execution.
+- Post-model correction filtering while preserving unrelated grammar corrections.
+- Privacy-preserving, non-blocking telemetry.
+- Portuguese seed structure (`pt-AO`, `pt-PT`, `pt-BR`).
+- `GeoAwareTutorPipeline` for correction adapters.
+- `attachGeoLinguisticCorrectionPipeline` for the application AIEngineOrchestrator boundary; preserves the existing orchestrator instance and execution, and is idempotent.
+- Typecheck/Vitest CI workflow for this package.
 
 ## Runtime order
+1. Resolve active variant.
+2. Append GeoLinguistic instruction to existing Tutor system instructions.
+3. Execute the existing correction/orchestration path.
+4. Detect regional expressions in learner input.
+5. Suppress only exact generic-normalization corrections for expressions valid in the active variant.
+6. Preserve unrelated corrections.
+7. Emit privacy-safe telemetry.
 
-1. Resolve the active language variant from learner choice/device/country signals.
-2. Build the Tutor model request with the regional instruction.
-3. Execute the existing correction model through `TutorCorrectionAdapter`.
-4. Detect regional expressions in the learner text.
-5. Remove only exact normalization corrections for expressions valid in the active variant.
-6. Return all unrelated grammar corrections unchanged.
-7. Emit privacy-safe regional telemetry without blocking the learning flow.
+## Application contract
+`TutorPipelineInput.geoSystemInstructions` carries the additional regional system context into the existing provider/orchestrator implementation. The application provider adapter must append these instructions to its existing system prompt rather than replacing security, pedagogical, quota, or policy instructions.
 
-## Safety rule
+The orchestrator can be wired once at composition/bootstrap time with `attachGeoLinguisticCorrectionPipeline(orchestrator, options)`. Repeated attachment is ignored to prevent duplicate filtering and duplicated prompt context.
 
-Geolocation is a low-confidence language-variant signal, never proof of identity. Explicit learner language/variant choices take precedence. A variant explicitly supplied for a different language is rejected.
-
-## Application wiring
-
-The application Tutor service should instantiate `GeoAwareTutorPipeline` with its existing correction adapter. `AIEngineOrchestrator.correctLearnerText` can then delegate through `attachGeoLinguisticCorrectionPipeline`. This keeps provider/model implementation outside the GeoLinguistic package and prevents the regional layer from bypassing existing AI security, quota, or persistence controls.
+## Safety
+Geolocation is a low-confidence language-variant signal, never proof of identity. Explicit learner choice has precedence. Raw learner text and detected expressions are excluded from GeoLinguistic telemetry.
 
 ## Next production step
-
-Replace the seed lexicon with a reviewed persistent/versioned regional dataset and connect the application's telemetry sink. Validate end-to-end in the deployed Tutor UI and voice/correction flows before expanding languages.
+Wire the application's concrete Tutor provider adapter to consume `geoSystemInstructions`, then validate end-to-end through the deployed text and voice Tutor flows. After that, migrate the seed lexicon to reviewed persistent/versioned storage with provenance and moderation.
