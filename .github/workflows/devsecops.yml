@@ -20,6 +20,8 @@ concurrency:
 
 env:
   NODE_VERSION: "22"
+  FLUTTER_VERSION: "3.47.2"
+  MOBILE_API_BASE_URL: "https://lingolive-ai-floqa5xrja-uw.a.run.app"
 
 jobs:
   # ==========================================================================
@@ -108,10 +110,7 @@ jobs:
           retention-days: 7
 
   # ==========================================================================
-  # FASE 3 — Flutter Multiplatform Mobile Compilation
-  # Condicional: só corre se existir um projeto Flutter real (pubspec.yaml).
-  # Hoje o diretório flutter/ tem apenas ficheiros .dart soltos, sem projeto
-  # Flutter inicializado — esta fase fica pronta para quando isso mudar.
+  # FASE 3 — Flutter Android compilation and internal test artifact.
   # ==========================================================================
   mobile-build:
     name: "Fase 3 — Build Mobile (Flutter)"
@@ -120,48 +119,44 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verificar se existe projeto Flutter inicializado
-        id: check_flutter
-        run: |
-          if [ -f "flutter/pubspec.yaml" ] || [ -f "pubspec.yaml" ]; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Nenhum pubspec.yaml encontrado — projeto Flutter ainda não foi inicializado. Fase de build mobile ignorada."
-          fi
-
       - name: Setup Java 17
-        if: steps.check_flutter.outputs.exists == 'true'
         uses: actions/setup-java@v4
         with:
           distribution: "temurin"
           java-version: "17"
 
       - name: Setup Flutter SDK
-        if: steps.check_flutter.outputs.exists == 'true'
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: "stable"
+          cache: true
 
-      - name: Resolver dependências e build do APK
-        if: steps.check_flutter.outputs.exists == 'true'
-        working-directory: ${{ hashFiles('flutter/pubspec.yaml') != '' && 'flutter' || '.' }}
+      - name: Resolver dependências
+        working-directory: flutter
+        run: flutter pub get
+
+      - name: Analisar aplicação Flutter
+        working-directory: flutter
+        run: flutter analyze --no-pub
+
+      - name: Executar testes Flutter
+        working-directory: flutter
+        run: flutter test --no-pub
+
+      - name: Compilar APK interno autenticado
+        working-directory: flutter
         run: |
-          # O nome nativo "ai" produz exatamente o package/bundle com.lingolive.ai
-          # já registado no Firebase, sem alterar o nome do package Dart existente.
-          flutter create --platforms=android,ios --org com.lingolive --project-name ai .
-          flutter pub get
-          flutter analyze
-          flutter test
-          flutter build apk --release
+          flutter build apk --debug --no-pub \
+            --dart-define=API_BASE_URL=${{ env.MOBILE_API_BASE_URL }}
 
-      - name: Preservar APK de produção
-        if: steps.check_flutter.outputs.exists == 'true'
+      - name: Preservar APK para testes internos
         uses: actions/upload-artifact@v4
         with:
-          name: lingolive-android-release
-          path: flutter/build/app/outputs/flutter-apk/app-release.apk
+          name: lingolive-android-internal-${{ github.sha }}
+          path: flutter/build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
+          retention-days: 14
 
   # ==========================================================================
   # FASE 4 — Secure Cloud Release & Traffic Routing (Canary Deploy)
