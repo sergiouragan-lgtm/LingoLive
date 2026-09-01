@@ -3,27 +3,19 @@ import { attachGeoLinguisticCorrectionPipeline, GeoAwareTutorPipeline } from './
 
 describe('GeoAwareTutorPipeline', () => {
   it('injects regional context and protects active regionalisms after generic correction', async () => {
-    const correct = vi.fn().mockResolvedValue([{ original: 'bué', replacement: 'muito' }, { original: 'bom', replacement: 'ótimo' }]);
-    const pipeline = new GeoAwareTutorPipeline({ correct });
+    const correct = vi.fn().mockResolvedValue([{ original: 'bué', replacement: 'muito' }, { original: 'bom', replacement: 'ótimo' }]); const pipeline = new GeoAwareTutorPipeline({ correct });
     const result = await pipeline.correct({ selectedLanguage: 'pt', country: 'AO', learnerText: 'Isso é bué bom' });
-    expect(correct).toHaveBeenCalledWith(expect.objectContaining({ learnerText: 'Isso é bué bom', systemInstructions: [expect.stringContaining('pt-AO')] }));
-    expect(result).toEqual([{ original: 'bom', replacement: 'ótimo' }]);
+    expect(correct).toHaveBeenCalledWith(expect.objectContaining({ learnerText: 'Isso é bué bom', systemInstructions: [expect.stringContaining('pt-AO')] })); expect(result).toEqual([{ original: 'bom', replacement: 'ótimo' }]);
   });
   it('honors explicit learner variant over country inference', async () => {
-    const correct = vi.fn().mockResolvedValue([{ original: 'legal', replacement: 'bom' }]); const pipeline = new GeoAwareTutorPipeline({ correct });
-    const result = await pipeline.correct({ selectedLanguage: 'pt', explicitVariant: 'pt-BR', country: 'AO', learnerText: 'Isso é legal' });
-    expect(result).toEqual([]); expect(correct.mock.calls[0][0].systemInstructions[0]).toContain('pt-BR');
+    const correct = vi.fn().mockResolvedValue([{ original: 'legal', replacement: 'bom' }]); const pipeline = new GeoAwareTutorPipeline({ correct }); const result = await pipeline.correct({ selectedLanguage: 'pt', explicitVariant: 'pt-BR', country: 'AO', learnerText: 'Isso é legal' }); expect(result).toEqual([]); expect(correct.mock.calls[0][0].systemInstructions[0]).toContain('pt-BR');
   });
   it('does not allow telemetry failure to break corrections', async () => {
-    const pipeline = new GeoAwareTutorPipeline({ correct: async () => [{ original: 'bom', replacement: 'ótimo' }] }, { emit: async () => { throw new Error('offline'); } });
-    await expect(pipeline.correct({ selectedLanguage: 'pt', country: 'AO', learnerText: 'bué bom' })).resolves.toEqual([{ original: 'bom', replacement: 'ótimo' }]);
+    const pipeline = new GeoAwareTutorPipeline({ correct: async () => [{ original: 'bom', replacement: 'ótimo' }] }, { emit: async () => { throw new Error('offline'); } }); await expect(pipeline.correct({ selectedLanguage: 'pt', country: 'AO', learnerText: 'bué bom' })).resolves.toEqual([{ original: 'bom', replacement: 'ótimo' }]);
   });
-  it('attaches the pipeline to the orchestrator correction boundary', async () => {
-    const original = vi.fn().mockResolvedValue([{ original: 'bué', replacement: 'muito' }]);
-    const orchestrator = { correctLearnerText: original };
-    const pipeline = new GeoAwareTutorPipeline({ correct: async () => [{ original: 'bué', replacement: 'muito' }] });
-    const wired = attachGeoLinguisticCorrectionPipeline(orchestrator, pipeline);
-    await expect(wired.correctLearnerText({ selectedLanguage: 'pt', country: 'AO', learnerText: 'bué' })).resolves.toEqual([]);
-    expect(original).not.toHaveBeenCalled();
+  it('wraps the existing orchestrator instead of bypassing it', async () => {
+    const original = vi.fn().mockResolvedValue([{ original: 'bué', replacement: 'muito' }, { original: 'bom', replacement: 'ótimo' }]); const wired = attachGeoLinguisticCorrectionPipeline({ correctLearnerText: original });
+    await expect(wired.correctLearnerText({ selectedLanguage: 'pt', country: 'AO', learnerText: 'bué bom' })).resolves.toEqual([{ original: 'bom', replacement: 'ótimo' }]);
+    expect(original).toHaveBeenCalledOnce(); expect(original.mock.calls[0][0].geoSystemInstructions[0]).toContain('pt-AO');
   });
 });
