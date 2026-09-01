@@ -6,6 +6,7 @@ export function buildTutorGeoContext(input: Parameters<typeof resolveRegionalLan
 function correctionTargetsMatch(correction: CorrectionCandidate, expression: string): boolean { return correction.original.trim().toLocaleLowerCase() === expression.trim().toLocaleLowerCase(); }
 export async function protectRegionalExpressions(input: { text: string; corrections: CorrectionCandidate[]; profile: RegionalLanguageProfile; engine: RegionalExpressionEngine; telemetry?: GeoTelemetrySink; }): Promise<CorrectionCandidate[]> {
   const matches = input.engine.detect(input.text, input.profile); if (!matches.length) return input.corrections;
+  const protectedMatches = matches.filter((match) => input.engine.classifyForCorrection(match, input.profile).isExpectedVariant);
   for (const match of matches) { try { const classification = input.engine.classifyForCorrection(match, input.profile); await input.telemetry?.emit('regional_expression_detected', { languageVariant: input.profile.variant, register: match.register, expectedVariant: classification.isExpectedVariant }); } catch { /* telemetry must never block learner corrections */ } }
-  return input.corrections.filter((correction) => !matches.some((match) => correctionTargetsMatch(correction, match.expression)));
+  return input.corrections.filter((correction) => !protectedMatches.some((match) => correctionTargetsMatch(correction, match.expression)));
 }
