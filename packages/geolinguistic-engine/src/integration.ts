@@ -8,6 +8,6 @@ export async function protectRegionalExpressions(input: { text: string; correcti
   const matches = input.engine.detect(input.text, input.profile); if (!matches.length) return input.corrections;
   const classifications = matches.map((match) => ({ match, classification: input.engine.classifyForCorrection(match, input.profile) }));
   const protectedMatches = classifications.filter(({ classification }) => classification.shouldProtectFromNormalization).map(({ match }) => match);
-  if (input.telemetry) { const telemetry = input.telemetry; await Promise.allSettled(classifications.map(({ match, classification }) => Promise.resolve(telemetry.emit('regional_expression_detected', { languageVariant: input.profile.variant, register: match.register, expectedVariant: classification.isExpectedVariant })))); }
+  if (input.telemetry) { const telemetry = input.telemetry; const emitSafely = (payload: Record<string, string | number | boolean>) => { try { return Promise.resolve(telemetry.emit('regional_expression_detected', payload)); } catch { return Promise.resolve(); } }; await Promise.allSettled(classifications.map(({ match, classification }) => emitSafely({ languageVariant: input.profile.variant, register: match.register, expectedVariant: classification.isExpectedVariant }))); }
   return input.corrections.filter((correction) => !protectedMatches.some((match) => correctionTargetsMatch(correction, match.expression)));
 }
