@@ -982,12 +982,13 @@ function DashboardScreen({
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {ebooks.map((eb) => (
-            <EbookCard
-              key={eb.id}
-              ebook={eb}
-              onOpen={() => onOpen(eb)}
-              onDelete={() => onDelete(eb.id)}
-            />
+            <React.Fragment key={eb.id}>
+              <EbookCard
+                ebook={eb}
+                onOpen={() => onOpen(eb)}
+                onDelete={() => onDelete(eb.id)}
+              />
+            </React.Fragment>
           ))}
           <motion.div
             whileHover={{ scale: 1.02 }}
