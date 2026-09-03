@@ -1,4 +1,4 @@
-import { LayoutDashboard, Compass, Mic, Gamepad2, School, CreditCard, BarChart3, Users, CheckSquare, ShieldCheck, Settings, BookOpen, GraduationCap, Calendar, MessageSquare, User, FileText, ClipboardList, Sparkles, Database, Volume2 , Video, PlayCircle , Monitor , Store, ShoppingBag, LucideIcon } from 'lucide-react';
+import { LayoutDashboard, Compass, Mic, Gamepad2, School, CreditCard, BarChart3, Users, CheckSquare, ShieldCheck, Settings, BookOpen, GraduationCap, Calendar, MessageSquare, User, FileText, ClipboardList, Sparkles, Database, Volume2 , Video, PlayCircle , Monitor , Store, ShoppingBag, LucideIcon, BookMarked } from 'lucide-react';
 
 export interface SidebarSubItem {
   id: string;
@@ -22,6 +22,7 @@ export const sidebarConfig = {
     { id: 'dashboard', label: 'Dashboard Geral', icon: LayoutDashboard },
     { id: 'gestao-financeira', label: 'Gestão Financeira', icon: CreditCard },
     { id: 'cms', label: 'CMS Educativo', icon: BookOpen },
+    { id: 'ebook-studio', label: 'E-book Studio IA', icon: BookMarked },
     { id: 'clients', label: 'Clientes (Escolas)', icon: School },
     { id: 'subscriptions', label: 'Subscrições', icon: CreditCard },
     { id: 'payments', label: 'Pagamentos', icon: CreditCard },
@@ -53,6 +54,7 @@ export const sidebarConfig = {
     { id: "marketplace", label: "Marketplace Global", icon: Store },
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'cms', label: 'CMS Educativo', icon: BookOpen },
+    { id: 'ebook-studio', label: 'E-book Studio IA', icon: BookMarked },
     { id: 'professores', label: 'Professores', icon: Users },
     { id: 'alunos', label: 'Alunos', icon: Users },
     { id: 'turmas', label: 'Turmas', icon: School },
@@ -77,6 +79,7 @@ export const sidebarConfig = {
     { id: "live-recordings", label: "Minhas Gravações", icon: PlayCircle },
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'cms', label: 'CMS Educativo', icon: BookOpen },
+    { id: 'ebook-studio', label: 'E-book Studio IA', icon: BookMarked },
     { id: 'minhas-turmas', label: 'As Minhas Turmas', icon: Users },
     { id: 'meus-alunos', label: 'Os Meus Alunos', icon: Users },
     { id: 'avaliacoes', label: 'Avaliações', icon: CheckSquare },
@@ -97,6 +100,7 @@ export const sidebarConfig = {
     { id: "live-recordings", label: "Minhas Gravações", icon: PlayCircle },
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'cms', label: 'CMS Educativo', icon: BookOpen },
+    { id: 'ebook-studio', label: 'E-book Studio IA', icon: BookMarked },
     { id: 'minhas-turmas', label: 'As Minhas Turmas', icon: Users },
     { id: 'meus-alunos', label: 'Os Meus Alunos', icon: Users },
     { id: 'avaliacoes', label: 'Avaliações', icon: CheckSquare },
