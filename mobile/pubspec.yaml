@@ -1,0 +1,79 @@
+name: lingolive_mobile
+description: LingoLive — AI-powered language learning student app
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Firebase
+  firebase_core: ^3.6.0
+  firebase_auth: ^5.3.1
+  cloud_firestore: ^5.4.4
+
+  # State management
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+
+  # Navigation
+  go_router: ^14.3.0
+
+  # Networking
+  dio: ^5.7.0
+
+  # Secure storage
+  flutter_secure_storage: ^9.2.2
+
+  # Local preferences
+  shared_preferences: ^2.3.2
+
+  # UI / UX
+  cached_network_image: ^3.4.1
+  flutter_svg: ^2.0.10+1
+  shimmer: ^3.0.0
+  lottie: ^3.1.2
+  smooth_page_indicator: ^1.2.0+3
+  percent_indicator: ^4.2.3
+
+  # Audio (karaoke engine)
+  just_audio: ^0.9.40
+  audio_session: ^0.1.21
+
+  # Internationalisation
+  intl: ^0.19.0
+  flutter_localizations:
+    sdk: flutter
+
+  # Utilities
+  url_launcher: ^6.3.0
+  share_plus: ^10.0.2
+  path_provider: ^2.1.4
+  connectivity_plus: ^6.0.5
+  package_info_plus: ^8.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  riverpod_generator: ^2.4.3
+  build_runner: ^2.4.13
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/fonts/
+
+  fonts:
+    - family: Lato
+      fonts:
+        - asset: assets/fonts/Lato-Regular.ttf
+        - asset: assets/fonts/Lato-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Lato-Italic.ttf
+          style: italic
