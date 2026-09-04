@@ -16,6 +16,12 @@ Ele usa Node 22, Java 21, instalação por lockfile e executa `npm run check`:
 As actions estão fixadas por SHA e o token possui apenas `contents: read`.
 CODEOWNERS, Dependabot e formulário de bug também estão versionados.
 
+O deploy de produção não participa no gate de merge. Pushes em `main` só
+executam o canary quando a variável de repositório
+`ENABLE_PRODUCTION_DEPLOY=true`; uma execução manual pode usar
+`force_deploy`. Esta guarda evita falhas e alterações de produção enquanto
+faturação, Artifact Registry e Cloud Run não estiverem comprovadamente prontos.
+
 ## Configuração administrativa necessária no GitHub
 
 O repositório deve ter um ruleset/branch protection para `main` com:
