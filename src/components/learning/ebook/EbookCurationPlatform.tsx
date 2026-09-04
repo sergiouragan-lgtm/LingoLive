@@ -14,6 +14,7 @@ import { auth, db } from "../../../firebase";
 import { useToast } from "../../../context/ToastContext";
 import { useUserRole } from "../../../context/UserRoleContext";
 import jsPDF from "jspdf";
+import { BlockEditor, type Block, blocksToMarkdown, markdownToBlocks } from "./BlockEditor";
 
 // ─────────────────────────── types ───────────────────────────
 
@@ -35,6 +36,7 @@ interface ChapterOutline {
 
 interface Chapter extends ChapterOutline {
   content: string;
+  blocks?: Block[];
   exercises?: object[];
   wordCount: number;
   locked: boolean;
@@ -411,6 +413,57 @@ export function EbookCurationPlatform() {
     setProject({ ...project, chapters: updated });
   };
 
+  const updateChapterBlocks = (blocks: Block[]) => {
+    if (!project) return;
+    const content = blocksToMarkdown(blocks);
+    const updated = project.chapters.map((ch, i) =>
+      i === selectedChapterIdx
+        ? { ...ch, blocks, content, wordCount: countWords(content) }
+        : ch
+    );
+    setProject({ ...project, chapters: updated });
+  };
+
+  const handleAdaptBlock = async (blockId: string, text: string, targetLevel: string): Promise<string> => {
+    const data = await apiFetch("adapt-level", {
+      text,
+      targetLevel,
+      language: project?.language ?? "pt",
+    });
+    return data.adapted ?? text;
+  };
+
+  const handleExportEpub = async () => {
+    if (!project || !projectId) {
+      showToast("Guarde o e-book antes de exportar ePub", "error");
+      return;
+    }
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch("/api/ebook/export/epub", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ ebookId: projectId, authorName: auth.currentUser?.displayName }),
+      });
+      if (!res.ok) throw new Error("Falha ao gerar ePub");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${project.title.replace(/[^a-z0-9]/gi, "_").toLowerCase()}.epub`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast("ePub exportado com sucesso!", "success");
+    } catch {
+      showToast("Erro ao exportar ePub", "error");
+    }
+  };
+
   const handleGenerateChapterContent = async () => {
     if (!project || !currentChapter) return;
     setGeneratingChapter(true);
@@ -643,6 +696,7 @@ export function EbookCurationPlatform() {
       project={project!}
       onBack={() => setScreen("editor")}
       onExportPDF={handleExportPDF}
+      onExportEpub={handleExportEpub}
     />;
   }
 
@@ -732,7 +786,7 @@ export function EbookCurationPlatform() {
               className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-xl text-xs font-semibold transition-colors"
             >
               <Eye className="w-3.5 h-3.5" />
-              Pré-visualizar
+              Preview
             </button>
             <button
               onClick={handleExportPDF}
@@ -742,6 +796,13 @@ export function EbookCurationPlatform() {
               PDF
             </button>
           </div>
+          <button
+            onClick={handleExportEpub}
+            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-700/50 hover:bg-emerald-600/50 border border-emerald-500/30 rounded-xl text-xs font-semibold text-emerald-300 transition-colors"
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            Exportar ePub
+          </button>
         </div>
       </div>
 
@@ -835,7 +896,7 @@ export function EbookCurationPlatform() {
               {currentChapter.content && (
                 <>
                   <div className="flex justify-between items-center">
-                    <span className="text-xs text-slate-500">Edite diretamente ou use o Assistente IA</span>
+                    <span className="text-xs text-slate-500">Use os blocos abaixo ou o Assistente IA</span>
                     <button
                       onClick={handleGenerateChapterContent}
                       disabled={generatingChapter}
@@ -845,11 +906,11 @@ export function EbookCurationPlatform() {
                       Regenerar
                     </button>
                   </div>
-                  <textarea
-                    value={currentChapter.content}
-                    onChange={(e) => updateChapterContent(e.target.value)}
-                    className="w-full h-[60vh] bg-slate-800/50 border border-slate-600/50 rounded-xl p-4 text-sm text-slate-200 placeholder-slate-500 resize-none focus:outline-none focus:border-indigo-500/70 font-mono leading-relaxed"
-                    placeholder="Conteúdo do capítulo em formato Markdown..."
+                  <BlockEditor
+                    blocks={currentChapter.blocks ?? markdownToBlocks(currentChapter.content)}
+                    onChange={updateChapterBlocks}
+                    onAdaptBlock={handleAdaptBlock}
+                    language={project.language}
                   />
                 </>
               )}
@@ -1632,11 +1693,12 @@ function ExercisesPanel({
 // ─────────────────────────── PreviewScreen ───────────────────────────
 
 function PreviewScreen({
-  project, onBack, onExportPDF,
+  project, onBack, onExportPDF, onExportEpub,
 }: {
   project: EbookProject;
   onBack: () => void;
   onExportPDF: () => void;
+  onExportEpub: () => void;
 }) {
   const [activeChapter, setActiveChapter] = useState(0);
   const totalWords = project.chapters.reduce((s, c) => s + (c.wordCount ?? 0), 0);
@@ -1686,13 +1748,20 @@ function PreviewScreen({
           ))}
         </div>
 
-        <div className="p-3 border-t border-slate-700/50">
+        <div className="p-3 border-t border-slate-700/50 space-y-2">
           <button
             onClick={onExportPDF}
             className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-xs font-semibold transition-colors"
           >
             <Download className="w-3.5 h-3.5" />
             Exportar PDF
+          </button>
+          <button
+            onClick={onExportEpub}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-emerald-700/50 hover:bg-emerald-600/50 border border-emerald-500/30 rounded-xl text-xs font-semibold text-emerald-300 transition-colors"
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            Exportar ePub
           </button>
         </div>
       </div>

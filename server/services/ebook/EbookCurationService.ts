@@ -258,6 +258,45 @@ Retorne APENAS um JSON com esta estrutura:
   return JSON.parse(text);
 }
 
+export async function adaptToLevel(
+  text: string,
+  targetLevel: string,
+  language: string
+): Promise<string> {
+  const levelDescriptions: Record<string, string> = {
+    A1: "iniciante absoluto, vocabulário de 500 palavras, frases muito simples (sujeito + verbo + objeto), tempo presente",
+    A2: "elementar, vocabulário de 1000 palavras, frases simples com conectores básicos (e, mas, porque)",
+    B1: "intermediário, vocabulário de 2000 palavras, frases compostas, passado e futuro simples",
+    B2: "intermediário-avançado, vocabulário de 4000 palavras, estruturas complexas, voz passiva, condicionais",
+    C1: "avançado, vocabulário rico, expressões idiomáticas, nuances de significado, estruturas sofisticadas",
+    C2: "proficiente, domínio nativo, registro variado, retórica e estilística avançadas",
+  };
+
+  const description = levelDescriptions[targetLevel] ?? levelDescriptions["B1"];
+
+  const prompt = `Você é um especialista em linguística e adaptação pedagógica.
+Reescreva o texto abaixo para o nível CEFR ${targetLevel} em ${language}.
+
+PERFIL DO NÍVEL ${targetLevel}: ${description}
+
+REGRAS:
+- Preserve o significado e as informações essenciais
+- Ajuste APENAS o vocabulário e a complexidade gramatical
+- Não adicione nem remova informação substantiva
+- Mantenha o formato Markdown original (títulos, listas, etc.)
+- Retorne APENAS o texto reescrito, sem comentários
+
+TEXTO ORIGINAL:
+${text}`;
+
+  const response = await generateContentWithRetry({
+    model: "gemini-2.5-flash",
+    contents: prompt,
+  });
+
+  return response.text?.trim() ?? text;
+}
+
 function buildToneInstructions(tone: ToneConfig): string {
   const formalityMap = {
     informal: "Linguagem descontraída, próxima ao leitor, use contrações e expressões coloquiais",
