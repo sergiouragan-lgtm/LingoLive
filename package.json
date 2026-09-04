@@ -10,8 +10,12 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
     "test": "vitest",
-    "test:firestore-rules": "firebase emulators:exec --only firestore 'vitest run src/tests/firestoreUsersRules.test.ts src/tests/firestorePaymentsRules.test.ts'"
+    "test:ci": "vitest run",
+    "test:firestore-rules": "firebase emulators:exec --only firestore \"vitest run --config vitest.firestore.config.ts\"",
+    "audit:prod": "npm audit --omit=dev --audit-level=high",
+    "check": "npm run typecheck && npm run test:ci && npm run test:firestore-rules && npm run audit:prod && npm run build"
   },
   "dependencies": {
     "@elevenlabs/client": "^1.14.0",
@@ -60,6 +64,7 @@
     "@types/ws": "^8.18.1",
     "autoprefixer": "^10.4.21",
     "esbuild": "^0.25.0",
+    "firebase-tools": "^15.29.0",
     "jsdom": "^29.1.1",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.23.5",
