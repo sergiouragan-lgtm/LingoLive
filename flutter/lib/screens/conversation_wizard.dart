@@ -286,7 +286,7 @@ class _ConversationWizardState extends State<ConversationWizard> {
         Row(
           children: [
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, py: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
                 color: const Color(0xFF6366F1).withOpacity(0.15),
                 borderRadius: BorderRadius.circular(12),
@@ -302,7 +302,7 @@ class _ConversationWizardState extends State<ConversationWizard> {
                     style: TextStyle(
                       color: Color(0xFF818CF8),
                       fontSize: 10,
-                      fontWeight: FontWeight.black,
+                      fontWeight: FontWeight.w900,
                       letterSpacing: 1.1,
                     ),
                   ),
@@ -312,7 +312,7 @@ class _ConversationWizardState extends State<ConversationWizard> {
             const SizedBox(width: 8),
             if (_studentAge != null)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, py: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: const Color(0xFF1E293B),
                   borderRadius: BorderRadius.circular(8),
@@ -675,7 +675,7 @@ class _ConversationWizardState extends State<ConversationWizard> {
               "COMEÇAR A FALAR",
               style: TextStyle(
                 fontSize: 12,
-                fontWeight: FontWeight.black,
+                fontWeight: FontWeight.w900,
                 letterSpacing: 1.2,
               ),
             ),

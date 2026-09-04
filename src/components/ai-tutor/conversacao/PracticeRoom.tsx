@@ -7,6 +7,7 @@ import { PronunciationTipModal } from '../PronunciationTipModal';
 import { AudioVisualizer } from '../AudioVisualizer';
 import { SmartProfile } from "../../../profile/types";
 import { buildTutorSessionContext, TutorSessionContext } from "../../../features/tutor/tutorSessionContextBuilder";
+import { useLocalization } from "../../../context/LocalizationContext";
 import { 
   Mic, 
   MicOff, 
@@ -79,14 +80,29 @@ export default function PracticeRoom({
     return null;
   });
 
+  // Motor GeoLinguístico: o LocalizationContext detém o perfil geo-cultural
+  // real do utilizador (deteção automática por IP no primeiro acesso, ou
+  // escolha manual guardada), independente do smartProfile estruturado de
+  // onboarding — que muitas vezes ainda não foi preenchido. Usamo-lo como
+  // base (storedPreferences), com o smartProfile a sobrepor-se quando presente.
+  const { linguisticIdentity } = useLocalization();
+
   const effectiveSessionContext = useMemo<TutorSessionContext>(() => {
     if (propSessionContext) return propSessionContext;
     return buildTutorSessionContext({
       smartProfile: propSmartProfile || userProfile,
       targetLanguage: language.name || language.code,
       cefrLevel: proficiency,
+      geoInput: {
+        storedPreferences: {
+          countryCode: linguisticIdentity.regionalVariant || null,
+          primaryLanguage: linguisticIdentity.nativeLanguage || null,
+          interfaceLanguage: linguisticIdentity.interfaceLanguage || null,
+          languageVariant: linguisticIdentity.preferredDialect || null,
+        },
+      },
     });
-  }, [propSessionContext, propSmartProfile, userProfile, language, proficiency]);
+  }, [propSessionContext, propSmartProfile, userProfile, language, proficiency, linguisticIdentity]);
 
   // Session UI states
   const [sessionStatus, setSessionStatus] = useState<"connecting" | "ready" | "closed" | "error">("connecting");
@@ -369,13 +385,16 @@ export default function PracticeRoom({
   }, [isBetaExpired]);
 
   const getPronunciationTip = (): string => {
-    const tips = [
-      "Tente articular melhor os sons das vogais finais.",
-      "Cuidado com a entonação em perguntas; ela deve subir no final.",
-      "Pratique o som do 'r' inicial, ele é mais forte do que parece.",
-      "Tente não correr tanto na fala; respire entre as frases."
-    ];
-    return tips[Math.floor(Math.random() * tips.length)];
+    const analytics = lastAnalyticsRef.current;
+    if (analytics?.pedagogical_note) {
+      return analytics.pedagogical_note;
+    }
+    if (analytics?.correction && analytics?.detected_error) {
+      return `Em vez de "${analytics.detected_error}", experimente: "${analytics.correction}".`;
+    }
+    // Honesto e neutro quando ainda não há feedback real desta sessão —
+    // nunca um "tip" genérico e aleatório desligado do que foi praticado.
+    return "Ainda não foi detetada nenhuma correção nesta sessão. Continue a praticar!";
   };
 
   // Real-time conversation captions
@@ -588,6 +607,19 @@ export default function PracticeRoom({
   const activeSourcesRef = useRef<AudioBufferSourceNode[]>([]);
   const nextStartTimeRef = useRef<number>(0);
 
+  // Feedback pedagógico REAL gerado pela IA a cada turno (payload <analytics>
+  // definido em server/websocket/live.gateway.ts), acumulado sem cortes até ao
+  // fim do turno. Substitui a antiga "dica de pronúncia" aleatória — ver
+  // getPronunciationTip() abaixo — por feedback efetivamente derivado do que o
+  // aluno disse nesta sessão, não por um padrão fixo desligado da conversa.
+  const rawModelTurnBufferRef = useRef<string>("");
+  const lastAnalyticsRef = useRef<{
+    detected_error?: string;
+    correction?: string;
+    pedagogical_note?: string;
+    vocabulary_acquired?: string[];
+  } | null>(null);
+
   // Session audio recording toggle and references
   const [saveAudioEnabled, setSaveAudioEnabled] = useState(true);
   const [sessionAudioUrl, setSessionAudioUrl] = useState<string | null>(null);
@@ -693,11 +725,42 @@ export default function PracticeRoom({
           }
         }
 
-        const wsUrl = `${protocol}//${window.location.host}/live?language=${encodeURIComponent(
-          language.name
-        )}&proficiency=${encodeURIComponent(proficiency)}&ageGroup=${encodeURIComponent(ageGroup)}&scenario=${encodeURIComponent(
-          scenario.promptContext
-        )}&voice=${encodeURIComponent(voice.name)}&token=${encodeURIComponent(token)}`;
+        // Motor GeoLinguístico: encaminha o perfil geo-cultural já resolvido
+        // (país, idioma primário, idioma de interface, variante regional) para
+        // o gateway, que o usa para personalizar culturalmente o prompt do
+        // tutor de IA (ver server/websocket/live.gateway.ts normalizeGatewayParams
+        // + buildTutorSessionContext). Sem isto, o perfil calculado no cliente
+        // (effectiveSessionContext) só era usado para as etiquetas da UI, nunca
+        // chegando de facto ao modelo.
+        const geoProfile = effectiveSessionContext.geoLinguisticProfile;
+        const wsParams = new URLSearchParams({
+          language: language.name,
+          proficiency,
+          ageGroup,
+          scenario: scenario.promptContext,
+          voice: voice.name,
+          token,
+        });
+        if (geoProfile.countryCode) wsParams.set("countryCode", geoProfile.countryCode);
+        if (geoProfile.primaryLanguage) wsParams.set("primaryLanguage", geoProfile.primaryLanguage);
+        if (geoProfile.interfaceLanguage) wsParams.set("interfaceLanguage", geoProfile.interfaceLanguage);
+        if (geoProfile.languageVariant) wsParams.set("regionalVariant", geoProfile.languageVariant);
+        for (const goal of effectiveSessionContext.sessionGoals) {
+          wsParams.append("sessionGoal", goal);
+        }
+        // Preferências do Perfil Inteligente (estilo de correção, personalidade
+        // do tutor) — o gateway só aceita valores de uma lista fechada, ver
+        // ALLOWED_CORRECTION_STYLES/ALLOWED_TUTOR_PERSONALITIES em live.gateway.ts.
+        const preferredCorrectionStyle = effectiveSessionContext.preferences?.preferredCorrectionStyle;
+        if (typeof preferredCorrectionStyle === "string") {
+          wsParams.set("preferredCorrectionStyle", preferredCorrectionStyle);
+        }
+        const preferredTutorPersonality = effectiveSessionContext.preferences?.preferredTutorPersonality;
+        if (typeof preferredTutorPersonality === "string") {
+          wsParams.set("preferredTutorPersonality", preferredTutorPersonality);
+        }
+
+        const wsUrl = `${protocol}//${window.location.host}/live?${wsParams.toString()}`;
 
         const ws = new WebSocket(wsUrl);
         wsRef.current = ws;
@@ -729,7 +792,13 @@ export default function PracticeRoom({
               // User spoke over AI, immediately stop all scheduled sounds
               stopAllPlayback();
               setIsSpeaking(false);
+              rawModelTurnBufferRef.current = "";
             } else if (msg.type === "model-text") {
+              // Acumula o texto bruto (com <analytics>) num ref à parte — o
+              // estado visível (lastModelCaption) continua limpo para o utilizador,
+              // mas o payload de feedback real não se perde entre chunks.
+              rawModelTurnBufferRef.current += msg.text;
+
               // Append to real-time caption
               setLastModelCaption((prev) => {
                 const raw = prev + msg.text;
@@ -747,6 +816,23 @@ export default function PracticeRoom({
                 updateTranscriptItem("model", clean);
                 return clean;
               });
+            } else if (msg.type === "turn-complete") {
+              // Extrai o feedback pedagógico real que a IA gerou sobre este
+              // turno específico (ver contrato <analytics> no system prompt,
+              // server/websocket/live.gateway.ts). Substitui qualquer feedback
+              // anterior — mantemos sempre o mais recente e relevante.
+              const match = rawModelTurnBufferRef.current.match(/<analytics>([\s\S]*?)<\/analytics>/);
+              if (match) {
+                try {
+                  const parsed = JSON.parse(match[1].trim());
+                  if (parsed && typeof parsed === "object") {
+                    lastAnalyticsRef.current = parsed;
+                  }
+                } catch (e) {
+                  console.warn("Failed to parse <analytics> payload:", e);
+                }
+              }
+              rawModelTurnBufferRef.current = "";
             } else if (msg.type === "user-text") {
               setIsListening(true);
               setIsSpeaking(false);
@@ -793,7 +879,7 @@ export default function PracticeRoom({
       active = false;
       cleanupResources();
     };
-  }, [language, proficiency, scenario, voice]);
+  }, [language, proficiency, scenario, voice, effectiveSessionContext]);
 
   // Clean up mic capture, process loop, WebSocket, and sound outputs
   function cleanupResources() {
