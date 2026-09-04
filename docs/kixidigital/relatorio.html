@@ -1,0 +1,240 @@
+<title>KixiDigital — Ponto de Situação</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root{
+  --esmeralda:#0F4C3A; --fundo:#08251C; --painel:rgba(255,255,255,.035);
+  --dourado:#D4AF37; --gelo:#F8F9FA;
+  --ok:#2ECC71; --perigo:#E74C3C; --aviso:#D4AF37;
+  --musgo:#94ABA1; --musgo-fraco:#5D7A6F; --linha:rgba(212,175,55,.16);
+  --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --ui:"Inter",-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--fundo); color:var(--gelo); font-family:var(--ui);
+  font-size:16.5px; line-height:1.65; -webkit-font-smoothing:antialiased}
+.wrap{max-width:880px; margin:0 auto; padding:0 24px}
+h1,h2,h3,h4{font-family:var(--display); font-weight:600; text-wrap:balance; margin:0; line-height:1.14}
+p{margin:0}
+a{color:var(--dourado)}
+.eyebrow{font-size:11.5px; letter-spacing:.18em; text-transform:uppercase; color:var(--dourado); font-weight:600}
+section{padding:56px 0; border-top:1px solid var(--linha)}
+section>.wrap>h2{font-size:clamp(24px,3.4vw,32px); letter-spacing:-.02em}
+section>.wrap>h2+p{color:var(--musgo); margin-top:12px; max-width:66ch}
+h3{font-size:18px; margin-top:34px}
+p+p{margin-top:13px}
+.corpo p{max-width:68ch}
+ul{color:var(--musgo); padding-left:20px; margin:14px 0; max-width:66ch}
+li{margin-bottom:9px}
+li b,p b{color:var(--gelo); font-weight:600}
+code{font-family:var(--mono); font-size:.85em; background:rgba(212,175,55,.12);
+  padding:2px 6px; border-radius:5px; color:#EBD489}
+.tnum{font-variant-numeric:tabular-nums}
+
+header{padding:76px 0 44px}
+header h1{font-size:clamp(32px,5vw,50px); letter-spacing:-.028em; max-width:18ch; margin-top:22px}
+header .lede{margin-top:20px; font-size:18px; color:var(--musgo); max-width:62ch}
+.trilha{display:flex; flex-wrap:wrap; align-items:center; gap:11px; font-size:13px; color:var(--musgo-fraco)}
+.trilha b{color:var(--dourado); font-weight:600}
+
+.numeros{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:1px;
+  background:var(--linha); border:1px solid var(--linha); border-radius:16px; overflow:hidden; margin:36px 0 0}
+.numeros div{background:var(--fundo); padding:20px 22px}
+.numeros b{display:block; font-family:var(--display); font-size:30px; letter-spacing:-.02em}
+.numeros small{display:block; font-size:12px; color:var(--musgo-fraco); text-transform:uppercase; letter-spacing:.1em; margin-top:4px}
+.numeros .verde b{color:var(--ok)}
+
+.painel{border:1px solid var(--linha); border-radius:16px; padding:22px 24px; background:var(--painel); margin:22px 0}
+.painel h4{font-size:16px; margin:0 0 10px}
+.painel p{color:var(--musgo); font-size:15px}
+.aviso{border-color:rgba(212,175,55,.42); background:rgba(212,175,55,.07)}
+.aviso h4{color:var(--dourado)}
+
+.entregas{display:grid; gap:14px; margin-top:26px}
+.entrega{border:1px solid var(--linha); border-radius:16px; padding:22px 24px; background:var(--painel)}
+.entrega .cab{display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:10px}
+.entrega h3{margin:0; font-size:19px}
+.entrega .ficheiros{font-family:var(--mono); font-size:12px; color:var(--musgo-fraco)}
+.entrega p{color:var(--musgo); font-size:15px; margin-top:10px}
+.entrega .ligacao{display:inline-block; margin-top:12px; font-size:14px; font-weight:600}
+
+.tabela-scroll{overflow-x:auto; margin:22px 0}
+table{width:100%; border-collapse:collapse; font-size:14.5px; min-width:560px}
+th{text-align:left; font-size:11px; letter-spacing:.13em; text-transform:uppercase;
+  color:var(--musgo-fraco); font-weight:600; padding:0 18px 12px 0;
+  border-bottom:1px solid var(--linha); white-space:nowrap; vertical-align:bottom}
+td{padding:14px 18px 14px 0; border-bottom:1px solid rgba(148,171,161,.12); color:var(--musgo); vertical-align:top}
+td:first-child{color:var(--gelo); font-weight:600}
+tr:last-child td{border:0}
+
+.selo{display:inline-block; font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px; white-space:nowrap}
+.s-ok{background:rgba(46,204,113,.14); color:#7EE2A8}
+.s-sup{background:rgba(212,175,55,.16); color:#E5C766}
+.s-nao{background:rgba(231,76,60,.15); color:#F09A8E}
+
+.decisao{border:1px solid var(--linha); border-left:3px solid var(--dourado);
+  border-radius:0 16px 16px 0; padding:20px 24px; background:var(--painel); margin:16px 0}
+.decisao h4{font-size:16.5px; margin:0 0 9px}
+.decisao p{color:var(--musgo); font-size:15px}
+.decisao .rec{margin-top:11px; font-size:14.5px; color:var(--gelo)}
+.decisao .rec b{color:var(--dourado)}
+
+footer{padding:48px 0 76px; border-top:1px solid var(--linha); color:var(--musgo-fraco); font-size:13.5px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<header>
+  <div class="wrap">
+    <div class="trilha"><b>KixiDigital</b><span>·</span><span>Ponto de situação</span><span>·</span><span>29 de Agosto de 2026</span></div>
+    <h1>Do mock ao livro-razão, com a persistência já a falar com Postgres.</h1>
+    <p class="lede">Sete entregas encadeadas: o protótipo clicável (com criação de grupo e painel de contribuições), a arquitectura de backend que impede a burla, a integração de pagamentos e a sua persistência sobre PostgreSQL real. Tudo commitado, com a CI verde. Este relatório separa o que ficou provado do que ficou suposto — e lista as cinco decisões que agora dependem de si.</p>
+    <div class="numeros">
+      <div><b class="tnum">18</b><small>ficheiros novos</small></div>
+      <div><b class="tnum">3.561</b><small>linhas</small></div>
+      <div class="verde"><b class="tnum">43</b><small>testes novos</small></div>
+      <div class="verde"><b class="tnum">923</b><small>suíte completa</small></div>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap corpo">
+    <span class="eyebrow">Entregas</span>
+    <h2>O que existe agora</h2>
+    <p>Tudo vive em <code>docs/kixidigital/</code>, na branch <code>claude/kixidigital-premium-design-rtm828</code>, reunido no PR&nbsp;#9 em rascunho. Nenhum ficheiro da aplicação LingoLive foi alterado.</p>
+
+    <div class="entregas">
+      <div class="entrega">
+        <div class="cab"><h3>1 · Mock premium clicável</h3><span class="ficheiros">prototipo.html · ~1.000 linhas</span></div>
+        <p>Design system aplicado (paleta, três níveis tipográficos, regras de vidro fosco e modo offline) e sete ecrãs operáveis num frame de telemóvel: onboarding em três passos, dashboard da Mãe da Kixikila, gestão de grupo, modal de entrega de fundos, painel do membro, e o fluxo completo de <b>criação de grupo</b> em três passos (nome/contribuição, convite com fundo recalculado em tempo real, rodízio e confirmação).</p>
+        <a class="ligacao" href="https://claude.ai/code/artifact/6e16b4b3-ca7d-4cd6-b4b5-ec770ff7a418">Abrir o protótipo →</a>
+      </div>
+
+      <div class="entrega">
+        <div class="cab"><h3>2 · Painel de contribuições no dashboard</h3><span class="ficheiros">prototipo.html · encaixado no ecrã 4</span></div>
+        <p>Substitui o antigo cartão estático de estatísticas: o gráfico liga-se à ronda actual, um alerta de atraso resolvível aponta para o mesmo membro já sinalizado na gestão de grupo, e o botão «Finalizar ciclo» só liga a sério quando todos pagaram — disparando confetti da marca ao concluir.</p>
+      </div>
+
+      <div class="entrega">
+        <div class="cab"><h3>3 · Arquitectura anti-fraude</h3><span class="ficheiros">arquitetura-antifraude.html · schema.sql · schema_testes.sql</span></div>
+        <p>O princípio sem custódia, o modelo de ameaça com treze vectores, o ciclo de vida do pagamento em três fontes e os níveis de identificação. Acompanha o schema PostgreSQL que força as garantias do livro-razão por constraints, e os testes que as verificam.</p>
+        <a class="ligacao" href="https://claude.ai/code/artifact/efc35e40-3e53-4bf7-9bcc-ed67804a3e96">Abrir a arquitectura →</a>
+      </div>
+
+      <div class="entrega">
+        <div class="cab"><h3>4 · Integração de pagamentos</h3><span class="ficheiros">kwik/ · núcleo + adaptador · 27 testes</span></div>
+        <p>Adaptador em porta-e-adaptador: verificação de assinatura, idempotência, confronto de montantes, transições de estado, estornos e reconciliação nocturna. O núcleo não conhece a KWiK e está inteiramente testado; o que depende da documentação de parceiro está isolado num único ficheiro.</p>
+      </div>
+
+      <div class="entrega">
+        <div class="cab"><h3>5 · Persistência e endpoint HTTP</h3><span class="ficheiros">repositorio-postgres.ts · endpoint.ts · 16 testes</span></div>
+        <p>Implementa a persistência sobre o schema sem importar o pacote <code>pg</code> — tipado estruturalmente contra a forma mínima de um cliente SQL, para não sujar as dependências do LingoLive. O router Express de referência não está montado em <code>server.ts</code>, coerente com a KixiDigital não pertencer a este runtime. Verificado contra PostgreSQL 16 real: apanhou e corrigiu dois bugs que os testes com mock nunca teriam visto.</p>
+      </div>
+
+      <div class="entrega">
+        <div class="cab"><h3>6 · Painel de contribuições como componente de design</h3><span class="ficheiros">Claude Design · artboard interactivo</span></div>
+        <p>A mesma ideia do item 2, construída como componente autónomo no editor de design — três estados (atraso, resolvido, celebração) e uma captura fixa do momento final, para rever a peça isolada do resto do protótipo.</p>
+        <a class="ligacao" href="https://claude.ai/code/artifact/8cbacd04-6944-4199-80b7-841fece9a623">Abrir o painel →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap corpo">
+    <span class="eyebrow">Rigor</span>
+    <h2>O que ficou provado e o que ficou suposto</h2>
+    <p>Esta é a secção que importa ler antes de tomar decisões com base no resto. Nem tudo o que foi entregue tem o mesmo grau de certeza.</p>
+
+    <div class="tabela-scroll">
+      <table>
+        <thead><tr><th>Item</th><th>Estado</th><th>Como foi verificado</th></tr></thead>
+        <tbody>
+          <tr><td>Schema do livro-razão</td><td><span class="selo s-ok">Provado</span></td><td>Aplicado sem erros num PostgreSQL 16 real, criado para o efeito.</td></tr>
+          <tr><td>Partida dobrada</td><td><span class="selo s-ok">Provado</span></td><td>Desequilíbrio de 24.999 Kz rejeitado no <code>COMMIT</code> pela constraint deferida.</td></tr>
+          <tr><td>Razão imutável</td><td><span class="selo s-ok">Provado</span></td><td><code>UPDATE</code> e <code>DELETE</code> bloqueados com excepção.</td></tr>
+          <tr><td>Cadeia de hash</td><td><span class="selo s-ok">Provado</span></td><td>Verificação de encadeamento devolveu íntegra sobre os lançamentos gravados.</td></tr>
+          <tr><td>Lógica do webhook</td><td><span class="selo s-ok">Provado</span></td><td>27 testes: assinatura forjada, callback reenviado, replay, montante forjado, pagamento parcial, estado desconhecido, reversão antes e depois da entrega.</td></tr>
+          <tr><td>Arredondamento de comissões</td><td><span class="selo s-ok">Provado</span></td><td>Teste sobre 5.000 valores confirma que a soma fecha sempre em zero.</td></tr>
+          <tr><td>Integração na CI</td><td><span class="selo s-ok">Provado</span></td><td>Suíte completa verde (923 testes) e <code>tsc --noEmit</code> limpo em todo o repositório.</td></tr>
+          <tr><td>SQL da persistência</td><td><span class="selo s-ok">Provado</span></td><td>5 testes de integração corridos contra PostgreSQL 16 real apanharam e corrigiram dois bugs: um JOIN a buscar <code>grupo_id</code> na tabela errada, e uma comparação de enum sem <code>cast</code> explícito — nenhum dos dois falhava nos 11 testes com cliente falso.</td></tr>
+          <tr><td>Painel de contribuições</td><td><span class="selo s-ok">Provado</span></td><td>Testado com Playwright: o alerta esconde-se ao resolver, o botão de finalizar fica realmente desactivado (não só cinzento) até todos pagarem, o confetti aparece no DOM.</td></tr>
+          <tr><td>Contrato da API KWiK</td><td><span class="selo s-sup">Suposto</span></td><td>Sem acesso à documentação de parceiro. Cabeçalhos, formato do payload, vocabulário de estados e formato do extracto são plausíveis, não confirmados.</td></tr>
+          <tr><td>Qualificação regulatória</td><td><span class="selo s-nao">Por confirmar</span></td><td>A arquitectura foi desenhada para ficar fora do perímetro do BNA, mas isso depende de leitura jurídica do regime angolano.</td></tr>
+          <tr><td>Números de mercado</td><td><span class="selo s-nao">Por validar</span></td><td>Margens de agentes e giftcards vieram do seu documento inicial e não foram verificadas junto das operadoras.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="painel aviso">
+      <h4>Como ler a coluna «Suposto»</h4>
+      <p>Não significa frágil: significa isolado. Todas as suposições sobre a KWiK vivem em <code>adaptador-kwik.ts</code> e no objecto <code>PerfilKWiK</code>. Quando a documentação real chegar, confirmar a integração é editar esse ficheiro — o núcleo, os 27 testes e o livro-razão ficam intactos.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap corpo">
+    <span class="eyebrow">A sua decisão</span>
+    <h2>Cinco coisas que não posso decidir por si</h2>
+    <p>Por ordem de impacto no negócio. As três primeiras afectam a proposta comercial que já tem escrita.</p>
+
+    <div class="decisao">
+      <h4>1 · A comissão à Mãe da Kixikila exclui a utilizadora-alvo</h4>
+      <p>Pagar 0,5% de comissão a uma pessoa singular em Angola exige NIF e IBAN. Isso exclui exactamente a matrona informal do Mercado do Povo que é o seu utilizador da Fase 1 — a pessoa que traz o grupo é a que não consegue receber.</p>
+      <p class="rec"><b>Recomendação:</b> creditar a comissão dentro da app (saldo utilizável, mensalidade abatida) para o Nível 0 e 1, e só converter em pagamento com IBAN no Nível 2. Mantém o incentivo sem bloquear a adopção.</p>
+    </div>
+
+    <div class="decisao">
+      <h4>2 · A penalização automática não é possível sem custódia</h4>
+      <p>Vende no plano Premium «ferramentas de penalização automática por atraso». Sem deter os fundos, a plataforma não pode reter nada — só registar e provar o acordo.</p>
+      <p class="rec"><b>Recomendação:</b> reformular como «gestão de penalizações» — a app calcula, notifica e regista a dívida, o grupo executa. Ajustar a promessa antes de a vender, não depois.</p>
+    </div>
+
+    <div class="decisao">
+      <h4>3 · A qualificação junto do BNA precisa de parecer jurídico</h4>
+      <p>Toda a arquitectura assume que orquestrar transferências entre terceiros não faz de si uma instituição de pagamentos. Se a leitura legal disser o contrário, muda a arquitectura e não apenas a papelada: conta segregada, reporte prudencial e equipa de <em>compliance</em>.</p>
+      <p class="rec"><b>Recomendação:</b> obter o parecer antes do piloto. É o único item cuja resposta pode invalidar trabalho já feito.</p>
+    </div>
+
+    <div class="decisao">
+      <h4>4 · As sete perguntas à KWiK</h4>
+      <p>Estão listadas por ordem de impacto no <code>kwik/README.md</code>. A mais importante não é técnica: <b>existe reversão após liquidação e é notificada?</b> É ela que decide se o pior cenário — estorno depois de a kixikila já ter sido entregue — é raro ou frequente, e portanto quanta operação manual o negócio vai precisar.</p>
+      <p class="rec"><b>Recomendação:</b> pedir o contrato de parceiro e um ambiente de testes antes de escrever mais código de integração.</p>
+    </div>
+
+    <div class="decisao">
+      <h4>5 · A KixiDigital não pertence ao repositório do LingoLive</h4>
+      <p>Todo este trabalho está em <code>docs/</code> dentro do repositório de um produto diferente. Funciona por agora e não interfere — mas assim que existir um backend a sério, a mistura torna-se um problema de deploy e de permissões.</p>
+      <p class="rec"><b>Recomendação:</b> criar um repositório próprio e mover a pasta antes da primeira linha de servidor.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap corpo">
+    <span class="eyebrow">Sequência</span>
+    <h2>O que fazer a seguir</h2>
+    <p>Dividido entre o que depende de si e o que posso continuar já.</p>
+
+    <div class="tabela-scroll">
+      <table>
+        <thead><tr><th>Passo</th><th>Depende de</th><th>Porque agora</th></tr></thead>
+        <tbody>
+          <tr><td>Parecer jurídico BNA</td><td>Si</td><td>É o único item que pode invalidar arquitectura já construída.</td></tr>
+          <tr><td>Contrato de parceiro KWiK</td><td>Si</td><td>Desbloqueia a confirmação do adaptador e o ambiente de testes — as sete perguntas já estão no <code>kwik/README.md</code>.</td></tr>
+          <tr><td>Repositório próprio para a KixiDigital</td><td>Si</td><td>Antes de o backend passar a correr a sério — ver decisão #5 abaixo.</td></tr>
+          <tr><td>Piloto no Mercado do Povo</td><td>Os três primeiros</td><td>Vale mais como fonte de modelo de ameaça real do que como validação de produto.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="painel">
+      <h4>Estado do PR #9</h4>
+      <p>Aberto em rascunho, sete commits, sem conflitos (<code>mergeable_state: clean</code>), CI verde nas quatro fases em todos os commits até agora. Continua em acompanhamento automático desde ontem — sem comentários de revisão nem falhas para tratar.</p>
+    </div>
+  </div>
+</section>
+
+<footer><div class="wrap">KixiDigital · ponto de situação · <code>docs/kixidigital/</code> · PR #9 no repositório LingoLive.</div></footer>
