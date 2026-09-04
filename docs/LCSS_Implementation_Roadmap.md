@@ -21,10 +21,12 @@ Status is evidence-based. A visual prototype, static data, documentation, or an 
 ## Validation baseline
 
 - Baseline branch: `main`
-- Reviewed commit: `324d46937da8a037bf4452d42d5ca9795cedf100`
+- Audited base commit: `b8669f5c44c65fb5a1876a0136eaf8e4986be4eb`
 - Review date: 4 September 2026
 - Production build: `[V]` completed successfully
-- Automated suite: `[~]` 893 of 939 tests passed; 46 tests failed because the Vitest environment did not provide a usable `localStorage`
+- Automated suite: `[V]` 939 of 939 application tests and 124 of 124 Firestore rule checks passed
+- Dependency gate: `[V]` zero high or critical advisories in the production graph; 9 moderate advisories remain documented by npm
+- Workflow audit: `[V]` zero findings after permissions, SHA pinning and governance hardening
 - Mobile application build: `[ ]` not available; the repository contains three standalone Dart files but no complete Flutter project
 - Full browser and device validation: `[ ]` pending
 
@@ -39,7 +41,7 @@ Status is evidence-based. A visual prototype, static data, documentation, or an 
 | 04 | Flutter Student App | `[~]` | Profile, navigation and conversation wizard prototypes exist as standalone Dart files. Clean Architecture, dependency manifest, buildable app, reader, karaoke engine, exercises, offline sync and DRM are absent. | Create a real Flutter application and pass a device build |
 | 05 | LingoLive Adaptive Synchronization Loop | `[~]` | Web learning profiles, attempts, adaptive paths and Firestore repositories exist. The new `student_learning_gaps` trigger and personalized fascicle generator are proposals only and target a different database. | Approve the canonical data architecture and implement the loop transactionally |
 | 06 | Monetization and DRM | `[~]` | Stripe checkout/webhooks, PayPal routes, Multicaixa flows and a payment engine exist. Marketplace split payments, ebook entitlements, social watermarking and mobile reader DRM are not complete. | Prove sandbox transactions and define entitlement/author settlement rules |
-| 07 | Deployment and Hardening | `[~]` | Docker, infrastructure files and specialized GitHub workflows exist. A complete Web and Flutter release pipeline, load evidence and production launch checklist are not complete. | Establish CI gates, load tests, observability and rollback evidence |
+| 07 | Deployment and Hardening | `[*]` | The required Web quality gate, workflow hardening, CODEOWNERS, Dependabot and security policy are implemented. Remote branch-protection enforcement, Flutter release, load evidence and launch validation remain. | Enable the required check in a GitHub ruleset, then add load and release evidence |
 
 ## Phase 00 Web Design System AppShell and Student Dashboard
 
@@ -285,15 +287,24 @@ Corrections required in the supplied TypeScript proposal:
 
 ### 07.1 Continuous integration
 
-`[~]` Geolinguistic and DevSecOps workflows exist.
+`[*]` `Required Quality Gate / typecheck-tests-rules-build` now performs
+locked install, typecheck, 939 application tests, 124 Firestore rule checks,
+high/critical production dependency audit and production build. All workflow
+actions are pinned by SHA and the deterministic workflow audit reports zero
+findings.
 
-**Approval criterion:** mandatory install, typecheck, unit tests, build, dependency/security scan and artifact retention for every protected-branch change.
+**Remote gate remaining:** a repository administrator must require this check
+on `main`. The available GitHub integration returned HTTP 403 for branch
+protection, so enforcement cannot yet be evidenced.
 
 ### 07.2 Test reliability
 
-`[~]` The suite has broad coverage but currently fails 46 tests because `localStorage` is unavailable in the configured test environment.
+`[V]` The Node 25+ experimental storage collision is neutralized by a
+per-worker browser-compatible test store. All 46 affected tests now pass and
+the complete application suite is 939/939.
 
-**Immediate action:** fix the shared Vitest environment/setup before using the suite as a merge gate.
+**Regression control:** `src/tests/setup.ts` is loaded centrally by Vitest and
+the same setup runs inside the required quality gate.
 
 ### 07.3 Load and resilience
 
