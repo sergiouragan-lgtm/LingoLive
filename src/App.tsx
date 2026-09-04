@@ -45,6 +45,7 @@ import { EbookCurationPlatform } from "./components/learning/ebook/EbookCuration
 import { EbookAnalyticsDashboard } from "./components/learning/ebook/EbookAnalyticsDashboard";
 import { EbookRecommendations } from "./components/learning/ebook/EbookRecommendations";
 import { EbookNotificationSettings } from "./components/learning/ebook/EbookNotificationSettings";
+import { EbookAchievements } from "./components/learning/ebook/EbookAchievements";
 import { AIAssistant } from "./components/ai-tutor/AIAssistant";
 import { SubscriptionPlans } from "./components/growth/assinaturas/SubscriptionPlans";
 import { LANGUAGES, SCENARIOS, VOICES } from "./data";
@@ -2166,6 +2167,10 @@ function AppContent() {
 
         {view === "ebook-notifications" && (
           <EbookNotificationSettings />
+        )}
+
+        {view === "ebook-achievements" && (
+          <EbookAchievements />
         )}
 
         {(["live-classes", "live-calendar", "live-teachers", "live-rooms", "live-recordings", "live-analytics"].includes(view)) && (
