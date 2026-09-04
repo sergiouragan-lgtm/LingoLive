@@ -42,6 +42,9 @@ import { CertificationPlatform } from "./components/learning/CertificationPlatfo
 import { LearningAnalyticsPlatform } from "./components/learning/LearningAnalyticsPlatform";
 import { TeacherProfessionalPlatform } from "./components/learning/TeacherProfessionalPlatform";
 import { EbookCurationPlatform } from "./components/learning/ebook/EbookCurationPlatform";
+import { EbookAnalyticsDashboard } from "./components/learning/ebook/EbookAnalyticsDashboard";
+import { EbookRecommendations } from "./components/learning/ebook/EbookRecommendations";
+import { EbookNotificationSettings } from "./components/learning/ebook/EbookNotificationSettings";
 import { AIAssistant } from "./components/ai-tutor/AIAssistant";
 import { SubscriptionPlans } from "./components/growth/assinaturas/SubscriptionPlans";
 import { LANGUAGES, SCENARIOS, VOICES } from "./data";
@@ -2151,6 +2154,18 @@ function AppContent() {
 
         {view === "ebook-studio" && (
           <EbookCurationPlatform />
+        )}
+
+        {view === "ebook-analytics" && (
+          <EbookAnalyticsDashboard />
+        )}
+
+        {view === "ebook-recommendations" && (
+          <EbookRecommendations onEnroll={(id) => setView("ebook-studio")} />
+        )}
+
+        {view === "ebook-notifications" && (
+          <EbookNotificationSettings />
         )}
 
         {(["live-classes", "live-calendar", "live-teachers", "live-rooms", "live-recordings", "live-analytics"].includes(view)) && (
