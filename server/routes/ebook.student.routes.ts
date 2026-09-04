@@ -9,7 +9,8 @@ import {
   getStudentLibrary,
   computeCompletionPercent,
 } from "../services/ebook/AdaptiveLearningService";
-import { safeGetDoc } from "../services/firestoreSafe.service";
+import { safeAddDoc, safeGetDoc, safeQueryDocs } from "../services/firestoreSafe.service";
+import crypto from "crypto";
 
 const router = Router();
 
@@ -171,6 +172,75 @@ router.get("/library", requireAuth, async (req: any, res) => {
   } catch (err: any) {
     console.error("[ebook-student] library error:", err.message);
     return res.status(500).json({ error: "Falha ao carregar biblioteca" });
+  }
+});
+
+// ── Issue completion certificate when ebook is fully read ─────────────────────
+router.post("/complete/:ebookId", requireAuth, async (req: any, res) => {
+  const userId = req.user?.uid;
+  if (!userId) return res.status(401).json({ error: "Não autenticado" });
+
+  const { ebookId } = req.params;
+
+  try {
+    const enrollment = await getEnrollment(ebookId, userId);
+    if (!enrollment) return res.status(404).json({ error: "Inscrição não encontrada" });
+
+    const doc = await safeGetDoc("ebooks", ebookId);
+    if (!doc.exists) return res.status(404).json({ error: "E-book não encontrado" });
+    const ebookData = doc.data() as any;
+
+    const totalChapters = ebookData.chapters?.length ?? 0;
+    const completion = computeCompletionPercent(enrollment, totalChapters);
+
+    if (completion < 100) {
+      return res.status(400).json({
+        error: "E-book não concluído",
+        completionPercent: completion,
+        message: `Ainda faltam capítulos por ler (${completion}% concluído)`,
+      });
+    }
+
+    // Check if certificate already issued
+    const existing = await safeQueryDocs("assessment_certificates", "userId", userId);
+    const alreadyIssued = existing.find(
+      (c: any) => c.ebookId === ebookId && c.status === "issued"
+    );
+    if (alreadyIssued) {
+      return res.json({ success: true, certificate: alreadyIssued, alreadyExists: true });
+    }
+
+    const verificationCode = crypto
+      .createHash("sha256")
+      .update(`${userId}-${ebookId}-${Date.now()}`)
+      .digest("hex")
+      .substring(0, 16)
+      .toUpperCase();
+
+    const certificate = {
+      userId,
+      ebookId,
+      studentName:
+        (req.user as any)?.displayName ??
+        (req.user as any)?.name ??
+        "Estudante",
+      examTitle: `Conclusão: ${ebookData.title ?? "E-book"}`,
+      language: ebookData.language ?? "unknown",
+      cefrLevel: enrollment.currentCefrLevel ?? ebookData.cefrLevel ?? "B1",
+      scorePercent: 100,
+      issueDate: new Date().toISOString(),
+      verificationCode: `EBOOK-${verificationCode}`,
+      status: "issued",
+      documentStatus: "pending",
+      deliveryStatus: "not_sent",
+      type: "ebook_completion",
+    };
+
+    const certRef = await safeAddDoc("assessment_certificates", certificate);
+    return res.json({ success: true, certificate: { id: certRef.id, ...certificate } });
+  } catch (err: any) {
+    console.error("[ebook-student] complete error:", err.message);
+    return res.status(500).json({ error: "Falha ao emitir certificado" });
   }
 });
 

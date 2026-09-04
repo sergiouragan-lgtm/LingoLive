@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { getAuth } from "firebase/auth";
+import EbookAIAssistant from "./EbookAIAssistant";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -141,6 +142,21 @@ async function updateCefrLevelApi(ebookId: string, cefrLevel: string): Promise<v
       body: JSON.stringify({ ebookId, cefrLevel }),
     });
   } catch {}
+}
+
+async function issueCertificateApi(
+  ebookId: string
+): Promise<{ certificate: { verificationCode: string; examTitle: string; issueDate: string } } | null> {
+  try {
+    const res = await fetch(`/api/ebook/student/complete/${ebookId}`, {
+      method: "POST",
+      headers: await authHeader(),
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
 }
 
 // ── Block renderers (read-only) ───────────────────────────────────────────────
@@ -342,6 +358,8 @@ export function StudentReader({ ebookId, enrollment, onBack }: StudentReaderProp
   const [adapting, setAdapting] = useState(false);
   const [markingRead, setMarkingRead] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [certificate, setCertificate] = useState<{ verificationCode: string; examTitle: string; issueDate: string } | null>(null);
+  const [showCertModal, setShowCertModal] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
   // Load ebook data
@@ -431,6 +449,14 @@ export function StudentReader({ ebookId, enrollment, onBack }: StudentReaderProp
     if (data) {
       setProgress(data.enrollment);
       setCompletionPercent(data.completionPercent);
+      // If ebook is now 100% complete, issue the certificate
+      if (data.completionPercent >= 100) {
+        const certData = await issueCertificateApi(ebookId);
+        if (certData?.certificate) {
+          setCertificate(certData.certificate);
+          setShowCertModal(true);
+        }
+      }
     }
     setMarkingRead(false);
   };
@@ -594,6 +620,53 @@ export function StudentReader({ ebookId, enrollment, onBack }: StudentReaderProp
           )}
         </main>
       </div>
+
+      {/* ─── AI Assistant (floating) ─── */}
+      {ebook && selectedChapter && (
+        <EbookAIAssistant
+          ebookId={ebookId}
+          chapterTitle={selectedChapter.title}
+          chapterContent={
+            adaptedBlocks
+              .filter(b => b.type === "paragraph" || b.type === "dialogue")
+              .map(b => b.content)
+              .join("\n\n")
+          }
+          ebookLanguage={ebook.language}
+          cefrLevel={cefrLevel}
+        />
+      )}
+
+      {/* ─── Completion Certificate Modal ─── */}
+      {showCertModal && certificate && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200 }}>
+          <div style={{ background: "var(--card-bg)", borderRadius: 20, padding: 40, maxWidth: 480, width: "90%", textAlign: "center", boxShadow: "0 20px 80px rgba(0,0,0,0.3)" }}>
+            <div style={{ fontSize: 64, marginBottom: 16 }}>🏆</div>
+            <h2 style={{ fontSize: 24, fontWeight: 800, color: "var(--text-primary)", marginBottom: 8 }}>
+              Parabéns!
+            </h2>
+            <p style={{ fontSize: 16, color: "var(--text-secondary)", marginBottom: 20, lineHeight: 1.6 }}>
+              Concluiu o e-book <strong style={{ color: "var(--text-primary)" }}>{certificate.examTitle.replace("Conclusão: ", "")}</strong>!
+              O seu certificado foi emitido com sucesso.
+            </p>
+            <div style={{ background: "var(--bg)", borderRadius: 12, padding: "16px 20px", marginBottom: 24, border: "2px dashed var(--border)" }}>
+              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>Código de verificação</div>
+              <div style={{ fontFamily: "monospace", fontSize: 18, fontWeight: 700, color: "var(--accent)", letterSpacing: 2 }}>
+                {certificate.verificationCode}
+              </div>
+              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 6 }}>
+                Emitido em {new Date(certificate.issueDate).toLocaleDateString("pt-PT")}
+              </div>
+            </div>
+            <button
+              onClick={() => setShowCertModal(false)}
+              style={{ padding: "12px 32px", borderRadius: 10, background: "var(--accent)", color: "#fff", border: "none", fontWeight: 700, fontSize: 15, cursor: "pointer" }}
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      )}
 
       <style>{`
         :root {

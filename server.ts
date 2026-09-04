@@ -43,6 +43,8 @@ import ebookRouter from "./server/routes/ebook.routes";
 import ebookExportRouter from "./server/routes/ebook.export.routes";
 import ebookSalesRouter from "./server/routes/ebook.sales.routes";
 import ebookStudentRouter from "./server/routes/ebook.student.routes";
+import ebookAssistantRouter from "./server/routes/ebook.assistant.routes";
+import ebookReviewRouter from "./server/routes/ebook.review.routes";
 
 const app = express();
 
@@ -74,6 +76,8 @@ app.use("/api/ebook", ebookRouter);
 app.use("/api/ebook/export", ebookExportRouter);
 app.use("/api/ebook/sales", ebookSalesRouter);
 app.use("/api/ebook/student", ebookStudentRouter);
+app.use("/api/ebook/assistant", ebookAssistantRouter);
+app.use("/api/ebook/reviews", ebookReviewRouter);
 
 // Endpoint for Service Worker Background Sync of vocabulary updates
 app.post("/api/sync-vocabulary", async (req, res) => {

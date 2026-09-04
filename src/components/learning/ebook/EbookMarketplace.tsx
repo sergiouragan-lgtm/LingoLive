@@ -23,6 +23,8 @@ interface EbookListing {
   chapterCount: number;
   totalWords: number;
   createdAt?: number;
+  rating?: number;
+  reviewCount?: number;
 }
 
 interface LibraryItem {
@@ -130,6 +132,21 @@ function MarketplaceCard({
           )}
         </div>
 
+        {(ebook.reviewCount ?? 0) > 0 && (
+          <div className="flex items-center gap-1 text-xs">
+            {[1, 2, 3, 4, 5].map((s) => (
+              <Star
+                key={s}
+                className="w-3 h-3"
+                fill={s <= Math.round(ebook.rating ?? 0) ? "#f59e0b" : "none"}
+                stroke={s <= Math.round(ebook.rating ?? 0) ? "#f59e0b" : "#64748b"}
+              />
+            ))}
+            <span className="text-amber-400 font-semibold ml-1">{(ebook.rating ?? 0).toFixed(1)}</span>
+            <span className="text-slate-500">({ebook.reviewCount})</span>
+          </div>
+        )}
+
         <div className="flex items-center justify-between pt-1 mt-auto">
           <span className="text-lg font-black text-white">${ebook.priceUsd.toFixed(2)}</span>
 
@@ -223,7 +240,23 @@ export function EbookMarketplace({
         apiFetch("/api/ebook/sales/marketplace"),
         apiFetch("/api/ebook/student/library"),
       ]);
-      setEbooks(mktRes.ebooks ?? []);
+      const rawEbooks: EbookListing[] = mktRes.ebooks ?? [];
+      // Enrich with ratings in parallel (best-effort)
+      const enriched = await Promise.all(
+        rawEbooks.map(async (ebook) => {
+          try {
+            const ratingData = await apiFetch(`/api/ebook/reviews/${ebook.id}`);
+            return {
+              ...ebook,
+              rating: ratingData.aggregate?.average ?? 0,
+              reviewCount: ratingData.aggregate?.total ?? 0,
+            };
+          } catch {
+            return ebook;
+          }
+        })
+      );
+      setEbooks(enriched);
       setLibrary(libRes.library ?? []);
     } catch {
       showToast("Erro ao carregar marketplace", "error");
