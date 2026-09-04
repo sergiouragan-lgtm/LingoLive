@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import {
   BookOpen, Plus, Sparkles, ChevronLeft, ChevronRight, Save, Download,
   Trash2, Edit3, Eye, Layers, Sliders, MessageSquare, CheckCircle,
@@ -14,6 +14,7 @@ import { auth, db } from "../../../firebase";
 import { useToast } from "../../../context/ToastContext";
 import { useUserRole } from "../../../context/UserRoleContext";
 import jsPDF from "jspdf";
+import { BlockEditor, type Block, blocksToMarkdown, markdownToBlocks } from "./BlockEditor";
 
 // ─────────────────────────── types ───────────────────────────
 
@@ -35,6 +36,7 @@ interface ChapterOutline {
 
 interface Chapter extends ChapterOutline {
   content: string;
+  blocks?: Block[];
   exercises?: object[];
   wordCount: number;
   locked: boolean;
@@ -55,6 +57,7 @@ interface EbookProject {
   createdAt?: number;
   updatedAt?: number;
   coverColor?: string;
+  priceUsd?: number;
 }
 
 // ─────────────────────────── constants ───────────────────────────
@@ -290,7 +293,7 @@ export function EbookCurationPlatform() {
   const { role } = useUserRole();
 
   // navigation
-  type Screen = "dashboard" | "create" | "editor" | "preview";
+  type Screen = "dashboard" | "create" | "editor" | "preview" | "analytics";
   const [screen, setScreen] = useState<Screen>("dashboard");
 
   // ebooks list
@@ -409,6 +412,57 @@ export function EbookCurationPlatform() {
         : ch
     );
     setProject({ ...project, chapters: updated });
+  };
+
+  const updateChapterBlocks = (blocks: Block[]) => {
+    if (!project) return;
+    const content = blocksToMarkdown(blocks);
+    const updated = project.chapters.map((ch, i) =>
+      i === selectedChapterIdx
+        ? { ...ch, blocks, content, wordCount: countWords(content) }
+        : ch
+    );
+    setProject({ ...project, chapters: updated });
+  };
+
+  const handleAdaptBlock = async (blockId: string, text: string, targetLevel: string): Promise<string> => {
+    const data = await apiFetch("adapt-level", {
+      text,
+      targetLevel,
+      language: project?.language ?? "pt",
+    });
+    return data.adapted ?? text;
+  };
+
+  const handleExportEpub = async () => {
+    if (!project || !projectId) {
+      showToast("Guarde o e-book antes de exportar ePub", "error");
+      return;
+    }
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch("/api/ebook/export/epub", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ ebookId: projectId, authorName: auth.currentUser?.displayName }),
+      });
+      if (!res.ok) throw new Error("Falha ao gerar ePub");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${project.title.replace(/[^a-z0-9]/gi, "_").toLowerCase()}.epub`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast("ePub exportado com sucesso!", "success");
+    } catch {
+      showToast("Erro ao exportar ePub", "error");
+    }
   };
 
   const handleGenerateChapterContent = async () => {
@@ -596,6 +650,10 @@ export function EbookCurationPlatform() {
 
   // ─── render screens ───
 
+  if (screen === "analytics") {
+    return <AnalyticsScreen onBack={() => setScreen("dashboard")} />;
+  }
+
   if (screen === "dashboard") {
     return <DashboardScreen
       ebooks={ebooks}
@@ -609,6 +667,7 @@ export function EbookCurationPlatform() {
       }}
       onDelete={handleDeleteEbook}
       onRefresh={loadEbooks}
+      onAnalytics={() => setScreen("analytics")}
     />;
   }
 
@@ -643,6 +702,7 @@ export function EbookCurationPlatform() {
       project={project!}
       onBack={() => setScreen("editor")}
       onExportPDF={handleExportPDF}
+      onExportEpub={handleExportEpub}
     />;
   }
 
@@ -732,7 +792,7 @@ export function EbookCurationPlatform() {
               className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-xl text-xs font-semibold transition-colors"
             >
               <Eye className="w-3.5 h-3.5" />
-              Pré-visualizar
+              Preview
             </button>
             <button
               onClick={handleExportPDF}
@@ -742,6 +802,13 @@ export function EbookCurationPlatform() {
               PDF
             </button>
           </div>
+          <button
+            onClick={handleExportEpub}
+            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-700/50 hover:bg-emerald-600/50 border border-emerald-500/30 rounded-xl text-xs font-semibold text-emerald-300 transition-colors"
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            Exportar ePub
+          </button>
         </div>
       </div>
 
@@ -835,7 +902,7 @@ export function EbookCurationPlatform() {
               {currentChapter.content && (
                 <>
                   <div className="flex justify-between items-center">
-                    <span className="text-xs text-slate-500">Edite diretamente ou use o Assistente IA</span>
+                    <span className="text-xs text-slate-500">Use os blocos abaixo ou o Assistente IA</span>
                     <button
                       onClick={handleGenerateChapterContent}
                       disabled={generatingChapter}
@@ -845,11 +912,11 @@ export function EbookCurationPlatform() {
                       Regenerar
                     </button>
                   </div>
-                  <textarea
-                    value={currentChapter.content}
-                    onChange={(e) => updateChapterContent(e.target.value)}
-                    className="w-full h-[60vh] bg-slate-800/50 border border-slate-600/50 rounded-xl p-4 text-sm text-slate-200 placeholder-slate-500 resize-none focus:outline-none focus:border-indigo-500/70 font-mono leading-relaxed"
-                    placeholder="Conteúdo do capítulo em formato Markdown..."
+                  <BlockEditor
+                    blocks={currentChapter.blocks ?? markdownToBlocks(currentChapter.content)}
+                    onChange={updateChapterBlocks}
+                    onAdaptBlock={handleAdaptBlock}
+                    language={project.language}
                   />
                 </>
               )}
@@ -889,6 +956,8 @@ export function EbookCurationPlatform() {
         onCefrChange={(v) => setProject({ ...project, cefrLevel: v })}
         projectStatus={project.status}
         onStatusChange={(v) => setProject({ ...project, status: v as EbookProject["status"] })}
+        priceUsd={project.priceUsd}
+        onPriceChange={(v) => setProject({ ...project, priceUsd: v })}
       />
     </div>
   );
@@ -897,7 +966,7 @@ export function EbookCurationPlatform() {
 // ─────────────────────────── DashboardScreen ───────────────────────────
 
 function DashboardScreen({
-  ebooks, loading, onNew, onOpen, onDelete, onRefresh,
+  ebooks, loading, onNew, onOpen, onDelete, onRefresh, onAnalytics,
 }: {
   ebooks: (EbookProject & { id: string })[];
   loading: boolean;
@@ -905,6 +974,7 @@ function DashboardScreen({
   onOpen: (eb: EbookProject & { id: string }) => void;
   onDelete: (id: string) => void;
   onRefresh: () => void;
+  onAnalytics: () => void;
 }) {
   const totalWords = ebooks.reduce((s, e) => s + e.chapters.reduce((c, ch) => c + (ch.wordCount ?? 0), 0), 0);
   const totalChapters = ebooks.reduce((s, e) => s + e.chapters.length, 0);
@@ -925,13 +995,22 @@ function DashboardScreen({
               Curadoria assistida por IA para criar e-books de nível profissional
             </p>
           </div>
-          <button
-            onClick={onNew}
-            className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-semibold text-sm transition-colors shadow-lg shadow-indigo-500/20"
-          >
-            <Plus className="w-4 h-4" />
-            Novo E-book
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={onAnalytics}
+              className="flex items-center gap-2 px-4 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-xl font-semibold text-sm transition-colors"
+            >
+              <BarChart3 className="w-4 h-4 text-emerald-400" />
+              Analytics
+            </button>
+            <button
+              onClick={onNew}
+              className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-semibold text-sm transition-colors shadow-lg shadow-indigo-500/20"
+            >
+              <Plus className="w-4 h-4" />
+              Novo E-book
+            </button>
+          </div>
         </div>
 
         {/* stats */}
@@ -1313,7 +1392,7 @@ function CreateWizard({
 // ─────────────────────────── ToneControlPanel ───────────────────────────
 
 function ToneControlPanel({
-  tone, onChange, cefrLevel, onCefrChange, projectStatus, onStatusChange,
+  tone, onChange, cefrLevel, onCefrChange, projectStatus, onStatusChange, priceUsd, onPriceChange,
 }: {
   tone: ToneConfig;
   onChange: (key: keyof ToneConfig, val: string) => void;
@@ -1321,6 +1400,8 @@ function ToneControlPanel({
   onCefrChange: (v: string) => void;
   projectStatus: string;
   onStatusChange: (v: string) => void;
+  priceUsd?: number;
+  onPriceChange?: (v: number) => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -1396,6 +1477,29 @@ function ToneControlPanel({
               ))}
             </div>
           </div>
+
+          {/* Price */}
+          {onPriceChange && (
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1.5">
+                <TrendingUp className="w-3.5 h-3.5" />
+                Preço de Venda (USD)
+              </p>
+              <div className="flex items-center gap-2 bg-slate-800 border border-slate-600/50 rounded-xl px-3 py-2">
+                <span className="text-slate-400 text-sm">$</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.99"
+                  value={priceUsd ?? ""}
+                  onChange={(e) => onPriceChange(parseFloat(e.target.value) || 0)}
+                  placeholder="9.99"
+                  className="flex-1 bg-transparent text-white text-sm focus:outline-none"
+                />
+              </div>
+              <p className="text-xs text-slate-500 mt-1">Defina 0 para disponibilizar gratuitamente</p>
+            </div>
+          )}
 
           {/* quick tips */}
           <div className="bg-slate-800/50 border border-slate-700/30 rounded-xl p-3">
@@ -1629,14 +1733,186 @@ function ExercisesPanel({
   );
 }
 
+// ─────────────────────────── AnalyticsScreen ───────────────────────────
+
+interface AuthorStats {
+  totalSales: number;
+  totalRevenueUsd: number;
+  uniqueBuyers: number;
+  byEbook: {
+    ebookId: string;
+    title: string;
+    totalSales: number;
+    totalRevenueUsd: number;
+    uniqueBuyers: number;
+    firstSaleAt?: string;
+    lastSaleAt?: string;
+  }[];
+  recentSales: {
+    ebookTitle: string;
+    buyerEmail: string;
+    amountUsd: number;
+    paidAt: string;
+  }[];
+}
+
+function AnalyticsScreen({ onBack }: { onBack: () => void }) {
+  const [stats, setStats] = useState<AuthorStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        const res = await fetch("/api/ebook/sales/stats", {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!res.ok) throw new Error("Falha ao carregar estatísticas");
+        const json = await res.json();
+        setStats(json.stats ?? json);
+      } catch (e: any) {
+        setError(e.message);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  return (
+    <div className="h-full overflow-y-auto bg-slate-900 p-6">
+      <div className="mb-6">
+        <button onClick={onBack} className="flex items-center gap-1.5 text-slate-400 hover:text-white text-xs mb-4 transition-colors">
+          <ArrowLeft className="w-3.5 h-3.5" />
+          Dashboard
+        </button>
+        <h1 className="text-2xl font-black text-white flex items-center gap-3">
+          <span className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center">
+            <BarChart3 className="w-5 h-5 text-white" />
+          </span>
+          Analytics de Vendas
+        </h1>
+        <p className="text-slate-400 text-sm mt-1">Receita, vendas e alcance dos seus e-books</p>
+      </div>
+
+      {loading && (
+        <div className="flex flex-col items-center justify-center py-24 gap-3">
+          <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
+          <p className="text-slate-400">A carregar analytics...</p>
+        </div>
+      )}
+
+      {error && (
+        <div className="flex items-center gap-3 p-4 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-300">
+          <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+          {error}
+        </div>
+      )}
+
+      {!loading && !error && stats && (
+        <div className="space-y-6">
+          {/* KPI tiles */}
+          <div className="grid grid-cols-3 gap-4">
+            {[
+              { label: "Receita Total", value: `$${(stats.totalRevenueUsd ?? 0).toFixed(2)}`, icon: TrendingUp, color: "emerald" },
+              { label: "Total de Vendas", value: stats.totalSales ?? 0, icon: CheckCircle, color: "indigo" },
+              { label: "Compradores Únicos", value: stats.uniqueBuyers ?? 0, icon: Users, color: "purple" },
+            ].map((s) => (
+              <div key={s.label} className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-5 flex items-center gap-4">
+                <div className={`w-12 h-12 rounded-xl bg-${s.color}-500/20 flex items-center justify-center flex-shrink-0`}>
+                  <s.icon className={`w-6 h-6 text-${s.color}-400`} />
+                </div>
+                <div>
+                  <p className="text-2xl font-black text-white">{s.value}</p>
+                  <p className="text-xs text-slate-400">{s.label}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Per-ebook table */}
+          {stats.byEbook && stats.byEbook.length > 0 && (
+            <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-700/50">
+                <h2 className="font-bold text-white flex items-center gap-2">
+                  <BookOpen className="w-4 h-4 text-indigo-400" />
+                  Desempenho por E-book
+                </h2>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-700/50">
+                      {["Título", "Vendas", "Receita (USD)", "Compradores", "Último venda"].map(col => (
+                        <th key={col} className="text-left px-5 py-3 text-xs font-bold uppercase tracking-wider text-slate-400">{col}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stats.byEbook.map((row, i) => (
+                      <tr key={i} className="border-b border-slate-700/30 hover:bg-slate-700/20 transition-colors">
+                        <td className="px-5 py-3 font-medium text-white">{row.title}</td>
+                        <td className="px-5 py-3 text-slate-300">{row.totalSales}</td>
+                        <td className="px-5 py-3 text-emerald-400 font-semibold">${(row.totalRevenueUsd ?? 0).toFixed(2)}</td>
+                        <td className="px-5 py-3 text-slate-300">{row.uniqueBuyers}</td>
+                        <td className="px-5 py-3 text-slate-400 text-xs">{row.lastSaleAt ? new Date(row.lastSaleAt).toLocaleDateString("pt-PT") : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Recent sales */}
+          {stats.recentSales && stats.recentSales.length > 0 && (
+            <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-700/50">
+                <h2 className="font-bold text-white flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-amber-400" />
+                  Vendas Recentes
+                </h2>
+              </div>
+              <div className="divide-y divide-slate-700/30">
+                {stats.recentSales.map((sale, i) => (
+                  <div key={i} className="flex items-center justify-between px-5 py-3">
+                    <div>
+                      <p className="text-sm font-medium text-white">{sale.ebookTitle}</p>
+                      <p className="text-xs text-slate-400">{sale.buyerEmail}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-emerald-400">${(sale.amountUsd ?? 0).toFixed(2)}</p>
+                      <p className="text-xs text-slate-500">{sale.paidAt ? new Date(sale.paidAt).toLocaleDateString("pt-PT") : "—"}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {stats.totalSales === 0 && (
+            <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
+              <div className="w-16 h-16 bg-slate-800 rounded-2xl flex items-center justify-center">
+                <BarChart3 className="w-8 h-8 text-slate-600" />
+              </div>
+              <p className="text-slate-400">Ainda não há vendas registadas. Publique um e-book e partilhe com os seus alunos!</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─────────────────────────── PreviewScreen ───────────────────────────
 
 function PreviewScreen({
-  project, onBack, onExportPDF,
+  project, onBack, onExportPDF, onExportEpub,
 }: {
   project: EbookProject;
   onBack: () => void;
   onExportPDF: () => void;
+  onExportEpub: () => void;
 }) {
   const [activeChapter, setActiveChapter] = useState(0);
   const totalWords = project.chapters.reduce((s, c) => s + (c.wordCount ?? 0), 0);
@@ -1686,13 +1962,20 @@ function PreviewScreen({
           ))}
         </div>
 
-        <div className="p-3 border-t border-slate-700/50">
+        <div className="p-3 border-t border-slate-700/50 space-y-2">
           <button
             onClick={onExportPDF}
             className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-xs font-semibold transition-colors"
           >
             <Download className="w-3.5 h-3.5" />
             Exportar PDF
+          </button>
+          <button
+            onClick={onExportEpub}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-emerald-700/50 hover:bg-emerald-600/50 border border-emerald-500/30 rounded-xl text-xs font-semibold text-emerald-300 transition-colors"
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            Exportar ePub
           </button>
         </div>
       </div>

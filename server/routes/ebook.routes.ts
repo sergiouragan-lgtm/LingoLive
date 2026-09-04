@@ -7,6 +7,7 @@ import {
   generateTitleSuggestions,
   generateExercises,
   analyzeToneConsistency,
+  adaptToLevel,
   type ToneConfig,
 } from "../services/ebook/EbookCurationService";
 import { safeAddDoc, safeSetDoc, safeGetDoc, safeQueryDocs } from "../services/firestoreSafe.service";
@@ -114,6 +115,31 @@ router.post("/analyze-tone", requireAuth, async (req: any, res) => {
   } catch (err: any) {
     console.error("[ebook] analyze-tone error:", err.message);
     return res.status(500).json({ error: "Falha ao analisar tom" });
+  }
+});
+
+router.post("/adapt-level", requireAuth, async (req: any, res) => {
+  const { text, targetLevel, language } = req.body;
+
+  if (!text || !targetLevel || !language) {
+    return res.status(400).json({ error: "text, targetLevel e language são obrigatórios" });
+  }
+
+  const validLevels = ["A1", "A2", "B1", "B2", "C1", "C2"];
+  if (!validLevels.includes(targetLevel)) {
+    return res.status(400).json({ error: `targetLevel deve ser um de: ${validLevels.join(", ")}` });
+  }
+
+  if (text.length > 8000) {
+    return res.status(400).json({ error: "Texto muito longo. Limite: 8.000 caracteres por vez" });
+  }
+
+  try {
+    const adapted = await adaptToLevel(text, targetLevel, language);
+    return res.json({ success: true, adapted });
+  } catch (err: any) {
+    console.error("[ebook] adapt-level error:", err.message);
+    return res.status(500).json({ error: "Falha ao adaptar nível do texto" });
   }
 });
 
