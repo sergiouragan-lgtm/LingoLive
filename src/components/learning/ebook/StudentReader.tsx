@@ -585,10 +585,19 @@ export function StudentReader({ ebookId, enrollment, onBack, backLabel }: Studen
                 <h1 style={{ fontSize: 28, fontWeight: 800, lineHeight: 1.2, color: "var(--text-primary)", marginBottom: 8 }}>
                   {selectedChapter.title}
                 </h1>
-                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                   <span style={{ fontSize: 12, padding: "2px 8px", borderRadius: 12, background: CEFR_COLORS[cefrLevel] + "20", color: CEFR_COLORS[cefrLevel], fontWeight: 700 }}>
                     {cefrLevel} — {CEFR_LABELS[cefrLevel]}
                   </span>
+                  {adaptedBlocks.length > 0 && (() => {
+                    const words = adaptedBlocks.reduce((n, b) => n + b.content.split(/\s+/).length, 0);
+                    const mins = Math.max(1, Math.ceil(words / 200));
+                    return (
+                      <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                        ≈ {mins} min de leitura
+                      </span>
+                    );
+                  })()}
                   {isChapterRead(selectedChapter.id) && (
                     <span style={{ fontSize: 12, padding: "2px 8px", borderRadius: 12, background: "#22c55e20", color: "#16a34a", fontWeight: 700 }}>✓ Lido</span>
                   )}

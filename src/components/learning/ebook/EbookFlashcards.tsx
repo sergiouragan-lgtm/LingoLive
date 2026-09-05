@@ -163,6 +163,23 @@ function ReviewSession({
     [current, queue, results, onFinish]
   );
 
+  // Keyboard shortcuts: Space = flip, 1 = Errei, 2 = Quase, 3 = Sabia!
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (done) return;
+      if (e.key === " " || e.code === "Space") {
+        e.preventDefault();
+        if (!flipped) setFlipped(true);
+      } else if (flipped) {
+        if (e.key === "1") answer(1);
+        else if (e.key === "2") answer(3);
+        else if (e.key === "3") answer(5);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [flipped, done, answer]);
+
   if (queue.length === 0) {
     return (
       <div className="text-center py-12 text-gray-400 space-y-3">
@@ -221,30 +238,39 @@ function ReviewSession({
 
       <FlipCard word={card} flipped={flipped} onFlip={() => setFlipped(true)} />
 
+      {!flipped && (
+        <p className="text-center text-xs text-gray-400 dark:text-gray-500">Prima <kbd className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-gray-500 dark:text-gray-400 font-mono">Espaço</kbd> para revelar</p>
+      )}
+
       {flipped && (
-        <div className="grid grid-cols-3 gap-3">
-          <button
-            onClick={() => answer(1)}
-            className="flex flex-col items-center gap-1 py-3 rounded-2xl bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 transition-colors"
-          >
-            <XCircle className="w-6 h-6" />
-            <span className="text-xs font-medium">Errei</span>
-          </button>
-          <button
-            onClick={() => answer(3)}
-            className="flex flex-col items-center gap-1 py-3 rounded-2xl bg-yellow-50 dark:bg-yellow-900/20 hover:bg-yellow-100 dark:hover:bg-yellow-900/40 text-yellow-600 dark:text-yellow-400 transition-colors"
-          >
-            <Minus className="w-6 h-6" />
-            <span className="text-xs font-medium">Quase</span>
-          </button>
-          <button
-            onClick={() => answer(5)}
-            className="flex flex-col items-center gap-1 py-3 rounded-2xl bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/40 text-green-600 dark:text-green-400 transition-colors"
-          >
-            <CheckCircle className="w-6 h-6" />
-            <span className="text-xs font-medium">Sabia!</span>
-          </button>
-        </div>
+        <>
+          <div className="grid grid-cols-3 gap-3">
+            <button
+              onClick={() => answer(1)}
+              className="flex flex-col items-center gap-1 py-3 rounded-2xl bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 transition-colors"
+            >
+              <XCircle className="w-6 h-6" />
+              <span className="text-xs font-medium">Errei</span>
+              <kbd className="text-[10px] px-1 bg-red-100 dark:bg-red-900/40 rounded font-mono">1</kbd>
+            </button>
+            <button
+              onClick={() => answer(3)}
+              className="flex flex-col items-center gap-1 py-3 rounded-2xl bg-yellow-50 dark:bg-yellow-900/20 hover:bg-yellow-100 dark:hover:bg-yellow-900/40 text-yellow-600 dark:text-yellow-400 transition-colors"
+            >
+              <Minus className="w-6 h-6" />
+              <span className="text-xs font-medium">Quase</span>
+              <kbd className="text-[10px] px-1 bg-yellow-100 dark:bg-yellow-900/40 rounded font-mono">2</kbd>
+            </button>
+            <button
+              onClick={() => answer(5)}
+              className="flex flex-col items-center gap-1 py-3 rounded-2xl bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/40 text-green-600 dark:text-green-400 transition-colors"
+            >
+              <CheckCircle className="w-6 h-6" />
+              <span className="text-xs font-medium">Sabia!</span>
+              <kbd className="text-[10px] px-1 bg-green-100 dark:bg-green-900/40 rounded font-mono">3</kbd>
+            </button>
+          </div>
+        </>
       )}
     </div>
   );

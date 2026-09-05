@@ -600,7 +600,13 @@ function StudentView({ onOpenEbook }: { onOpenEbook?: (ebookId: string) => void 
                 {assignment.dueDate ? (
                   <p className={`text-xs flex items-center gap-1 ${overdue ? "text-red-500" : "text-gray-400"}`}>
                     <Calendar className="w-3 h-3" />
-                    Prazo: {new Date(assignment.dueDate).toLocaleDateString("pt-PT")}
+                    {(() => {
+                      const diff = Math.ceil((new Date(assignment.dueDate).getTime() - Date.now()) / 86400000);
+                      if (diff < 0) return `Atrasado ${Math.abs(diff)} dia${Math.abs(diff) !== 1 ? "s" : ""}`;
+                      if (diff === 0) return "Prazo: hoje!";
+                      if (diff === 1) return "Prazo: amanhã";
+                      return `Prazo: ${diff} dias`;
+                    })()}
                   </p>
                 ) : (
                   <span />
