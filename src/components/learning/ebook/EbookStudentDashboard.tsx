@@ -13,6 +13,7 @@ import {
   Clock,
   ChevronRight,
   Trophy,
+  BarChart3,
 } from "lucide-react";
 import { auth } from "../../../firebase";
 
@@ -348,18 +349,47 @@ export function EbookStudentDashboard({
         </div>
       ) : null}
 
+      {/* ── Empty-state onboarding ───────────────────────────────────────── */}
+      {!loading && stats?.totalEnrolled === 0 && recentEbooks.length === 0 && (
+        <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border border-indigo-100 dark:border-indigo-800 rounded-2xl p-5 text-center">
+          <BookOpen className="w-10 h-10 text-indigo-400 mx-auto mb-3" />
+          <h4 className="font-semibold text-indigo-800 dark:text-indigo-200 mb-1">Comece a sua jornada</h4>
+          <p className="text-sm text-indigo-600 dark:text-indigo-300 mb-4">
+            Ainda não está inscrito em nenhum e-book. Explore o catálogo e escolha o seu primeiro livro.
+          </p>
+          <div className="flex gap-2 justify-center">
+            <button
+              onClick={() => onNavigate?.("ebook-curation")}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors"
+            >
+              <BookOpen className="w-4 h-4" />
+              Ver catálogo
+            </button>
+            <button
+              onClick={() => onNavigate?.("ebook-recommendations")}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-indigo-300 dark:border-indigo-600 text-indigo-700 dark:text-indigo-300 text-sm font-semibold hover:bg-indigo-100 dark:hover:bg-indigo-800/40 transition-colors"
+            >
+              <Sparkles className="w-4 h-4" />
+              Recomendações IA
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Quick actions ─────────────────────────────────────────────────── */}
       <div>
         <SectionHeader
           icon={<Zap className="w-4 h-4 text-yellow-400" />}
           title="Atalhos Rápidos"
         />
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {[
             { label: "Flashcards", icon: <Layers className="w-5 h-5" />, view: "ebook-flashcards", color: "bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300" },
             { label: "Conquistas", icon: <Trophy className="w-5 h-5" />, view: "ebook-achievements", color: "bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300" },
             { label: "Biblioteca", icon: <BookOpen className="w-5 h-5" />, view: "ebook-curation", color: "bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-300" },
             { label: "Tarefas", icon: <ClipboardList className="w-5 h-5" />, view: "ebook-assignments-student", color: "bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300" },
+            { label: "Recomendações", icon: <Sparkles className="w-5 h-5" />, view: "ebook-recommendations", color: "bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-300" },
+            { label: "Progresso", icon: <BarChart3 className="w-5 h-5" />, view: "ebook-analytics", color: "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300" },
           ].map(({ label, icon, view, color }) => (
             <button
               key={view}
