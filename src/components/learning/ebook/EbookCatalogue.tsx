@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
   BookOpen,
   Search,
@@ -11,6 +11,7 @@ import {
   RefreshCw,
   X,
   Star,
+  Filter,
 } from "lucide-react";
 import { auth } from "../../../firebase";
 import EbookReviews from "./EbookReviews";
@@ -75,9 +76,11 @@ export function EbookCatalogue({ onOpenReader }: EbookCatalogueProps) {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [cefrFilter, setCefrFilter] = useState<(typeof LEVELS)[number]>("Todos");
+  const [langFilter, setLangFilter] = useState<string>("Todos");
   const [enrollStatus, setEnrollStatus] = useState<EnrollmentStatus>({});
   const [libraryIds, setLibraryIds] = useState<Set<string>>(new Set());
   const [selectedEbook, setSelectedEbook] = useState<PublishedEbook | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -106,6 +109,23 @@ export function EbookCatalogue({ onOpenReader }: EbookCatalogueProps) {
 
   useEffect(() => { load(); }, [load]);
 
+  // Keyboard shortcuts: Escape closes drawer, "/" focuses search
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setSelectedEbook(null);
+      } else if (e.key === "/" && !selectedEbook) {
+        const target = e.target as HTMLElement;
+        if (target.tagName !== "INPUT" && target.tagName !== "TEXTAREA") {
+          e.preventDefault();
+          searchRef.current?.focus();
+        }
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [selectedEbook]);
+
   const enroll = useCallback(async (ebookId: string) => {
     setEnrollStatus((prev) => ({ ...prev, [ebookId]: "loading" }));
     try {
@@ -120,14 +140,19 @@ export function EbookCatalogue({ onOpenReader }: EbookCatalogueProps) {
     }
   }, []);
 
+  const languages = ["Todos", ...Array.from(new Set(ebooks.map((e) => e.language))).sort()];
+
   const filtered = ebooks.filter((e) => {
     const matchQuery =
       !query ||
       e.title.toLowerCase().includes(query.toLowerCase()) ||
       e.language.toLowerCase().includes(query.toLowerCase());
     const matchLevel = cefrFilter === "Todos" || e.cefrLevel === cefrFilter;
-    return matchQuery && matchLevel;
+    const matchLang = langFilter === "Todos" || e.language === langFilter;
+    return matchQuery && matchLevel && matchLang;
   });
+
+  const hasActiveFilters = query || cefrFilter !== "Todos" || langFilter !== "Todos";
 
   if (loading) {
     return (
@@ -155,34 +180,60 @@ export function EbookCatalogue({ onOpenReader }: EbookCatalogueProps) {
   return (
     <div className="p-6 space-y-6">
       {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-          <BookMarked className="w-6 h-6 text-indigo-500" />
-          Catálogo E-books
-        </h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-          {ebooks.length} e-book{ebooks.length !== 1 ? "s" : ""} disponíveis
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <BookMarked className="w-6 h-6 text-indigo-500" />
+            Catálogo E-books
+          </h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            {hasActiveFilters
+              ? `${filtered.length} de ${ebooks.length} e-book${ebooks.length !== 1 ? "s" : ""}`
+              : `${ebooks.length} e-book${ebooks.length !== 1 ? "s" : ""} disponíveis`}
+          </p>
+        </div>
+        {hasActiveFilters && (
+          <button
+            onClick={() => { setQuery(""); setCefrFilter("Todos"); setLangFilter("Todos"); }}
+            className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 mt-1 shrink-0"
+          >
+            <X className="w-3 h-3" /> Limpar filtros
+          </button>
+        )}
       </div>
 
-      {/* ── Search + CEFR filter ────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
+      {/* ── Search + filters ────────────────────────────────────────────── */}
+      <div className="space-y-2">
+        <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
+            ref={searchRef}
             type="text"
-            placeholder="Pesquisar por título ou idioma…"
+            placeholder="Pesquisar por título… (pressione / para focar)"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
+          {query && (
+            <button
+              onClick={() => setQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
-        <div className="flex gap-1.5 flex-wrap">
+
+        {/* CEFR filter */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-slate-400 flex items-center gap-1 shrink-0">
+            <Filter className="w-3 h-3" /> Nível:
+          </span>
           {LEVELS.map((lvl) => (
             <button
               key={lvl}
               onClick={() => setCefrFilter(lvl)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+              className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${
                 cefrFilter === lvl
                   ? "bg-indigo-600 text-white"
                   : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
@@ -192,6 +243,28 @@ export function EbookCatalogue({ onOpenReader }: EbookCatalogueProps) {
             </button>
           ))}
         </div>
+
+        {/* Language filter (only shown when multiple languages exist) */}
+        {languages.length > 2 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-slate-400 flex items-center gap-1 shrink-0">
+              <Globe className="w-3 h-3" /> Idioma:
+            </span>
+            {languages.map((lang) => (
+              <button
+                key={lang}
+                onClick={() => setLangFilter(lang)}
+                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                  langFilter === lang
+                    ? "bg-emerald-600 text-white"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
+                }`}
+              >
+                {lang}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── Grid ───────────────────────────────────────────────────────── */}
@@ -226,6 +299,11 @@ export function EbookCatalogue({ onOpenReader }: EbookCatalogueProps) {
                   <span className={`absolute top-3 right-3 text-[10px] font-bold px-2 py-0.5 rounded-full ${CEFR_BADGE[ebook.cefrLevel] ?? "bg-slate-200 text-slate-700"}`}>
                     {ebook.cefrLevel}
                   </span>
+                  {isInLibrary && (
+                    <span className="absolute top-3 left-3 flex items-center gap-0.5 text-[10px] font-semibold bg-white/20 backdrop-blur-sm text-white px-2 py-0.5 rounded-full">
+                      <CheckCircle className="w-3 h-3" /> Na biblioteca
+                    </span>
+                  )}
                 </div>
 
                 {/* Info */}
