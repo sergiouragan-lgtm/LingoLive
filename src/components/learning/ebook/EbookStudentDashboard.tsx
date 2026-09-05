@@ -279,7 +279,9 @@ export function EbookStudentDashboard({
                 <p className="text-lg font-bold text-teal-600 dark:text-teal-400">
                   {stats.totalReadingTimeMin < 60
                     ? `${stats.totalReadingTimeMin}m`
-                    : `${Math.floor(stats.totalReadingTimeMin / 60)}h`}
+                    : stats.totalReadingTimeMin % 60 === 0
+                      ? `${Math.floor(stats.totalReadingTimeMin / 60)}h`
+                      : `${Math.floor(stats.totalReadingTimeMin / 60)}h ${stats.totalReadingTimeMin % 60}m`}
                 </p>
               </div>
               <p className="text-xs text-gray-500 mt-0.5">Leitura total</p>
@@ -343,9 +345,10 @@ export function EbookStudentDashboard({
           />
           <div className="space-y-2">
             {activeAssignments.slice(0, 3).map(({ assignment, completionPercent, status, overdue }) => (
-              <div
+              <button
                 key={assignment.id}
-                className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 px-4 py-3 flex items-center gap-3"
+                onClick={() => onOpenReader ? onOpenReader(assignment.ebookId) : onNavigate?.("ebook-curation")}
+                className="w-full bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 px-4 py-3 flex items-center gap-3 text-left hover:border-indigo-300 dark:hover:border-indigo-600 transition-colors"
               >
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-800 dark:text-white truncate">{assignment.title}</p>
@@ -366,7 +369,7 @@ export function EbookStudentDashboard({
                     <span className="text-xs tabular-nums text-gray-400">{completionPercent}%</span>
                   )}
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         </div>

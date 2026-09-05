@@ -323,6 +323,11 @@ export function EbookCatalogue({ onOpenReader }: EbookCatalogueProps) {
                         <BarChart3 className="w-3 h-3" />{chapterCount} cap.
                       </span>
                     )}
+                    {ebook.priceUsd != null && (
+                      <span className={`ml-auto font-semibold ${ebook.priceUsd === 0 ? "text-emerald-500" : "text-slate-600 dark:text-slate-300"}`}>
+                        {ebook.priceUsd === 0 ? "Grátis" : `$${ebook.priceUsd.toFixed(2)}`}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -400,6 +405,11 @@ export function EbookCatalogue({ onOpenReader }: EbookCatalogueProps) {
               <span className="flex items-center gap-1"><Globe className="w-3.5 h-3.5" />{selectedEbook.language}</span>
               {(selectedEbook.chapters?.length ?? 0) > 0 && (
                 <span className="flex items-center gap-1"><BookOpen className="w-3.5 h-3.5" />{selectedEbook.chapters!.length} capítulos</span>
+              )}
+              {selectedEbook.priceUsd != null && (
+                <span className={`ml-auto font-semibold ${selectedEbook.priceUsd === 0 ? "text-emerald-500" : "text-slate-700 dark:text-slate-200"}`}>
+                  {selectedEbook.priceUsd === 0 ? "Grátis" : `$${selectedEbook.priceUsd.toFixed(2)}`}
+                </span>
               )}
             </div>
 
