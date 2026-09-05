@@ -367,6 +367,7 @@ export function StudentReader({ ebookId, enrollment, onBack, backLabel }: Studen
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [certificate, setCertificate] = useState<{ verificationCode: string; examTitle: string; issueDate: string } | null>(null);
   const [showCertModal, setShowCertModal] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
   // Load ebook data
@@ -551,15 +552,23 @@ export function StudentReader({ ebookId, enrollment, onBack, backLabel }: Studen
             {ebook?.chapters.map((ch, i) => {
               const read = isChapterRead(ch.id);
               const active = selectedChapter?.id === ch.id;
+              const chWords = ch.blocks?.reduce((n, b) => n + b.content.split(/\s+/).length, 0)
+                ?? ch.content?.trim().split(/\s+/).filter(Boolean).length ?? 0;
+              const chMins = Math.max(1, Math.ceil(chWords / 200));
               return (
                 <button
                   key={ch.id}
                   onClick={() => handleSelectChapter(ch)}
-                  style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 16px", border: "none", background: active ? "var(--accent)10" : "transparent", borderLeft: active ? "3px solid var(--accent)" : "3px solid transparent", cursor: "pointer", textAlign: "left", color: active ? "var(--accent)" : "var(--text-primary)", fontWeight: active ? 600 : 400, fontSize: 14, lineHeight: 1.4 }}
+                  style={{ display: "flex", alignItems: "flex-start", gap: 10, width: "100%", padding: "10px 16px", border: "none", background: active ? "var(--accent)10" : "transparent", borderLeft: active ? "3px solid var(--accent)" : "3px solid transparent", cursor: "pointer", textAlign: "left", color: active ? "var(--accent)" : "var(--text-primary)", fontWeight: active ? 600 : 400, fontSize: 14, lineHeight: 1.4 }}
                 >
-                  <span style={{ fontSize: 14, opacity: 0.6, minWidth: 20 }}>{i + 1}.</span>
-                  <span style={{ flex: 1 }}>{ch.title}</span>
-                  {read && <span style={{ fontSize: 14, color: "#22c55e" }}>✓</span>}
+                  <span style={{ fontSize: 14, opacity: 0.6, minWidth: 20, paddingTop: 1 }}>{i + 1}.</span>
+                  <span style={{ flex: 1 }}>
+                    <span style={{ display: "block" }}>{ch.title}</span>
+                    {chWords > 0 && (
+                      <span style={{ fontSize: 11, color: "var(--text-secondary)", fontWeight: 400 }}>≈ {chMins} min</span>
+                    )}
+                  </span>
+                  {read && <span style={{ fontSize: 14, color: "#22c55e", paddingTop: 1 }}>✓</span>}
                 </button>
               );
             })}
@@ -685,8 +694,21 @@ export function StudentReader({ ebookId, enrollment, onBack, backLabel }: Studen
             </p>
             <div style={{ background: "var(--bg)", borderRadius: 12, padding: "16px 20px", marginBottom: 24, border: "2px dashed var(--border)" }}>
               <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>Código de verificação</div>
-              <div style={{ fontFamily: "monospace", fontSize: 18, fontWeight: 700, color: "var(--accent)", letterSpacing: 2 }}>
-                {certificate.verificationCode}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+                <div style={{ fontFamily: "monospace", fontSize: 18, fontWeight: 700, color: "var(--accent)", letterSpacing: 2 }}>
+                  {certificate.verificationCode}
+                </div>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(certificate.verificationCode).then(() => {
+                      setCodeCopied(true);
+                      setTimeout(() => setCodeCopied(false), 2000);
+                    });
+                  }}
+                  style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--text-secondary)", fontSize: 12, cursor: "pointer", fontWeight: 600 }}
+                >
+                  {codeCopied ? "✓ Copiado" : "Copiar"}
+                </button>
               </div>
               <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 6 }}>
                 Emitido em {new Date(certificate.issueDate).toLocaleDateString("pt-PT")}
