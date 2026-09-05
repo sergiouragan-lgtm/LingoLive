@@ -326,16 +326,43 @@ function DeckBrowser({
   );
 }
 
+interface LibraryEntry {
+  ebookId: string;
+  ebookTitle: string;
+  ebookLanguage?: string;
+  ebookCefrLevel?: string;
+}
+
+async function fetchLibrary(): Promise<LibraryEntry[]> {
+  const token = await auth.currentUser?.getIdToken();
+  const res = await fetch("/api/ebook/student/library", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.library ?? [];
+}
+
 // ── Public export ──────────────────────────────────────────────────────────────
 
 export function EbookFlashcards({ ebookId }: { ebookId?: string }) {
   const [deckId, setDeckId] = useState<string | null>(ebookId ?? null);
   const [deck, setDeck] = useState<VocabDeck | null>(null);
   const [progressCards, setProgressCards] = useState<CardProgress[]>([]);
-  const [mode, setMode] = useState<"browse" | "review">("browse");
+  const [mode, setMode] = useState<"pick" | "browse" | "review">(ebookId ? "browse" : "pick");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [inputId, setInputId] = useState("");
+  const [library, setLibrary] = useState<LibraryEntry[]>([]);
+  const [libraryLoading, setLibraryLoading] = useState(false);
+
+  // Load library for picker
+  useEffect(() => {
+    if (mode !== "pick") return;
+    setLibraryLoading(true);
+    fetchLibrary()
+      .then(setLibrary)
+      .finally(() => setLibraryLoading(false));
+  }, [mode]);
 
   const loadDeck = async (id: string) => {
     setLoading(true);
@@ -350,14 +377,14 @@ export function EbookFlashcards({ ebookId }: { ebookId?: string }) {
       setDeckId(id);
       setMode("browse");
     } catch {
-      setError("Não foi possível carregar o vocabulário. Verifique o ID do e-book.");
+      setError("Não foi possível carregar o vocabulário deste e-book.");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (deckId) loadDeck(deckId);
+    if (ebookId) loadDeck(ebookId);
   }, []);
 
   const handleReviewFinish = async (results: { word: string; quality: number }[]) => {
@@ -382,12 +409,16 @@ export function EbookFlashcards({ ebookId }: { ebookId?: string }) {
           <Layers className="w-5 h-5 text-indigo-500" />
           {mode === "review" ? "Sessão de Revisão" : "Flashcards de Vocabulário"}
         </h3>
-        {mode === "review" && (
+        {(mode === "review" || mode === "browse") && (
           <button
-            onClick={() => setMode("browse")}
+            onClick={() => {
+              if (mode === "review") { setMode("browse"); return; }
+              setDeck(null); setDeckId(null); setMode("pick");
+            }}
             className="flex items-center gap-1 text-sm text-indigo-600 dark:text-indigo-400 hover:underline"
           >
-            <ChevronLeft className="w-4 h-4" /> Voltar
+            <ChevronLeft className="w-4 h-4" />
+            {mode === "review" ? "Voltar" : "Trocar e-book"}
           </button>
         )}
       </div>
@@ -399,31 +430,45 @@ export function EbookFlashcards({ ebookId }: { ebookId?: string }) {
         </div>
       )}
 
-      {!deck && !loading && (
-        <div className="space-y-3">
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Introduza o ID de um e-book para gerar ou ver o seu baralho de flashcards.
-          </p>
-          <div className="flex gap-2">
-            <input
-              value={inputId}
-              onChange={(e) => setInputId(e.target.value)}
-              placeholder="ID do e-book"
-              className="flex-1 border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
-            />
-            <button
-              onClick={() => inputId && loadDeck(inputId.trim())}
-              disabled={!inputId}
-              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-colors disabled:opacity-50"
-            >
-              Carregar
-            </button>
+      {/* ── Library picker ── */}
+      {mode === "pick" && (
+        libraryLoading ? (
+          <div className="space-y-2 animate-pulse">
+            {[...Array(4)].map((_, i) => <div key={i} className="h-14 bg-gray-100 dark:bg-gray-800 rounded-xl" />)}
           </div>
-          <div className="text-center py-10 text-gray-300 dark:text-gray-600">
-            <BookOpen className="w-12 h-12 mx-auto mb-3" />
-            <p className="text-sm">Nenhum baralho carregado</p>
+        ) : library.length === 0 ? (
+          <div className="text-center py-12 space-y-3">
+            <BookOpen className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600" />
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Ainda não tens e-books inscritos. Vai ao Catálogo para explorar!
+            </p>
           </div>
-        </div>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wider font-semibold">
+              Escolhe um e-book da tua biblioteca
+            </p>
+            {library.map((item) => (
+              <button
+                key={item.ebookId}
+                onClick={() => loadDeck(item.ebookId)}
+                disabled={loading}
+                className="w-full bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl px-4 py-3 flex items-center gap-3 text-left hover:border-indigo-300 dark:hover:border-indigo-600 transition-colors disabled:opacity-50"
+              >
+                <div className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center flex-shrink-0">
+                  <BookOpen className="w-4 h-4 text-indigo-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-800 dark:text-white truncate">{item.ebookTitle}</p>
+                  {item.ebookLanguage && (
+                    <p className="text-xs text-gray-400">{item.ebookLanguage}{item.ebookCefrLevel ? ` · ${item.ebookCefrLevel}` : ""}</p>
+                  )}
+                </div>
+                <ChevronLeft className="w-4 h-4 text-gray-300 rotate-180 flex-shrink-0" />
+              </button>
+            ))}
+          </div>
+        )
       )}
 
       {loading && (
