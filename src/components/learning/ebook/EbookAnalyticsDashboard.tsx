@@ -305,7 +305,14 @@ function MyStatsPanel() {
           { label: "Inscritos", value: stats.totalEnrolled, icon: BookOpen, color: "text-blue-500" },
           { label: "Concluídos", value: stats.totalCompleted, icon: CheckCircle, color: "text-green-500" },
           { label: "Em progresso", value: stats.inProgress, icon: TrendingUp, color: "text-orange-500" },
-          { label: "Minutos lidos", value: stats.totalReadingTimeMin, icon: Clock, color: "text-purple-500" },
+          {
+          label: "Tempo de leitura",
+          value: stats.totalReadingTimeMin >= 60
+            ? `${Math.floor(stats.totalReadingTimeMin / 60)}h ${stats.totalReadingTimeMin % 60}m`
+            : `${stats.totalReadingTimeMin}m`,
+          icon: Clock,
+          color: "text-purple-500",
+        },
         ].map(({ label, value, icon: Icon, color }) => (
           <div key={label} className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3 text-center">
             <Icon className={`w-5 h-5 mx-auto mb-1 ${color}`} />
@@ -337,7 +344,14 @@ function MyStatsPanel() {
                   <BookOpen className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-700 dark:text-gray-200 truncate">{item.title}</p>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="text-sm text-gray-700 dark:text-gray-200 truncate">{item.title}</p>
+                    {item.lastReadAt && (
+                      <span className="text-[11px] text-gray-400 dark:text-gray-500 flex-shrink-0">
+                        {new Date(item.lastReadAt).toLocaleDateString("pt-PT", { day: "2-digit", month: "short" })}
+                      </span>
+                    )}
+                  </div>
                   <ProgressBar
                     value={item.progress}
                     max={100}

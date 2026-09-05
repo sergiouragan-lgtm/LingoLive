@@ -70,6 +70,7 @@ function RecommendationCard({
             {rec.cefrLevel}
           </span>
         </div>
+        <p className="text-[11px] text-gray-400 dark:text-gray-500 mb-1">{rec.language}</p>
 
         {rec.subtitle && (
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 line-clamp-2">{rec.subtitle}</p>

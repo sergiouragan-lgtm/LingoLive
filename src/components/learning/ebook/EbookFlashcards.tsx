@@ -194,12 +194,15 @@ function ReviewSession({
 
   if (done) {
     const correct = results.filter((r) => r.quality >= 3).length;
+    const pct = Math.round((correct / results.length) * 100);
+    const pctColor = pct >= 80 ? "text-green-600 dark:text-green-400" : pct >= 50 ? "text-yellow-600 dark:text-yellow-400" : "text-red-600 dark:text-red-400";
     return (
       <div className="text-center py-12 space-y-4">
         <CheckCircle className="w-12 h-12 mx-auto text-green-400" />
         <h4 className="font-semibold text-gray-800 dark:text-white">Sessão concluída!</h4>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          {correct} / {results.length} corretas
+          {correct} / {results.length} corretas —{" "}
+          <span className={`font-semibold ${pctColor}`}>{pct}%</span>
         </p>
         <div className="flex gap-3 justify-center">
           <button
@@ -339,7 +342,17 @@ function DeckBrowser({
                   <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{w.translation}</p>
                 </div>
                 {card && card.repetitions >= 1 ? (
-                  <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
+                  <div className="flex flex-col items-end flex-shrink-0 gap-0.5">
+                    <CheckCircle className="w-4 h-4 text-green-400" />
+                    <span className="text-[10px] text-gray-400 dark:text-gray-500">
+                      {(() => {
+                        const diff = Math.ceil((new Date(card.nextReviewAt).getTime() - Date.now()) / 86400000);
+                        if (diff <= 0) return "Rever";
+                        if (diff === 1) return "Amanhã";
+                        return `${diff}d`;
+                      })()}
+                    </span>
+                  </div>
                 ) : (
                   <span className="w-4 h-4 flex-shrink-0" />
                 )}
