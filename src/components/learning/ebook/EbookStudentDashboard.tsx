@@ -14,6 +14,8 @@ import {
   ChevronRight,
   Trophy,
   BarChart3,
+  Timer,
+  GraduationCap,
 } from "lucide-react";
 import { auth } from "../../../firebase";
 
@@ -94,6 +96,35 @@ const CEFR_COLORS: Record<string, string> = {
   C1: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
   C2: "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300",
 };
+
+function StreakDots({ streakDays }: { streakDays: number }) {
+  const days = ["S", "T", "Q", "Q", "S", "S", "D"];
+  const today = new Date().getDay(); // 0 = Sunday
+  const ordered = [...days.slice(today + 1), ...days.slice(0, today + 1)];
+  return (
+    <div className="flex items-center gap-1 mt-2">
+      {ordered.map((d, i) => {
+        const daysAgo = 6 - i;
+        const active = daysAgo < streakDays;
+        return (
+          <div key={i} className="flex flex-col items-center gap-0.5">
+            <div
+              className={`w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold ${
+                active
+                  ? i === 6
+                    ? "bg-orange-400 text-white"
+                    : "bg-white/40 text-white"
+                  : "bg-white/10 text-white/30"
+              }`}
+            >
+              {d}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 function SectionHeader({ icon, title, action }: {
   icon: React.ReactNode;
@@ -224,12 +255,54 @@ export function EbookStudentDashboard({
           </div>
 
           <div className="flex gap-4 mt-3 pt-3 border-t border-white/20 text-xs text-indigo-200">
-            <span>{gamification.totalChaptersRead} capítulos lidos</span>
+            <span>{gamification.totalChaptersRead} cap. lidos</span>
             <span>·</span>
-            <span>{gamification.totalEbooksCompleted} e-books concluídos</span>
+            <span>{gamification.totalEbooksCompleted} concluídos</span>
           </div>
+          {gamification.streakDays > 0 && (
+            <StreakDots streakDays={gamification.streakDays} />
+          )}
         </div>
       ) : null}
+
+      {/* ── Stats strip ───────────────────────────────────────────────────── */}
+      {!loading && stats && (
+        <div className="grid grid-cols-3 gap-3">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-3 text-center">
+            <p className="text-lg font-bold text-blue-600 dark:text-blue-400">{stats.inProgress}</p>
+            <p className="text-xs text-gray-500 mt-0.5">Em curso</p>
+          </div>
+          {stats.totalReadingTimeMin != null && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-3 text-center">
+              <div className="flex items-center justify-center gap-1">
+                <Timer className="w-3.5 h-3.5 text-teal-500" />
+                <p className="text-lg font-bold text-teal-600 dark:text-teal-400">
+                  {stats.totalReadingTimeMin < 60
+                    ? `${stats.totalReadingTimeMin}m`
+                    : `${Math.floor(stats.totalReadingTimeMin / 60)}h`}
+                </p>
+              </div>
+              <p className="text-xs text-gray-500 mt-0.5">Leitura total</p>
+            </div>
+          )}
+          {stats.averageQuizScore != null ? (
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-3 text-center">
+              <div className="flex items-center justify-center gap-1">
+                <GraduationCap className="w-3.5 h-3.5 text-purple-500" />
+                <p className="text-lg font-bold text-purple-600 dark:text-purple-400">
+                  {stats.averageQuizScore.toFixed(0)}%
+                </p>
+              </div>
+              <p className="text-xs text-gray-500 mt-0.5">Quiz médio</p>
+            </div>
+          ) : (
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-3 text-center">
+              <p className="text-lg font-bold text-purple-600 dark:text-purple-400">{stats.totalCompleted}</p>
+              <p className="text-xs text-gray-500 mt-0.5">Concluídos</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Overdue alert ─────────────────────────────────────────────────── */}
       {overdueAssignments.length > 0 && (
@@ -279,13 +352,14 @@ export function EbookStudentDashboard({
                   <p className="text-xs text-gray-500 truncate">{assignment.ebookTitle}</p>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  {overdue ? (
-                    <span className="text-xs text-red-500 font-medium">Atrasado</span>
-                  ) : assignment.dueDate ? (
-                    <span className="text-xs text-gray-400">
-                      {new Date(assignment.dueDate).toLocaleDateString("pt-PT", { day: "2-digit", month: "short" })}
-                    </span>
-                  ) : null}
+                  {assignment.dueDate && (() => {
+                    const diff = Math.ceil((new Date(assignment.dueDate).getTime() - Date.now()) / 86400000);
+                    if (diff < 0) return <span className="text-xs text-red-500 font-medium">Atrasado {Math.abs(diff)}d</span>;
+                    if (diff === 0) return <span className="text-xs text-orange-500 font-semibold">Hoje!</span>;
+                    if (diff === 1) return <span className="text-xs text-amber-500 font-medium">Amanhã</span>;
+                    if (diff <= 3) return <span className="text-xs text-amber-500 font-medium">{diff} dias</span>;
+                    return <span className="text-xs text-gray-400">{diff}d</span>;
+                  })()}
                   {status === "in_progress" ? (
                     <Clock className="w-4 h-4 text-blue-400" />
                   ) : (
