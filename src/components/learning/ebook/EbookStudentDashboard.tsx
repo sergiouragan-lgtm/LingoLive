@@ -41,15 +41,19 @@ interface StudentAssignment {
 interface EbookStat {
   ebookId: string;
   title: string;
-  completionPercent: number;
+  progress: number;
   lastReadAt: string | null;
 }
 
 interface StudentStats {
-  enrolledCount: number;
-  completedCount: number;
-  totalChaptersRead: number;
-  enrollments: EbookStat[];
+  studentId?: string;
+  totalEnrolled: number;
+  totalCompleted: number;
+  inProgress: number;
+  totalReadingTimeMin?: number;
+  averageQuizScore?: number;
+  currentCefr?: string;
+  recentActivity: EbookStat[];
 }
 
 interface Recommendation {
@@ -153,7 +157,7 @@ export function EbookStudentDashboard({
 
   const activeAssignments = assignments.filter((a) => a.status !== "completed");
   const overdueAssignments = activeAssignments.filter((a) => a.overdue);
-  const recentEbooks = stats?.enrollments
+  const recentEbooks = stats?.recentActivity
     ?.filter((e) => e.lastReadAt)
     .sort((a, b) => new Date(b.lastReadAt!).getTime() - new Date(a.lastReadAt!).getTime())
     .slice(0, 3) ?? [];
@@ -331,12 +335,12 @@ export function EbookStudentDashboard({
                 <div className="flex items-center gap-2">
                   <div className="w-16 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                     <div
-                      className={`h-full rounded-full ${e.completionPercent >= 100 ? "bg-green-500" : "bg-indigo-500"}`}
-                      style={{ width: `${Math.min(100, e.completionPercent)}%` }}
+                      className={`h-full rounded-full ${e.progress >= 100 ? "bg-green-500" : "bg-indigo-500"}`}
+                      style={{ width: `${Math.min(100, e.progress)}%` }}
                     />
                   </div>
-                  <span className="text-xs tabular-nums text-gray-400 w-8 text-right">{e.completionPercent}%</span>
-                  {e.completionPercent >= 100 && <CheckCircle className="w-4 h-4 text-green-400" />}
+                  <span className="text-xs tabular-nums text-gray-400 w-8 text-right">{e.progress}%</span>
+                  {e.progress >= 100 && <CheckCircle className="w-4 h-4 text-green-400" />}
                 </div>
               </button>
             ))}
@@ -354,7 +358,7 @@ export function EbookStudentDashboard({
           {[
             { label: "Flashcards", icon: <Layers className="w-5 h-5" />, view: "ebook-flashcards", color: "bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300" },
             { label: "Conquistas", icon: <Trophy className="w-5 h-5" />, view: "ebook-achievements", color: "bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300" },
-            { label: "Biblioteca", icon: <BookOpen className="w-5 h-5" />, view: "ebook-studio", color: "bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-300" },
+            { label: "Biblioteca", icon: <BookOpen className="w-5 h-5" />, view: "ebook-curation", color: "bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-300" },
             { label: "Tarefas", icon: <ClipboardList className="w-5 h-5" />, view: "ebook-assignments-student", color: "bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300" },
           ].map(({ label, icon, view, color }) => (
             <button
