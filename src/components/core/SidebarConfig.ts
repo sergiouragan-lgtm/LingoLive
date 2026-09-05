@@ -173,9 +173,11 @@ export const sidebarConfig = {
       children: [
         { id: 'ebook-student-dashboard', label: 'Painel E-books', icon: LayoutDashboard },
         { id: 'ebook-curation', label: 'Biblioteca E-books', icon: BookMarked },
+        { id: 'ebook-recommendations', label: 'Recomendações IA', icon: Sparkles },
         { id: 'ebook-flashcards', label: 'Flashcards', icon: Layers },
         { id: 'ebook-achievements', label: 'Conquistas', icon: Trophy },
-        { id: 'ebook-assignments-student', label: 'Tarefas', icon: ClipboardList, dividerAbove: true },
+        { id: 'ebook-analytics', label: 'O Meu Progresso', icon: BarChart3, dividerAbove: true },
+        { id: 'ebook-assignments-student', label: 'Tarefas', icon: ClipboardList },
         { id: 'ebook-notifications', label: 'Notificações', icon: Bell },
       ]
     },
