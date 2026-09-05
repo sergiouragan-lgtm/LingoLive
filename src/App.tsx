@@ -2182,6 +2182,7 @@ function AppContent() {
           <StudentReader
             ebookId={readerEbookId}
             onBack={() => { setView(readerBackView); setReaderEbookId(null); }}
+            backLabel={{ "ebook-curation": "Catálogo", "ebook-marketplace": "Loja", "ebook-recommendations": "Recomendações", "ebook-assignments-student": "Tarefas", "ebook-student-dashboard": "Painel" }[readerBackView] ?? "Voltar"}
           />
         )}
 

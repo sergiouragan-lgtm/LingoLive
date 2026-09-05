@@ -352,9 +352,10 @@ interface StudentReaderProps {
   ebookId: string;
   enrollment?: Enrollment;
   onBack: () => void;
+  backLabel?: string;
 }
 
-export function StudentReader({ ebookId, enrollment, onBack }: StudentReaderProps) {
+export function StudentReader({ ebookId, enrollment, onBack, backLabel }: StudentReaderProps) {
   const [ebook, setEbook] = useState<EbookData | null>(null);
   const [progress, setProgress] = useState<Enrollment>(enrollment ?? EMPTY_ENROLLMENT);
   const [completionPercent, setCompletionPercent] = useState(0);
@@ -490,7 +491,10 @@ export function StudentReader({ ebookId, enrollment, onBack }: StudentReaderProp
     <div style={{ display: "flex", height: "100vh", flexDirection: "column", background: "var(--bg)", color: "var(--text-primary)" }}>
       {/* ─── Top bar ─── */}
       <header style={{ display: "flex", alignItems: "center", gap: 12, padding: "0 20px", height: 52, borderBottom: "1px solid var(--border)", background: "var(--card-bg)", flexShrink: 0 }}>
-        <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: 22, lineHeight: 1, padding: "0 4px" }}>←</button>
+        <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, padding: "0 4px" }}>
+          <span style={{ fontSize: 22, lineHeight: 1 }}>←</span>
+          {backLabel && <span style={{ fontSize: 13 }}>{backLabel}</span>}
+        </button>
         <button onClick={() => setSidebarOpen(o => !o)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: 18 }}>☰</button>
         <div style={{ flex: 1, fontWeight: 700, fontSize: 16, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--text-primary)" }}>
           {ebook?.title ?? "A carregar..."}
