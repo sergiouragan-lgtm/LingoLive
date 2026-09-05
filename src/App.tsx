@@ -2156,7 +2156,7 @@ function AppContent() {
           <LearningAnalyticsPlatform />
         )}
 
-        {view === "ebook-studio" && (
+        {(view === "ebook-studio" || view === "ebook-curation") && (
           <EbookCurationPlatform />
         )}
 
