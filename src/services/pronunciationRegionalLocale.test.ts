@@ -1,0 +1,2 @@
+import { describe, expect, it } from 'vitest'; import { resolvePronunciationLocale } from './pronunciationRegionalLocale';
+describe('resolvePronunciationLocale', () => { it('uses explicit target variant first', () => expect(resolvePronunciationLocale('Portuguese','pt-AO','pt-PT')).toBe('pt-AO')); it('uses matching device locale', () => expect(resolvePronunciationLocale('English',undefined,'en-GB')).toBe('en-GB')); it('does not let unrelated device language override target language', () => expect(resolvePronunciationLocale('English',undefined,'pt-AO')).toBe('en-US')); });

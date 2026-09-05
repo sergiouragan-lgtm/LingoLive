@@ -41,6 +41,7 @@ import { EducationalCMS } from "./components/learning/EducationalCMS";
 import { CertificationPlatform } from "./components/learning/CertificationPlatform";
 import { LearningAnalyticsPlatform } from "./components/learning/LearningAnalyticsPlatform";
 import { TeacherProfessionalPlatform } from "./components/learning/TeacherProfessionalPlatform";
+import { EbookCurationPlatform } from "./components/learning/ebook/EbookCurationPlatform";
 import { AIAssistant } from "./components/ai-tutor/AIAssistant";
 import { SubscriptionPlans } from "./components/growth/assinaturas/SubscriptionPlans";
 import { LANGUAGES, SCENARIOS, VOICES } from "./data";
@@ -2146,6 +2147,10 @@ function AppContent() {
 
         {view === "analytics" && (
           <LearningAnalyticsPlatform />
+        )}
+
+        {view === "ebook-studio" && (
+          <EbookCurationPlatform />
         )}
 
         {(["live-classes", "live-calendar", "live-teachers", "live-rooms", "live-recordings", "live-analytics"].includes(view)) && (

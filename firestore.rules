@@ -104,10 +104,10 @@ service cloud.firestore {
                 'allowRegionalExpressions', 'allowSlang', 'level', 'learningGoal',
                 'dailyGoal', 'studyFrequency', 'onboardingStep', 'onboardingCompleted',
                 'profileCompleted', 'welcomeCompleted', 'notificationSettings',
-                'updatedAt', 'status', 'role', 'subscriptionStatus', 'subscriptionPlanId',
-                'subscriptionActive', 'paymentCompleted', 'learningIntent'
+                'updatedAt', 'status', 'learningIntent'
               ])
-            // Security: role cannot be elevated to privileged admin roles on update
+            // Defense in depth: never allow a client-owned profile update to
+            // introduce a privileged role, even if the allowlist changes later.
             && (!('role' in incoming()) || incoming().role == existing().role || !(incoming().role in ['SUPER_ADMIN', 'PLATFORM_ADMIN', 'Admin', 'admin', 'ADMIN', 'schoolAdmin', 'organizationRole']))
             // Block privileged admin/RBAC flags on update
             && !('isAdmin' in incoming() && incoming().isAdmin == true)

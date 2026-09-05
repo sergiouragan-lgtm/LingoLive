@@ -10,8 +10,12 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
     "test": "vitest",
-    "test:firestore-rules": "firebase emulators:exec --only firestore 'vitest run src/tests/firestoreUsersRules.test.ts src/tests/firestorePaymentsRules.test.ts'"
+    "test:ci": "vitest run",
+    "test:firestore-rules": "firebase emulators:exec --only firestore \"vitest run --config vitest.firestore.config.ts\"",
+    "audit:prod": "npm audit --omit=dev --audit-level=high",
+    "check": "npm run typecheck && npm run test:ci && npm run test:firestore-rules && npm run audit:prod && npm run build"
   },
   "dependencies": {
     "@elevenlabs/client": "^1.14.0",
@@ -20,6 +24,7 @@
     "@tailwindcss/vite": "^4.1.14",
     "@testing-library/user-event": "^14.6.1",
     "@types/jspdf": "^1.3.3",
+    "@types/jszip": "^3.4.0",
     "@types/nodemailer": "^8.0.1",
     "@types/pdfkit": "^0.17.6",
     "@vitejs/plugin-react": "^5.0.4",
@@ -31,6 +36,7 @@
     "ioredis": "^5.11.1",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
+    "jszip": "^3.10.1",
     "livekit-client": "^2.20.0",
     "lru-cache": "^11.5.2",
     "lucide-react": "^0.546.0",
@@ -58,6 +64,7 @@
     "@types/ws": "^8.18.1",
     "autoprefixer": "^10.4.21",
     "esbuild": "^0.25.0",
+    "firebase-tools": "^15.29.0",
     "jsdom": "^29.1.1",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.23.5",

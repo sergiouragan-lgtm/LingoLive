@@ -42,6 +42,12 @@ import learningAnalyticsRouter from "./server/routes/learningAnalytics.routes";
 import certificationRouter from "./server/routes/certification.routes";
 import mobileRouter from "./server/routes/mobile.routes";
 import mobilePaymentRouter from "./server/routes/mobilePayment.routes";
+import ebookRouter from "./server/routes/ebook.routes";
+import ebookExportRouter from "./server/routes/ebook.export.routes";
+import ebookSalesRouter from "./server/routes/ebook.sales.routes";
+import ebookStudentRouter from "./server/routes/ebook.student.routes";
+import ebookAssistantRouter from "./server/routes/ebook.assistant.routes";
+import ebookReviewRouter from "./server/routes/ebook.review.routes";
 
 const app = express();
 
@@ -69,8 +75,17 @@ app.use("/api", adminPaymentRouter);
 app.use("/api/geo", geoRouter);
 app.use("/api/analytics", learningAnalyticsRouter);
 app.use("/api/certification", certificationRouter);
+// O router de faturação vem antes do genérico: `/api/mobile` também
+// corresponde a `/api/mobile/billing/...`, pelo que a rota mais específica
+// tem de ser registada primeiro.
 app.use("/api/mobile/billing", mobilePaymentRouter);
 app.use("/api/mobile", mobileRouter);
+app.use("/api/ebook", ebookRouter);
+app.use("/api/ebook/export", ebookExportRouter);
+app.use("/api/ebook/sales", ebookSalesRouter);
+app.use("/api/ebook/student", ebookStudentRouter);
+app.use("/api/ebook/assistant", ebookAssistantRouter);
+app.use("/api/ebook/reviews", ebookReviewRouter);
 
 // Endpoint for Service Worker Background Sync of vocabulary updates
 app.post("/api/sync-vocabulary", async (req, res) => {
