@@ -390,10 +390,17 @@ function AssignmentDetailPanel({
         <div className="divide-y divide-gray-100 dark:divide-gray-700">
           {data.progress.map((p) => (
             <div key={p.studentId} className="px-4 py-3 space-y-1.5">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-mono text-gray-600 dark:text-gray-300 truncate max-w-[60%]">
-                  {p.studentId.slice(0, 12)}…
-                </p>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-mono text-gray-600 dark:text-gray-300 truncate">
+                    {p.studentId.slice(0, 12)}…
+                  </p>
+                  {p.lastReadAt && (
+                    <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
+                      Último acesso: {new Date(p.lastReadAt).toLocaleDateString("pt-PT", { day: "2-digit", month: "short" })}
+                    </p>
+                  )}
+                </div>
                 <StatusPill status={p.status} />
               </div>
               <div className="flex items-center gap-2">
@@ -503,12 +510,16 @@ function TeacherView() {
                     <Users className="w-3 h-3" />
                     {a.studentIds.length}
                   </span>
-                  {a.dueDate && (
-                    <span className="flex items-center gap-1 text-xs text-gray-400">
-                      <Calendar className="w-3 h-3" />
-                      {new Date(a.dueDate).toLocaleDateString("pt-PT", { day: "2-digit", month: "short" })}
-                    </span>
-                  )}
+                  {a.dueDate && (() => {
+                    const diff = Math.ceil((new Date(a.dueDate).getTime() - Date.now()) / 86400000);
+                    const cls = diff < 0 ? "text-red-500" : diff <= 3 ? "text-amber-500" : "text-gray-400";
+                    return (
+                      <span className={`flex items-center gap-1 text-xs ${cls}`}>
+                        <Calendar className="w-3 h-3" />
+                        {diff < 0 ? "Expirado" : new Date(a.dueDate).toLocaleDateString("pt-PT", { day: "2-digit", month: "short" })}
+                      </span>
+                    );
+                  })()}
                   <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-indigo-400 transition-colors" />
                 </div>
               </div>
