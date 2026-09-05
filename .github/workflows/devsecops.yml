@@ -117,8 +117,8 @@ jobs:
   # ==========================================================================
   # FASE 3 — Flutter Multiplatform Mobile Compilation
   # Condicional: só corre se existir um projeto Flutter real (pubspec.yaml).
-  # Hoje o diretório flutter/ tem apenas ficheiros .dart soltos, sem projeto
-  # Flutter inicializado — esta fase fica pronta para quando isso mudar.
+  # O projeto vive em apps/mobile/; o diretório flutter/ mantém os ficheiros
+  # .dart soltos originais e continua a ser aceite como localização alternativa.
   # ==========================================================================
   mobile-build:
     name: "Fase 3 — Build Mobile (Flutter)"
@@ -131,15 +131,22 @@ jobs:
         with:
           persist-credentials: false
 
+      # Resolve o diretório do projeto em vez de apenas testar a sua existência:
+      # sem isto, um projeto em apps/mobile/ passava despercebido e a fase
+      # terminava com sucesso sem chegar a compilar nada.
       - name: Verificar se existe projeto Flutter inicializado
         id: check_flutter
         run: |
-          if [ -f "flutter/pubspec.yaml" ] || [ -f "pubspec.yaml" ]; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Nenhum pubspec.yaml encontrado — projeto Flutter ainda não foi inicializado. Fase de build mobile ignorada."
-          fi
+          for candidate in apps/mobile flutter .; do
+            if [ -f "$candidate/pubspec.yaml" ]; then
+              echo "exists=true" >> "$GITHUB_OUTPUT"
+              echo "dir=$candidate" >> "$GITHUB_OUTPUT"
+              echo "Projeto Flutter encontrado em $candidate"
+              exit 0
+            fi
+          done
+          echo "exists=false" >> "$GITHUB_OUTPUT"
+          echo "::warning::Nenhum pubspec.yaml encontrado — projeto Flutter ainda não foi inicializado. Fase de build mobile ignorada."
 
       - name: Setup Java 17
         if: steps.check_flutter.outputs.exists == 'true'
@@ -156,7 +163,7 @@ jobs:
 
       - name: Resolver dependências e build do APK
         if: steps.check_flutter.outputs.exists == 'true'
-        working-directory: ${{ hashFiles('flutter/pubspec.yaml') != '' && 'flutter' || '.' }}
+        working-directory: ${{ steps.check_flutter.outputs.dir }}
         run: |
           flutter pub get
           flutter build apk --release

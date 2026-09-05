@@ -208,6 +208,19 @@ e os isolates em segundo plano. A recolha está desligada em debug para não
 poluir a consola. A sessão é identificada por `userId`, `tenantId` e `role`, de
 modo a correlacionar um crash com a escola afetada sem expor dados pessoais.
 
+### Projetos nativos e build
+
+`apps/mobile/android` e `apps/mobile/ios` são projetos host completos, sem os
+quais a app não compila nem pode ser distribuída. Dois interruptores mantêm o
+build verificável em CI sem segredos: os plugins Gradle do Firebase só são
+aplicados quando existe `google-services.json`, e a assinatura de release só usa
+o keystore quando existe `key.properties` (caso contrário assina com a chave de
+debug). Detalhes em `apps/mobile/README.md`.
+
+A Fase 3 do `devsecops.yml` procurava o projeto apenas em `flutter/` ou na raiz.
+Passou a procurar também em `apps/mobile/` e a resolver o diretório: sem isso a
+fase terminava com sucesso sem compilar coisa alguma.
+
 ### Distribuição interna
 
 `.github/workflows/mobile-internal-distribution.yml`

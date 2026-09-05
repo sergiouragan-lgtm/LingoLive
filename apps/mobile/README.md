@@ -45,14 +45,39 @@ flutter run \
 `10.0.2.2` é o host da máquina visto de dentro do emulador Android. Num
 dispositivo físico use o IP da máquina na mesma rede, ou a URL de staging.
 
+## Projetos nativos
+
+`android/` e `ios/` são projetos host completos (gradle, `MainActivity.kt`,
+`AppDelegate.swift`, Xcode workspace). O `AndroidManifest.xml` e o `Info.plist`
+levam as personalizações do LingoLIVE: permissão de microfone, `POST_NOTIFICATIONS`,
+o canal de notificações `lingolive_reminders` e o `intent-filter` / `CFBundleURLTypes`
+do deep link `lingolive://billing/…`.
+
+`applicationId` / bundle id: `ia.lingolive.lingolive_mobile`.
+`minSdk` é forçado a 23, mínimo exigido pelo `firebase_messaging` e pelo
+`flutter_local_notifications`.
+
 ## Ficheiros de configuração Firebase
 
-Não estão versionados. Antes de compilar, coloque:
+Não estão versionados. Antes de compilar para distribuição, coloque:
 
 - `android/app/google-services.json`
 - `ios/Runner/GoogleService-Info.plist`
 
 Ambos são descarregados da consola Firebase do projeto LingoLIVE.
+
+### Comportamento condicional do Gradle
+
+Duas condições mantêm o build verificável em CI sem expor segredos:
+
+| Condição | Com o ficheiro | Sem o ficheiro |
+| --- | --- | --- |
+| `android/app/google-services.json` | Aplica os plugins `google-services` e `firebase-crashlytics` | Avisa e compila sem eles |
+| `android/key.properties` | Assina o release com o keystore de upload | Assina com a chave de debug |
+
+Assim `flutter build apk --release` prova que a app compila mesmo num runner sem
+segredos, e um build de distribuição real fica devidamente assinado e ligado ao
+Crashlytics.
 
 ## Testes
 
