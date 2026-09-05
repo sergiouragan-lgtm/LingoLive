@@ -42,6 +42,17 @@ import { CertificationPlatform } from "./components/learning/CertificationPlatfo
 import { LearningAnalyticsPlatform } from "./components/learning/LearningAnalyticsPlatform";
 import { TeacherProfessionalPlatform } from "./components/learning/TeacherProfessionalPlatform";
 import { EbookCurationPlatform } from "./components/learning/ebook/EbookCurationPlatform";
+import { EbookAnalyticsDashboard } from "./components/learning/ebook/EbookAnalyticsDashboard";
+import { EbookRecommendations } from "./components/learning/ebook/EbookRecommendations";
+import { EbookNotificationSettings } from "./components/learning/ebook/EbookNotificationSettings";
+import { EbookAchievements } from "./components/learning/ebook/EbookAchievements";
+import { EbookAssignmentManager } from "./components/learning/ebook/EbookAssignmentManager";
+import { EbookFlashcards } from "./components/learning/ebook/EbookFlashcards";
+import { EbookStudentDashboard } from "./components/learning/ebook/EbookStudentDashboard";
+import { EbookReader } from "./components/learning/ebook/EbookReader";
+import { EbookCatalogue } from "./components/learning/ebook/EbookCatalogue";
+import { EbookMarketplace } from "./components/learning/ebook/EbookMarketplace";
+import { StudentReader } from "./components/learning/ebook/StudentReader";
 import { AIAssistant } from "./components/ai-tutor/AIAssistant";
 import { SubscriptionPlans } from "./components/growth/assinaturas/SubscriptionPlans";
 import { LANGUAGES, SCENARIOS, VOICES } from "./data";
@@ -112,6 +123,8 @@ function AppContent() {
   const [isProfileLoading, setIsProfileLoading] = useState(true);
   // Navigation Router state
   const [view, setView] = useState<AppView>("landing");
+  const [readerEbookId, setReaderEbookId] = useState<string | null>(null);
+  const [readerBackView, setReaderBackView] = useState<AppView>("ebook-student-dashboard");
   const [showWelcomeTour, setShowWelcomeTour] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [showLogoTooltip, setShowLogoTooltip] = useState(false);
@@ -2151,6 +2164,71 @@ function AppContent() {
 
         {view === "ebook-studio" && (
           <EbookCurationPlatform />
+        )}
+
+        {view === "ebook-curation" && (
+          <EbookCatalogue
+            onOpenReader={(id) => { setReaderEbookId(id); setReaderBackView("ebook-curation"); setView("ebook-student-reader"); }}
+          />
+        )}
+
+        {view === "ebook-marketplace" && (
+          <EbookMarketplace
+            onOpenReader={(id) => { setReaderEbookId(id); setReaderBackView("ebook-marketplace"); setView("ebook-student-reader"); }}
+          />
+        )}
+
+        {view === "ebook-student-reader" && readerEbookId && (
+          <StudentReader
+            ebookId={readerEbookId}
+            onBack={() => { setView(readerBackView); setReaderEbookId(null); }}
+            backLabel={{ "ebook-curation": "Catálogo", "ebook-marketplace": "Loja", "ebook-recommendations": "Recomendações", "ebook-assignments-student": "Tarefas", "ebook-student-dashboard": "Painel" }[readerBackView] ?? "Voltar"}
+          />
+        )}
+
+        {view === "ebook-analytics" && (
+          <EbookAnalyticsDashboard />
+        )}
+
+        {view === "ebook-recommendations" && (
+          <EbookRecommendations onEnroll={(id) => { setReaderEbookId(id); setReaderBackView("ebook-recommendations"); setView("ebook-student-reader"); }} />
+        )}
+
+        {view === "ebook-notifications" && (
+          <EbookNotificationSettings />
+        )}
+
+        {view === "ebook-achievements" && (
+          <EbookAchievements />
+        )}
+
+        {view === "ebook-assignments-teacher" && (
+          <EbookAssignmentManager mode="teacher" />
+        )}
+
+        {view === "ebook-assignments-student" && (
+          <EbookAssignmentManager
+            mode="student"
+            onOpenEbook={(id) => { setReaderEbookId(id); setReaderBackView("ebook-assignments-student"); setView("ebook-student-reader"); }}
+          />
+        )}
+
+        {view === "ebook-flashcards" && (
+          <EbookFlashcards />
+        )}
+
+        {view === "ebook-student-dashboard" && (
+          <EbookStudentDashboard
+            onNavigate={(v) => setView(v as any)}
+            onOpenReader={(ebookId) => { setReaderEbookId(ebookId); setReaderBackView("ebook-student-dashboard"); setView("ebook-student-reader"); }}
+          />
+        )}
+
+        {view === "ebook-reader" && readerEbookId && (
+          <EbookReader
+            ebookId={readerEbookId}
+            onClose={() => { setView("ebook-student-dashboard"); setReaderEbookId(null); }}
+          />
         )}
 
         {(["live-classes", "live-calendar", "live-teachers", "live-rooms", "live-recordings", "live-analytics"].includes(view)) && (

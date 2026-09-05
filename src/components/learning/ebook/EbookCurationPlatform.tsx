@@ -271,15 +271,29 @@ function EbookCard({
         </div>
 
         <div className="flex items-center justify-between pt-1">
-          <Badge color={ebook.status === "published" ? "emerald" : ebook.status === "review" ? "amber" : "slate"}>
-            {ebook.status === "published" ? "Publicado" : ebook.status === "review" ? "Em revisão" : "Rascunho"}
-          </Badge>
-          <button
-            onClick={(e) => { e.stopPropagation(); onDelete(); }}
-            className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-all"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <Badge color={ebook.status === "published" ? "emerald" : ebook.status === "review" ? "amber" : "slate"}>
+              {ebook.status === "published" ? "Publicado" : ebook.status === "review" ? "Em revisão" : "Rascunho"}
+            </Badge>
+            {ebook.status === "published" && ebook.priceUsd != null && (
+              <span className="text-xs font-semibold text-emerald-400">
+                {ebook.priceUsd === 0 ? "Grátis" : `$${ebook.priceUsd.toFixed(2)}`}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {ebook.updatedAt && (
+              <span className="text-[11px] text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                {new Date(ebook.updatedAt).toLocaleDateString("pt-PT", { day: "2-digit", month: "short" })}
+              </span>
+            )}
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete(); }}
+              className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-all"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </div>
     </motion.div>
