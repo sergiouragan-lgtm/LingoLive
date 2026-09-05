@@ -52,6 +52,7 @@ import { EbookStudentDashboard } from "./components/learning/ebook/EbookStudentD
 import { EbookReader } from "./components/learning/ebook/EbookReader";
 import { EbookCatalogue } from "./components/learning/ebook/EbookCatalogue";
 import { EbookMarketplace } from "./components/learning/ebook/EbookMarketplace";
+import { StudentReader } from "./components/learning/ebook/StudentReader";
 import { AIAssistant } from "./components/ai-tutor/AIAssistant";
 import { SubscriptionPlans } from "./components/growth/assinaturas/SubscriptionPlans";
 import { LANGUAGES, SCENARIOS, VOICES } from "./data";
@@ -2166,13 +2167,20 @@ function AppContent() {
 
         {view === "ebook-curation" && (
           <EbookCatalogue
-            onOpenReader={(id) => { setReaderEbookId(id); setView("ebook-reader"); }}
+            onOpenReader={(id) => { setReaderEbookId(id); setView("ebook-student-reader"); }}
           />
         )}
 
         {view === "ebook-marketplace" && (
           <EbookMarketplace
-            onOpenReader={(id) => { setReaderEbookId(id); setView("ebook-reader"); }}
+            onOpenReader={(id) => { setReaderEbookId(id); setView("ebook-student-reader"); }}
+          />
+        )}
+
+        {view === "ebook-student-reader" && readerEbookId && (
+          <StudentReader
+            ebookId={readerEbookId}
+            onBack={() => { setView("ebook-student-dashboard"); setReaderEbookId(null); }}
           />
         )}
 
@@ -2181,7 +2189,7 @@ function AppContent() {
         )}
 
         {view === "ebook-recommendations" && (
-          <EbookRecommendations onEnroll={(id) => { setReaderEbookId(id); setView("ebook-reader"); }} />
+          <EbookRecommendations onEnroll={(id) => { setReaderEbookId(id); setView("ebook-student-reader"); }} />
         )}
 
         {view === "ebook-notifications" && (

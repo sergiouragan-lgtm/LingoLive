@@ -342,18 +342,24 @@ const adaptedCache: Record<string, string> = {};
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
+const EMPTY_ENROLLMENT: Enrollment = {
+  ebookId: "",
+  studentUid: "",
+  enrolledAt: new Date().toISOString(),
+};
+
 interface StudentReaderProps {
   ebookId: string;
-  enrollment: Enrollment;
+  enrollment?: Enrollment;
   onBack: () => void;
 }
 
 export function StudentReader({ ebookId, enrollment, onBack }: StudentReaderProps) {
   const [ebook, setEbook] = useState<EbookData | null>(null);
-  const [progress, setProgress] = useState<Enrollment>(enrollment);
+  const [progress, setProgress] = useState<Enrollment>(enrollment ?? EMPTY_ENROLLMENT);
   const [completionPercent, setCompletionPercent] = useState(0);
   const [selectedChapter, setSelectedChapter] = useState<Chapter | null>(null);
-  const [cefrLevel, setCefrLevel] = useState<CefrLevel>((enrollment.currentCefr as CefrLevel) ?? "B1");
+  const [cefrLevel, setCefrLevel] = useState<CefrLevel>((enrollment?.currentCefr as CefrLevel) ?? "B1");
   const [adaptedBlocks, setAdaptedBlocks] = useState<Block[]>([]);
   const [adapting, setAdapting] = useState(false);
   const [markingRead, setMarkingRead] = useState(false);
