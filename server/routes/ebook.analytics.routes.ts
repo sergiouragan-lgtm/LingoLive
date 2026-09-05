@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import { requireAuth } from "../middleware/requireAuth";
 import {
   getPlatformOverview,
@@ -9,8 +9,21 @@ import {
 
 const router = Router();
 
+const STUDENT_ROLES = new Set([
+  "STUDENT", "Student", "LEARNER", "BUSINESS_USER",
+  "student", "learner",
+]);
+
+function requireElevatedRole(req: any, res: Response, next: NextFunction) {
+  const role: string | undefined = req.user?.role;
+  if (role && STUDENT_ROLES.has(role)) {
+    return res.status(403).json({ error: "Acesso reservado a administradores e professores" });
+  }
+  return next();
+}
+
 // ── Platform-wide overview (admin) ────────────────────────────────────────────
-router.get("/overview", requireAuth, async (_req, res) => {
+router.get("/overview", requireAuth, requireElevatedRole, async (_req, res) => {
   try {
     const stats = await getPlatformOverview();
     return res.json({ success: true, stats });
@@ -21,7 +34,7 @@ router.get("/overview", requireAuth, async (_req, res) => {
 });
 
 // ── Per-ebook stats (instructor/admin) ────────────────────────────────────────
-router.get("/ebook/:ebookId", requireAuth, async (req, res) => {
+router.get("/ebook/:ebookId", requireAuth, requireElevatedRole, async (req, res) => {
   try {
     const stats = await getEbookDetailStats(req.params.ebookId);
     return res.json({ success: true, stats });
@@ -32,7 +45,7 @@ router.get("/ebook/:ebookId", requireAuth, async (req, res) => {
 });
 
 // ── Per-student stats ─────────────────────────────────────────────────────────
-router.get("/student/:studentId", requireAuth, async (req, res) => {
+router.get("/student/:studentId", requireAuth, requireElevatedRole, async (req, res) => {
   try {
     const stats = await getStudentStats(req.params.studentId);
     return res.json({ success: true, stats });
@@ -57,7 +70,7 @@ router.get("/me", requireAuth, async (req: any, res) => {
 });
 
 // ── Per-school stats ──────────────────────────────────────────────────────────
-router.get("/school/:schoolId", requireAuth, async (req, res) => {
+router.get("/school/:schoolId", requireAuth, requireElevatedRole, async (req, res) => {
   try {
     const stats = await getSchoolStats(req.params.schoolId);
     return res.json({ success: true, stats });
