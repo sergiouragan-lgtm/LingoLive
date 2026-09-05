@@ -1,4 +1,4 @@
-import { LayoutDashboard, Compass, Mic, Gamepad2, School, CreditCard, BarChart3, Users, CheckSquare, ShieldCheck, Settings, BookOpen, GraduationCap, Calendar, MessageSquare, User, FileText, ClipboardList, Sparkles, Database, Volume2 , Video, PlayCircle , Monitor , Store, ShoppingBag, LucideIcon, BookMarked } from 'lucide-react';
+import { LayoutDashboard, Compass, Mic, Gamepad2, School, CreditCard, BarChart3, Users, CheckSquare, ShieldCheck, Settings, BookOpen, GraduationCap, Calendar, MessageSquare, User, FileText, ClipboardList, Sparkles, Database, Volume2, Video, PlayCircle, Monitor, Store, ShoppingBag, LucideIcon, BookMarked, Trophy, Layers, Bell } from 'lucide-react';
 
 export interface SidebarSubItem {
   id: string;
@@ -85,6 +85,7 @@ export const sidebarConfig = {
     { id: 'avaliacoes', label: 'Avaliações', icon: CheckSquare },
     { id: 'presencas', label: 'Presenças', icon: ClipboardList },
     { id: 'trabalhos', label: 'Trabalhos', icon: FileText },
+    { id: 'ebook-assignments-teacher', label: 'Tarefas E-book', icon: BookMarked },
     { id: 'analytics', label: 'Learning Analytics', icon: BarChart3 },
     { id: 'calendario', label: 'Calendário', icon: Calendar },
     { id: 'biblioteca', label: 'Biblioteca', icon: BookOpen },
@@ -106,6 +107,7 @@ export const sidebarConfig = {
     { id: 'avaliacoes', label: 'Avaliações', icon: CheckSquare },
     { id: 'presencas', label: 'Presenças', icon: ClipboardList },
     { id: 'trabalhos', label: 'Trabalhos', icon: FileText },
+    { id: 'ebook-assignments-teacher', label: 'Tarefas E-book', icon: BookMarked },
     { id: 'analytics', label: 'Learning Analytics', icon: BarChart3 },
     { id: 'calendario', label: 'Calendário', icon: Calendar },
     { id: 'biblioteca', label: 'Biblioteca', icon: BookOpen },
@@ -164,6 +166,19 @@ export const sidebarConfig = {
       ]
     },
     { id: 'biblioteca', label: 'Biblioteca', icon: BookOpen, sectionHeader: 'Recursos' },
+    {
+      id: 'ebook-group',
+      label: 'E-books IA',
+      icon: BookMarked,
+      children: [
+        { id: 'ebook-student-dashboard', label: 'Painel E-books', icon: LayoutDashboard },
+        { id: 'ebook-curation', label: 'Biblioteca E-books', icon: BookMarked },
+        { id: 'ebook-flashcards', label: 'Flashcards', icon: Layers },
+        { id: 'ebook-achievements', label: 'Conquistas', icon: Trophy },
+        { id: 'ebook-assignments-student', label: 'Tarefas', icon: ClipboardList, dividerAbove: true },
+        { id: 'ebook-notifications', label: 'Notificações', icon: Bell },
+      ]
+    },
     { id: 'marketplace', label: 'Marketplace', icon: Store },
     {
       id: 'conta-group',
