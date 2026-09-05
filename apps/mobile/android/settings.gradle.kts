@@ -19,7 +19,10 @@ pluginManagement {
 plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
     id("com.android.application") version "8.7.0" apply false
-    id("org.jetbrains.kotlin.android") version "1.8.22" apply false
+    // O template do Flutter fixa 1.8.22, mas o record_android é publicado
+    // compilado com Kotlin 2.2.20 e um compilador 1.8 não consegue ler os
+    // metadados dessas classes.
+    id("org.jetbrains.kotlin.android") version "2.2.20" apply false
     // Aplicados condicionalmente em app/build.gradle.kts, consoante a presença
     // de google-services.json.
     id("com.google.gms.google-services") version "4.4.2" apply false
