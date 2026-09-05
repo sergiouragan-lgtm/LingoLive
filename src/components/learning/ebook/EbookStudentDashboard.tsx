@@ -108,8 +108,10 @@ function SectionHeader({ icon, title, action }: {
 
 export function EbookStudentDashboard({
   onNavigate,
+  onOpenReader,
 }: {
   onNavigate?: (view: string) => void;
+  onOpenReader?: (ebookId: string) => void;
 }) {
   const [gamification, setGamification] = useState<GamificationData | null>(null);
   const [assignments, setAssignments] = useState<StudentAssignment[]>([]);
@@ -313,7 +315,11 @@ export function EbookStudentDashboard({
           />
           <div className="space-y-2">
             {recentEbooks.map((e) => (
-              <div key={e.ebookId} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 px-4 py-3 flex items-center gap-3">
+              <button
+                key={e.ebookId}
+                onClick={() => onOpenReader ? onOpenReader(e.ebookId) : onNavigate?.("ebook-curation")}
+                className="w-full bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 px-4 py-3 flex items-center gap-3 text-left hover:border-indigo-300 dark:hover:border-indigo-600 transition-colors"
+              >
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-800 dark:text-white truncate">{e.title}</p>
                   {e.lastReadAt && (
@@ -332,7 +338,7 @@ export function EbookStudentDashboard({
                   <span className="text-xs tabular-nums text-gray-400 w-8 text-right">{e.completionPercent}%</span>
                   {e.completionPercent >= 100 && <CheckCircle className="w-4 h-4 text-green-400" />}
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         </div>

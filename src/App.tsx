@@ -49,6 +49,7 @@ import { EbookAchievements } from "./components/learning/ebook/EbookAchievements
 import { EbookAssignmentManager } from "./components/learning/ebook/EbookAssignmentManager";
 import { EbookFlashcards } from "./components/learning/ebook/EbookFlashcards";
 import { EbookStudentDashboard } from "./components/learning/ebook/EbookStudentDashboard";
+import { EbookReader } from "./components/learning/ebook/EbookReader";
 import { AIAssistant } from "./components/ai-tutor/AIAssistant";
 import { SubscriptionPlans } from "./components/growth/assinaturas/SubscriptionPlans";
 import { LANGUAGES, SCENARIOS, VOICES } from "./data";
@@ -119,6 +120,7 @@ function AppContent() {
   const [isProfileLoading, setIsProfileLoading] = useState(true);
   // Navigation Router state
   const [view, setView] = useState<AppView>("landing");
+  const [readerEbookId, setReaderEbookId] = useState<string | null>(null);
   const [showWelcomeTour, setShowWelcomeTour] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [showLogoTooltip, setShowLogoTooltip] = useState(false);
@@ -2192,7 +2194,17 @@ function AppContent() {
         )}
 
         {view === "ebook-student-dashboard" && (
-          <EbookStudentDashboard onNavigate={(v) => setView(v as any)} />
+          <EbookStudentDashboard
+            onNavigate={(v) => setView(v as any)}
+            onOpenReader={(ebookId) => { setReaderEbookId(ebookId); setView("ebook-reader"); }}
+          />
+        )}
+
+        {view === "ebook-reader" && readerEbookId && (
+          <EbookReader
+            ebookId={readerEbookId}
+            onClose={() => { setView("ebook-student-dashboard"); setReaderEbookId(null); }}
+          />
         )}
 
         {(["live-classes", "live-calendar", "live-teachers", "live-rooms", "live-recordings", "live-analytics"].includes(view)) && (

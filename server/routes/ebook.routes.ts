@@ -10,7 +10,7 @@ import {
   adaptToLevel,
   type ToneConfig,
 } from "../services/ebook/EbookCurationService";
-import { safeAddDoc, safeSetDoc, safeGetDoc, safeQueryDocs } from "../services/firestoreSafe.service";
+import { safeAddDoc, safeSetDoc, safeGetDoc, safeQueryDocs, safeListDocs } from "../services/firestoreSafe.service";
 
 const router = Router();
 
@@ -193,6 +193,46 @@ router.post("/save", requireAuth, async (req: any, res) => {
   } catch (err: any) {
     console.error("[ebook] save error:", err.message);
     return res.status(500).json({ error: "Falha ao guardar e-book" });
+  }
+});
+
+// ── Get single ebook (published = any auth user; draft = author only) ─────────
+router.get("/:id", requireAuth, async (req: any, res) => {
+  const userId = req.user?.uid;
+  if (!userId) return res.status(401).json({ error: "Não autenticado" });
+
+  const { id } = req.params;
+
+  try {
+    const doc = await safeGetDoc("ebooks", id);
+    if (!doc.exists) return res.status(404).json({ error: "E-book não encontrado" });
+
+    const data = doc.data() as any;
+    if (data.deleted) return res.status(404).json({ error: "E-book não encontrado" });
+
+    // Draft ebooks are only visible to their author
+    if (data.status === "draft" && data.authorId !== userId) {
+      return res.status(403).json({ error: "Acesso negado" });
+    }
+
+    return res.json({ success: true, ebook: { id, ...data } });
+  } catch (err: any) {
+    console.error("[ebook] get error:", err.message);
+    return res.status(500).json({ error: "Falha ao carregar e-book" });
+  }
+});
+
+// ── List published ebooks (catalogue for students) ────────────────────────────
+router.get("/published/catalogue", requireAuth, async (_req: any, res) => {
+  try {
+    const results = await safeListDocs("ebooks");
+    const published = results
+      .filter((e: any) => !e.deleted && e.status === "published")
+      .sort((a: any, b: any) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
+    return res.json({ success: true, ebooks: published });
+  } catch (err: any) {
+    console.error("[ebook] catalogue error:", err.message);
+    return res.status(500).json({ error: "Falha ao carregar catálogo" });
   }
 });
 
