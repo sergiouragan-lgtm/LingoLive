@@ -221,6 +221,14 @@ A Fase 3 do `devsecops.yml` procurava o projeto apenas em `flutter/` ou na raiz.
 Passou a procurar também em `apps/mobile/` e a resolver o diretório: sem isso a
 fase terminava com sucesso sem compilar coisa alguma.
 
+**A versão do Flutter está fixada em 3.29.3 nos dois workflows.** O wrapper do
+Gradle em `apps/mobile/android` é gerado pelo template de uma versão concreta do
+SDK; com `channel: stable` sem versão, um Flutter mais recente exigia um Gradle
+superior ao do wrapper e o build falhava com
+`Your project's Gradle version (8.10.2) is lower than Flutter's minimum
+supported version of 8.14.0`. Ao subir `FLUTTER_VERSION`, regenerar o wrapper
+com o mesmo SDK.
+
 ### Distribuição interna
 
 `.github/workflows/mobile-internal-distribution.yml`
