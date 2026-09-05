@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -104,6 +104,7 @@ export function EbookReader({ ebookId, onClose }: EbookReaderProps) {
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ xpGained: number; newBadges: { name: string; icon: string }[] } | null>(null);
   const [prevBadges, setPrevBadges] = useState<string[]>([]);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   // Load ebook + enrollment in parallel
   useEffect(() => {
@@ -131,6 +132,24 @@ export function EbookReader({ ebookId, onClose }: EbookReaderProps) {
     );
     if (firstUnread >= 0) setChapterIndex(firstUnread);
   }, [ebook, enrollment]);
+
+  // Scroll content to top when chapter changes
+  useEffect(() => {
+    contentRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  }, [chapterIndex]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
+      if (e.key === "ArrowLeft") setChapterIndex((i) => Math.max(0, i - 1));
+      else if (e.key === "ArrowRight") setChapterIndex((i) => Math.min((ebook?.chapters.length ?? 1) - 1, i + 1));
+      else if (e.key === "Escape" && onClose) onClose();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [ebook, onClose]);
 
   const currentChapter = ebook?.chapters[chapterIndex];
   const isRead = currentChapter ? !!enrollment?.progress?.[currentChapter.id]?.read : false;
@@ -267,14 +286,23 @@ export function EbookReader({ ebookId, onClose }: EbookReaderProps) {
         </div>
 
         {/* Chapter content */}
-        <div className="flex-1 overflow-y-auto p-6 lg:p-10">
+        <div ref={contentRef} className="flex-1 overflow-y-auto p-6 lg:p-10">
           {currentChapter ? (
             <div className="max-w-2xl mx-auto">
               {/* Chapter header */}
               <div className="mb-6">
-                <p className="text-xs font-semibold text-indigo-500 uppercase tracking-widest mb-1">
-                  Capítulo {currentChapter.number}
-                </p>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs font-semibold text-indigo-500 uppercase tracking-widest">
+                    Capítulo {currentChapter.number}
+                  </p>
+                  {(() => {
+                    const words = currentChapter.wordCount ?? currentChapter.content?.trim().split(/\s+/).length ?? 0;
+                    const mins = Math.max(1, Math.round(words / 220));
+                    return (
+                      <span className="text-[11px] text-slate-400 dark:text-slate-500">~{mins} min de leitura</span>
+                    );
+                  })()}
+                </div>
                 <h2 className="text-2xl font-bold text-slate-900 dark:text-white leading-tight">
                   {currentChapter.title}
                 </h2>
