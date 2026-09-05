@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Sparkles, BookOpen, RefreshCw, AlertCircle } from "lucide-react";
+import { Sparkles, BookOpen, RefreshCw, AlertCircle, Loader2 } from "lucide-react";
 import { auth } from "../../../firebase";
 
 interface EbookRecommendation {
@@ -29,6 +29,28 @@ function RecommendationCard({
   rec: EbookRecommendation;
   onEnroll: (id: string) => void;
 }) {
+  const [enrolling, setEnrolling] = useState(false);
+
+  const handleStart = async () => {
+    setEnrolling(true);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      await fetch("/api/ebook/student/enroll", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ ebookId: rec.ebookId }),
+      });
+    } catch {
+      // enroll-or-ignore: reader will still open; backend may already have enrollment
+    } finally {
+      setEnrolling(false);
+      onEnroll(rec.ebookId);
+    }
+  };
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden flex flex-col">
       {/* Cover strip */}
@@ -60,10 +82,12 @@ function RecommendationCard({
           </p>
 
           <button
-            onClick={() => onEnroll(rec.ebookId)}
-            className="w-full py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-colors"
+            onClick={handleStart}
+            disabled={enrolling}
+            className="w-full py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-colors disabled:opacity-70 flex items-center justify-center gap-1.5"
           >
-            Começar a Ler
+            {enrolling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+            {enrolling ? "A inscrever..." : "Começar a Ler"}
           </button>
         </div>
       </div>
@@ -99,10 +123,6 @@ export function EbookRecommendations({
   };
 
   useEffect(() => { fetchRecs(); }, []);
-
-  const handleEnroll = (ebookId: string) => {
-    onEnroll?.(ebookId);
-  };
 
   return (
     <div className="space-y-4">
@@ -155,7 +175,7 @@ export function EbookRecommendations({
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           {recs.map((rec) => (
             <React.Fragment key={rec.ebookId}>
-              <RecommendationCard rec={rec} onEnroll={handleEnroll} />
+              <RecommendationCard rec={rec} onEnroll={(id) => onEnroll?.(id)} />
             </React.Fragment>
           ))}
         </div>
