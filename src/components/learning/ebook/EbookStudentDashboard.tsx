@@ -133,7 +133,7 @@ export function EbookStudentDashboard({
     const results = await Promise.allSettled([
       apiFetch<GamificationData>("/api/ebook/gamification/me"),
       apiFetch<{ assignments: StudentAssignment[] }>("/api/ebook/assignments/student/me"),
-      apiFetch<StudentStats>("/api/ebook/analytics/me"),
+      apiFetch<{ success: boolean; stats: StudentStats }>("/api/ebook/analytics/me"),
       apiFetch<{ recommendations: Recommendation[] }>("/api/ebook/recommendations?limit=3"),
     ]);
 
@@ -143,7 +143,7 @@ export function EbookStudentDashboard({
     if (results[1].status === "fulfilled") setAssignments(results[1].value.assignments ?? []);
     else errs.push("Não foi possível carregar tarefas.");
 
-    if (results[2].status === "fulfilled") setStats(results[2].value);
+    if (results[2].status === "fulfilled") setStats(results[2].value.stats ?? null);
     else errs.push("Não foi possível carregar estatísticas de leitura.");
 
     if (results[3].status === "fulfilled") setRecommendations(results[3].value.recommendations ?? []);
