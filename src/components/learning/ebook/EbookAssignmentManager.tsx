@@ -105,6 +105,23 @@ function ProgressBar({ pct }: { pct: number }) {
 
 // ── Teacher view ───────────────────────────────────────────────────────────────
 
+interface EbookOption {
+  id: string;
+  title: string;
+  language: string;
+  cefrLevel: string;
+}
+
+async function fetchCatalogue(): Promise<EbookOption[]> {
+  const token = await auth.currentUser?.getIdToken();
+  const res = await fetch("/api/ebook/published/catalogue", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return [];
+  const d = await res.json();
+  return (d.ebooks ?? []).map((e: any) => ({ id: e.id, title: e.title, language: e.language ?? "", cefrLevel: e.cefrLevel ?? "" }));
+}
+
 function CreateAssignmentModal({
   onClose,
   onCreated,
@@ -113,6 +130,11 @@ function CreateAssignmentModal({
   onCreated: () => void;
 }) {
   const [ebookId, setEbookId] = useState("");
+  const [ebookSearch, setEbookSearch] = useState("");
+  const [ebookOptions, setEbookOptions] = useState<EbookOption[]>([]);
+  const [ebookPickerOpen, setEbookPickerOpen] = useState(false);
+  const [ebooksLoading, setEbooksLoading] = useState(true);
+  const [selectedEbook, setSelectedEbook] = useState<EbookOption | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
@@ -120,14 +142,31 @@ function CreateAssignmentModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  useEffect(() => {
+    fetchCatalogue()
+      .then(setEbookOptions)
+      .finally(() => setEbooksLoading(false));
+  }, []);
+
+  const filteredEbooks = ebookOptions.filter((e) =>
+    !ebookSearch || e.title.toLowerCase().includes(ebookSearch.toLowerCase()) || e.language.toLowerCase().includes(ebookSearch.toLowerCase())
+  );
+
+  const pickEbook = (e: EbookOption) => {
+    setSelectedEbook(e);
+    setEbookId(e.id);
+    setEbookPickerOpen(false);
+    setEbookSearch("");
+  };
+
+  const handleSubmit = async (ev: React.FormEvent) => {
+    ev.preventDefault();
     const studentIds = studentIdsRaw
       .split(/[\n,]+/)
       .map((s) => s.trim())
       .filter(Boolean);
     if (!ebookId || !title || studentIds.length === 0) {
-      setError("ID do e-book, título e pelo menos um aluno são obrigatórios.");
+      setError("Selecione um e-book, adicione um título e pelo menos um ID de aluno.");
       return;
     }
     setSaving(true);
@@ -148,15 +187,15 @@ function CreateAssignmentModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-md">
-        <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-gray-700">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-gray-700 shrink-0">
           <h3 className="font-semibold text-gray-800 dark:text-white">Nova Tarefa</h3>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
             <X className="w-4 h-4 text-gray-500" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+        <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto flex-1">
           {error && (
             <div className="flex items-center gap-2 text-red-500 text-sm bg-red-50 dark:bg-red-900/20 rounded-xl p-3">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
@@ -164,16 +203,61 @@ function CreateAssignmentModal({
             </div>
           )}
 
-          <div>
+          <div className="relative">
             <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-              ID do E-book
+              E-book
             </label>
-            <input
-              value={ebookId}
-              onChange={(e) => setEbookId(e.target.value)}
-              placeholder="ex: abc123"
-              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
-            />
+            <button
+              type="button"
+              onClick={() => setEbookPickerOpen((v) => !v)}
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-800 text-left flex items-center justify-between gap-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            >
+              {ebooksLoading ? (
+                <span className="text-gray-400">A carregar e-books…</span>
+              ) : selectedEbook ? (
+                <span className="text-gray-800 dark:text-white truncate">
+                  {selectedEbook.title}
+                  {selectedEbook.cefrLevel && (
+                    <span className="ml-2 text-xs text-indigo-500 font-medium">{selectedEbook.cefrLevel}</span>
+                  )}
+                </span>
+              ) : (
+                <span className="text-gray-400">Selecionar e-book…</span>
+              )}
+              <ChevronRight className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform ${ebookPickerOpen ? "rotate-90" : ""}`} />
+            </button>
+
+            {ebookPickerOpen && (
+              <div className="absolute z-10 top-full mt-1 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl shadow-lg overflow-hidden">
+                <div className="p-2 border-b border-gray-100 dark:border-gray-700">
+                  <input
+                    autoFocus
+                    value={ebookSearch}
+                    onChange={(e) => setEbookSearch(e.target.value)}
+                    placeholder="Pesquisar e-book…"
+                    className="w-full px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  />
+                </div>
+                <ul className="max-h-48 overflow-y-auto">
+                  {filteredEbooks.length === 0 ? (
+                    <li className="px-3 py-3 text-sm text-gray-400 text-center">Nenhum e-book encontrado</li>
+                  ) : (
+                    filteredEbooks.map((e) => (
+                      <li key={e.id}>
+                        <button
+                          type="button"
+                          onClick={() => pickEbook(e)}
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-indigo-50 dark:hover:bg-indigo-900/20 flex items-center justify-between gap-2"
+                        >
+                          <span className="text-gray-800 dark:text-white truncate">{e.title}</span>
+                          <span className="text-xs text-indigo-500 font-medium flex-shrink-0">{e.cefrLevel}</span>
+                        </button>
+                      </li>
+                    ))
+                  )}
+                </ul>
+              </div>
+            )}
           </div>
 
           <div>
