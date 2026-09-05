@@ -124,6 +124,7 @@ function AppContent() {
   // Navigation Router state
   const [view, setView] = useState<AppView>("landing");
   const [readerEbookId, setReaderEbookId] = useState<string | null>(null);
+  const [readerBackView, setReaderBackView] = useState<AppView>("ebook-student-dashboard");
   const [showWelcomeTour, setShowWelcomeTour] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [showLogoTooltip, setShowLogoTooltip] = useState(false);
@@ -2167,20 +2168,20 @@ function AppContent() {
 
         {view === "ebook-curation" && (
           <EbookCatalogue
-            onOpenReader={(id) => { setReaderEbookId(id); setView("ebook-student-reader"); }}
+            onOpenReader={(id) => { setReaderEbookId(id); setReaderBackView("ebook-curation"); setView("ebook-student-reader"); }}
           />
         )}
 
         {view === "ebook-marketplace" && (
           <EbookMarketplace
-            onOpenReader={(id) => { setReaderEbookId(id); setView("ebook-student-reader"); }}
+            onOpenReader={(id) => { setReaderEbookId(id); setReaderBackView("ebook-marketplace"); setView("ebook-student-reader"); }}
           />
         )}
 
         {view === "ebook-student-reader" && readerEbookId && (
           <StudentReader
             ebookId={readerEbookId}
-            onBack={() => { setView("ebook-student-dashboard"); setReaderEbookId(null); }}
+            onBack={() => { setView(readerBackView); setReaderEbookId(null); }}
           />
         )}
 
@@ -2189,7 +2190,7 @@ function AppContent() {
         )}
 
         {view === "ebook-recommendations" && (
-          <EbookRecommendations onEnroll={(id) => { setReaderEbookId(id); setView("ebook-student-reader"); }} />
+          <EbookRecommendations onEnroll={(id) => { setReaderEbookId(id); setReaderBackView("ebook-recommendations"); setView("ebook-student-reader"); }} />
         )}
 
         {view === "ebook-notifications" && (
@@ -2207,7 +2208,7 @@ function AppContent() {
         {view === "ebook-assignments-student" && (
           <EbookAssignmentManager
             mode="student"
-            onOpenEbook={(id) => { setReaderEbookId(id); setView("ebook-student-reader"); }}
+            onOpenEbook={(id) => { setReaderEbookId(id); setReaderBackView("ebook-assignments-student"); setView("ebook-student-reader"); }}
           />
         )}
 
@@ -2218,7 +2219,7 @@ function AppContent() {
         {view === "ebook-student-dashboard" && (
           <EbookStudentDashboard
             onNavigate={(v) => setView(v as any)}
-            onOpenReader={(ebookId) => { setReaderEbookId(ebookId); setView("ebook-student-reader"); }}
+            onOpenReader={(ebookId) => { setReaderEbookId(ebookId); setReaderBackView("ebook-student-dashboard"); setView("ebook-student-reader"); }}
           />
         )}
 
