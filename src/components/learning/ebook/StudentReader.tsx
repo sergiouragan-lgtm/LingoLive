@@ -443,26 +443,30 @@ export function StudentReader({ ebookId, enrollment, onBack, backLabel }: Studen
     [ebook, ebookId]
   );
 
-  const handleSelectChapter = (chapter: Chapter) => {
+  const handleSelectChapter = useCallback((chapter: Chapter) => {
     setSelectedChapter(chapter);
     contentRef.current?.scrollTo({ top: 0, behavior: "smooth" });
-  };
+  }, []);
 
   const handleMarkRead = async () => {
-    if (!selectedChapter) return;
+    if (!selectedChapter || !ebook) return;
     setMarkingRead(true);
     await markChapterReadApi(ebookId, selectedChapter.id);
     const data = await fetchProgress(ebookId);
     if (data) {
       setProgress(data.enrollment);
       setCompletionPercent(data.completionPercent);
-      // If ebook is now 100% complete, issue the certificate
       if (data.completionPercent >= 100) {
         const certData = await issueCertificateApi(ebookId);
         if (certData?.certificate) {
           setCertificate(certData.certificate);
           setShowCertModal(true);
         }
+      } else {
+        // Auto-advance to next chapter after a short delay
+        const idx = ebook.chapters.findIndex(c => c.id === selectedChapter.id);
+        const next = ebook.chapters[idx + 1];
+        if (next) setTimeout(() => handleSelectChapter(next), 600);
       }
     }
     setMarkingRead(false);
@@ -476,12 +480,23 @@ export function StudentReader({ ebookId, enrollment, onBack, backLabel }: Studen
   const isChapterRead = (chapterId: string) =>
     progress.chapterProgress?.some(cp => cp.chapterId === chapterId && cp.read) ?? false;
 
-  const navigateChapter = (dir: -1 | 1) => {
+  const navigateChapter = useCallback((dir: -1 | 1) => {
     if (!ebook || !selectedChapter) return;
     const idx = ebook.chapters.findIndex(c => c.id === selectedChapter.id);
     const next = ebook.chapters[idx + dir];
     if (next) handleSelectChapter(next);
-  };
+  }, [ebook, selectedChapter, handleSelectChapter]);
+
+  // Keyboard navigation: left/right arrows move between chapters
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === "ArrowRight") navigateChapter(1);
+      if (e.key === "ArrowLeft") navigateChapter(-1);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [navigateChapter]);
 
   const chapterIdx = ebook && selectedChapter
     ? ebook.chapters.findIndex(c => c.id === selectedChapter.id)
