@@ -307,9 +307,11 @@ function MyStatsPanel() {
           { label: "Em progresso", value: stats.inProgress, icon: TrendingUp, color: "text-orange-500" },
           {
           label: "Tempo de leitura",
-          value: stats.totalReadingTimeMin >= 60
-            ? `${Math.floor(stats.totalReadingTimeMin / 60)}h ${stats.totalReadingTimeMin % 60}m`
-            : `${stats.totalReadingTimeMin}m`,
+          value: stats.totalReadingTimeMin < 60
+            ? `${stats.totalReadingTimeMin}m`
+            : stats.totalReadingTimeMin % 60 === 0
+              ? `${Math.floor(stats.totalReadingTimeMin / 60)}h`
+              : `${Math.floor(stats.totalReadingTimeMin / 60)}h ${stats.totalReadingTimeMin % 60}m`,
           icon: Clock,
           color: "text-purple-500",
         },

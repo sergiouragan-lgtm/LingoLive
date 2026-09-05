@@ -84,7 +84,10 @@ function cefrColor(level: string): string {
 
 function wordReadingTime(words: number): string {
   const mins = Math.ceil(words / 200);
-  return mins > 60 ? `${Math.floor(mins / 60)}h ${mins % 60}min` : `${mins}min`;
+  if (mins < 60) return `${mins}min`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m === 0 ? `${h}h` : `${h}h ${m}min`;
 }
 
 function MarketplaceCard({

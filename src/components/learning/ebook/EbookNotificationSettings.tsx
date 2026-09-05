@@ -151,15 +151,16 @@ export function EbookNotificationSettings() {
             className="w-full mt-1 accent-indigo-600"
           />
           <p className="text-xs text-indigo-600 dark:text-indigo-400 font-medium mt-0.5">
-            {String(prefs.reminderHour).padStart(2, "0")}:00 UTC
             {(() => {
               const offsetH = -(new Date().getTimezoneOffset() / 60);
               const localH = ((prefs.reminderHour + offsetH) % 24 + 24) % 24;
-              if (offsetH === 0) return null;
               return (
-                <span className="ml-1.5 text-gray-400 font-normal">
-                  ({String(Math.floor(localH)).padStart(2, "0")}:{String(0).padStart(2, "0")} local)
-                </span>
+                <>
+                  {String(Math.floor(localH)).padStart(2, "0")}:00 (hora local)
+                  <span className="ml-1.5 text-gray-400 font-normal text-[11px]">
+                    = {String(prefs.reminderHour).padStart(2, "0")}:00 UTC
+                  </span>
+                </>
               );
             })()}
           </p>
