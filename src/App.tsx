@@ -51,6 +51,7 @@ import { EbookFlashcards } from "./components/learning/ebook/EbookFlashcards";
 import { EbookStudentDashboard } from "./components/learning/ebook/EbookStudentDashboard";
 import { EbookReader } from "./components/learning/ebook/EbookReader";
 import { EbookCatalogue } from "./components/learning/ebook/EbookCatalogue";
+import { EbookMarketplace } from "./components/learning/ebook/EbookMarketplace";
 import { AIAssistant } from "./components/ai-tutor/AIAssistant";
 import { SubscriptionPlans } from "./components/growth/assinaturas/SubscriptionPlans";
 import { LANGUAGES, SCENARIOS, VOICES } from "./data";
@@ -2165,6 +2166,12 @@ function AppContent() {
 
         {view === "ebook-curation" && (
           <EbookCatalogue
+            onOpenReader={(id) => { setReaderEbookId(id); setView("ebook-reader"); }}
+          />
+        )}
+
+        {view === "ebook-marketplace" && (
+          <EbookMarketplace
             onOpenReader={(id) => { setReaderEbookId(id); setView("ebook-reader"); }}
           />
         )}
