@@ -13,6 +13,12 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { auth } from "../../../firebase";
+import { useUserRole } from "../../../context/UserRoleContext";
+
+const STUDENT_ROLES = new Set(["Student", "STUDENT", "LEARNER", "BUSINESS_USER"]);
+function isStudentRole(role: string) {
+  return STUDENT_ROLES.has(role);
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -351,6 +357,8 @@ function MyStatsPanel() {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function EbookAnalyticsDashboard() {
+  const { role } = useUserRole();
+  const canViewOverview = !isStudentRole(role);
   const [overview, setOverview] = useState<OverviewStats | null>(null);
   const [loadingOverview, setLoadingOverview] = useState(true);
   const [overviewError, setOverviewError] = useState<string | null>(null);
@@ -386,19 +394,28 @@ export function EbookAnalyticsDashboard() {
 
         {/* Tabs */}
         <div className="flex gap-2 bg-white dark:bg-gray-800 rounded-xl p-1.5 shadow-sm border border-gray-100 dark:border-gray-700 w-fit">
-          {(["mine", "overview"] as const).map((tab) => (
+          <button
+            onClick={() => setActiveTab("mine")}
+            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === "mine"
+                ? "bg-indigo-600 text-white shadow-sm"
+                : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+            }`}
+          >
+            O Meu Progresso
+          </button>
+          {canViewOverview && (
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => setActiveTab("overview")}
               className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === tab
+                activeTab === "overview"
                   ? "bg-indigo-600 text-white shadow-sm"
                   : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
               }`}
             >
-              {tab === "mine" ? "O Meu Progresso" : "Plataforma (Admin)"}
+              Plataforma (Admin)
             </button>
-          ))}
+          )}
         </div>
 
         {/* Tab: My Stats */}

@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { auth } from "../../../firebase";
+import EbookAIAssistant from "./EbookAIAssistant";
 
 interface Chapter {
   id: string;
@@ -363,6 +364,17 @@ export function EbookReader({ ebookId, onClose }: EbookReaderProps) {
           xp={toast.xpGained}
           newBadges={toast.newBadges}
           onClose={() => setToast(null)}
+        />
+      )}
+
+      {/* ── AI Assistant (floating) ─────────────────────────────────────────── */}
+      {ebook && currentChapter && (
+        <EbookAIAssistant
+          ebookId={ebookId}
+          chapterTitle={currentChapter.title}
+          chapterContent={currentChapter.content ?? ""}
+          ebookLanguage={ebook.language}
+          cefrLevel={ebook.cefrLevel}
         />
       )}
     </div>
