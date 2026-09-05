@@ -50,6 +50,7 @@ import ebookRecommendationsRouter from "./server/routes/ebook.recommendations.ro
 import ebookNotificationsRouter from "./server/routes/ebook.notifications.routes";
 import ebookGamificationRouter from "./server/routes/ebook.gamification.routes";
 import ebookAssignmentRouter from "./server/routes/ebook.assignment.routes";
+import ebookVocabularyRouter from "./server/routes/ebook.vocabulary.routes";
 
 const app = express();
 
@@ -88,6 +89,7 @@ app.use("/api/ebook/recommendations", ebookRecommendationsRouter);
 app.use("/api/ebook/notifications", ebookNotificationsRouter);
 app.use("/api/ebook/gamification", ebookGamificationRouter);
 app.use("/api/ebook/assignments", ebookAssignmentRouter);
+app.use("/api/ebook/vocabulary", ebookVocabularyRouter);
 
 // Endpoint for Service Worker Background Sync of vocabulary updates
 app.post("/api/sync-vocabulary", async (req, res) => {

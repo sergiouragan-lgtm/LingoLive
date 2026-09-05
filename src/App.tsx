@@ -47,6 +47,7 @@ import { EbookRecommendations } from "./components/learning/ebook/EbookRecommend
 import { EbookNotificationSettings } from "./components/learning/ebook/EbookNotificationSettings";
 import { EbookAchievements } from "./components/learning/ebook/EbookAchievements";
 import { EbookAssignmentManager } from "./components/learning/ebook/EbookAssignmentManager";
+import { EbookFlashcards } from "./components/learning/ebook/EbookFlashcards";
 import { AIAssistant } from "./components/ai-tutor/AIAssistant";
 import { SubscriptionPlans } from "./components/growth/assinaturas/SubscriptionPlans";
 import { LANGUAGES, SCENARIOS, VOICES } from "./data";
@@ -2183,6 +2184,10 @@ function AppContent() {
             mode="student"
             onOpenEbook={(id) => setView("ebook-studio")}
           />
+        )}
+
+        {view === "ebook-flashcards" && (
+          <EbookFlashcards />
         )}
 
         {(["live-classes", "live-calendar", "live-teachers", "live-rooms", "live-recordings", "live-analytics"].includes(view)) && (
