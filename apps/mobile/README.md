@@ -84,7 +84,18 @@ Crashlytics.
 ```bash
 flutter test
 flutter analyze
+flutter build bundle   # compila o kernel de todo o grafo de dependências
 ```
+
+`flutter analyze` só analisa as fontes deste pacote. Uma incompatibilidade entre
+dependências transitivas — como a que existia entre `record_linux` e
+`record_platform_interface` — só aparece na compilação do kernel, que
+`flutter build bundle` faz sem precisar do SDK do Android. Corra-o antes de
+depender de um build de APK em CI.
+
+`pubspec.lock` é versionado: isto é uma aplicação, não uma biblioteca, e o
+lockfile é o que garante que o CI compila exatamente o conjunto de versões
+verificado localmente.
 
 Os testes cobrem o parsing do contrato da API e a interpretação dos deep links
 de retorno de pagamento. A lógica de negócio propriamente dita é testada do lado
