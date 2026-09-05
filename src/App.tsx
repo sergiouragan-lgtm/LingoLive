@@ -2174,7 +2174,7 @@ function AppContent() {
         )}
 
         {view === "ebook-recommendations" && (
-          <EbookRecommendations onEnroll={(id) => setView("ebook-studio")} />
+          <EbookRecommendations onEnroll={(id) => { setReaderEbookId(id); setView("ebook-reader"); }} />
         )}
 
         {view === "ebook-notifications" && (
@@ -2192,7 +2192,7 @@ function AppContent() {
         {view === "ebook-assignments-student" && (
           <EbookAssignmentManager
             mode="student"
-            onOpenEbook={(id) => setView("ebook-studio")}
+            onOpenEbook={(id) => { setReaderEbookId(id); setView("ebook-reader"); }}
           />
         )}
 
