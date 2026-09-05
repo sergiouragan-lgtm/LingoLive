@@ -18,6 +18,15 @@ import { ENABLE_SANDBOX_FALLBACK } from "../config/env";
 const isRunningUnderTests = process.env.VITEST === "true" || process.env.NODE_ENV === "test";
 const dbAdminUsable = () => dbAdmin && !isRunningUnderTests;
 
+/**
+ * Mesma proteção, exposta para os serviços que precisam de usar o Admin SDK
+ * diretamente (ex.: transações atómicas de XP). Sem isto, esses serviços
+ * voltariam a fazer chamadas reais de rede durante os testes.
+ */
+export function isFirestoreAdminUsable(): boolean {
+  return Boolean(dbAdminUsable());
+}
+
 export function shouldFallback(err: any): boolean {
   if (ENABLE_SANDBOX_FALLBACK) return true;
   const errMsg = err?.message || String(err || "");

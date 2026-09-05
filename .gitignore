@@ -8,3 +8,20 @@ coverage/
 !.env.example
 firebase-service-account.json
 .github/
+
+# Flutter (apps/mobile)
+apps/mobile/.dart_tool/
+apps/mobile/build/
+apps/mobile/.flutter-plugins
+apps/mobile/.flutter-plugins-dependencies
+apps/mobile/pubspec.lock
+# Ficheiros de configuração Firebase do mobile — descarregados da consola
+apps/mobile/android/app/google-services.json
+apps/mobile/ios/Runner/GoogleService-Info.plist
+apps/mobile/android/key.properties
+apps/mobile/android/app/*.jks
+# Gerados por `flutter pub get` — contêm caminhos absolutos da máquina local
+apps/mobile/android/local.properties
+apps/mobile/ios/Flutter/Generated.xcconfig
+apps/mobile/ios/Flutter/flutter_export_environment.sh
+apps/mobile/**/GeneratedPluginRegistrant.*

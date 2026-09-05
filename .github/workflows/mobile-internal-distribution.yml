@@ -1,0 +1,166 @@
+name: LingoLIVE Mobile — Distribuição Interna
+
+# Compila a app Flutter e distribui-a aos testadores internos via Firebase App
+# Distribution. Corre em PRs que tocam na app (só análise e testes) e publica
+# um build quando main avança ou quando é acionado manualmente.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/mobile/**"
+      - ".github/workflows/mobile-internal-distribution.yml"
+  pull_request:
+    paths:
+      - "apps/mobile/**"
+      - ".github/workflows/mobile-internal-distribution.yml"
+  workflow_dispatch:
+    inputs:
+      release_notes:
+        description: "Notas de versão enviadas aos testadores internos"
+        type: string
+        required: false
+
+concurrency:
+  group: mobile-internal-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: "3.29.3"
+  WORKING_DIR: apps/mobile
+
+jobs:
+  # ==========================================================================
+  # FASE 1 — Análise estática e testes da app mobile
+  # ==========================================================================
+  verify:
+    name: "Fase 1 — Análise e testes Flutter"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.WORKING_DIR }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Instalar dependências
+        run: flutter pub get
+
+      - name: Verificar formatação
+        run: dart format --output=none --set-exit-if-changed .
+
+      - name: Análise estática
+        run: flutter analyze --no-fatal-infos
+
+      - name: Testes unitários
+        run: flutter test
+
+  # ==========================================================================
+  # FASE 2 — Build assinado e distribuição interna
+  # ==========================================================================
+  distribute:
+    name: "Fase 2 — Build e App Distribution"
+    needs: verify
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.WORKING_DIR }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # O contexto `secrets` não é utilizável em condições `if` de passos, pelo
+      # que resolvemos as flags aqui e comparamos apenas booleanos a seguir.
+      - name: "Verificar segredos de distribuição (sem expor valores)"
+        id: secrets
+        run: |
+          {
+            echo "ready=${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' && secrets.FIREBASE_ANDROID_APP_ID != '' }}"
+            echo "has_google_services=${{ secrets.ANDROID_GOOGLE_SERVICES_JSON != '' }}"
+            echo "has_keystore=${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: "Avisar quando a distribuição não está configurada"
+        if: steps.secrets.outputs.ready != 'true'
+        run: |
+          echo "::warning::FIREBASE_SERVICE_ACCOUNT e/ou FIREBASE_ANDROID_APP_ID em falta." \
+               "O build é produzido mas não é distribuído."
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Instalar dependências
+        run: flutter pub get
+
+      - name: "Restaurar google-services.json"
+        if: steps.secrets.outputs.has_google_services == 'true'
+        run: |
+          mkdir -p android/app
+          printf '%s' '${{ secrets.ANDROID_GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
+
+      - name: "Restaurar keystore de assinatura"
+        if: steps.secrets.outputs.has_keystore == 'true'
+        run: |
+          printf '%s' '${{ secrets.ANDROID_KEYSTORE_BASE64 }}' | base64 -d > android/app/upload-keystore.jks
+          cat > android/key.properties <<PROPS
+          storeFile=upload-keystore.jks
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          PROPS
+
+      - name: "Compilar APK (flavor interno)"
+        run: |
+          flutter build apk --release \
+            --build-number="${{ github.run_number }}" \
+            --dart-define=LINGOLIVE_API_BASE_URL="${{ secrets.LINGOLIVE_API_BASE_URL }}" \
+            --dart-define=APP_VERSION="1.0.0+${{ github.run_number }}" \
+            --dart-define=APP_FLAVOR=internal
+
+      # Sem os símbolos, as stack traces nativas chegam ao Crashlytics
+      # ofuscadas e um crash em release fica ilegível.
+      - name: "Enviar símbolos de depuração para o Crashlytics"
+        if: steps.secrets.outputs.ready == 'true'
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/firebase-service-account.json
+        run: |
+          printf '%s' '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > "$GOOGLE_APPLICATION_CREDENTIALS"
+          npm install -g firebase-tools@13
+          SYMBOLS_DIR=build/app/intermediates/merged_native_libs/release/out/lib
+          if [ -d "$SYMBOLS_DIR" ]; then
+            firebase crashlytics:symbols:upload \
+              --app="${{ secrets.FIREBASE_ANDROID_APP_ID }}" "$SYMBOLS_DIR"
+          else
+            echo "::notice::Sem bibliotecas nativas neste build; nada a enviar."
+          fi
+          rm -f "$GOOGLE_APPLICATION_CREDENTIALS"
+
+      - name: "Distribuir aos testadores internos"
+        if: steps.secrets.outputs.ready == 'true'
+        uses: wzieba/Firebase-Distribution-Github-Action@v1
+        with:
+          appId: ${{ secrets.FIREBASE_ANDROID_APP_ID }}
+          serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          groups: internos-lingolive
+          file: apps/mobile/build/app/outputs/flutter-apk/app-release.apk
+          releaseNotes: |
+            ${{ github.event.inputs.release_notes || format('Build automático {0} — {1}', github.run_number, github.sha) }}
+
+      - name: "Guardar o APK como artefacto do workflow"
+        uses: actions/upload-artifact@v4
+        with:
+          name: lingolive-internal-${{ github.run_number }}
+          path: apps/mobile/build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 14
