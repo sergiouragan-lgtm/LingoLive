@@ -140,7 +140,7 @@ export function EbookNotificationSettings() {
       {prefs.studyReminders && (
         <div className="ml-11 pb-4 border-b border-gray-100 dark:border-gray-700">
           <label className="text-xs text-gray-500 dark:text-gray-400">
-            Hora do lembrete (UTC)
+            Hora do lembrete
           </label>
           <input
             type="range"
@@ -152,6 +152,16 @@ export function EbookNotificationSettings() {
           />
           <p className="text-xs text-indigo-600 dark:text-indigo-400 font-medium mt-0.5">
             {String(prefs.reminderHour).padStart(2, "0")}:00 UTC
+            {(() => {
+              const offsetH = -(new Date().getTimezoneOffset() / 60);
+              const localH = ((prefs.reminderHour + offsetH) % 24 + 24) % 24;
+              if (offsetH === 0) return null;
+              return (
+                <span className="ml-1.5 text-gray-400 font-normal">
+                  ({String(Math.floor(localH)).padStart(2, "0")}:{String(0).padStart(2, "0")} local)
+                </span>
+              );
+            })()}
           </p>
         </div>
       )}
