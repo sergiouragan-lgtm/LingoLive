@@ -1729,8 +1729,8 @@ function AppContent() {
   // If authenticated, show the app content (Sidebar + Main)
   return (
     <div className={`min-h-screen flex font-sans transition-all duration-300 ${
-      theme === 'kiditorial' 
-        ? 'theme-kiditorial bg-slate-50 text-slate-800' 
+      theme === 'kiditorial' || view === 'kids-dashboard'
+        ? 'theme-kiditorial bg-sky-50 text-slate-800'
         : 'theme-corporate bg-slate-50 text-slate-800'
     }`} id="lingolive-root-app">
       {view !== 'subscription' && view !== 'onboarding' && view !== 'welcome' && view !== 'pagamentos' && view !== 'waiting-verification' && view !== 'suspended' && view !== 'privacy-policy' && (

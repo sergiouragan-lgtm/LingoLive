@@ -1605,6 +1605,12 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, onComplete }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isCountryDropdownOpen, setIsCountryDropdownOpen] = useState(false);
+
+  // COPPA consent state (triggered when age < 13)
+  const [coppaModalOpen, setCoppaModalOpen] = useState(false);
+  const [coppaParentEmail, setCoppaParentEmail] = useState("");
+  const [coppaAgreed, setCoppaAgreed] = useState(false);
+  const [coppaSaving, setCoppaSaving] = useState(false);
   const [nativeLanguage, setNativeLanguage] = useState<string>("");
   const [learningLanguage, setLearningLanguage] = useState<string>("");
   
@@ -1877,6 +1883,12 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, onComplete }) => {
       if (!role) return;
       if (!countryCode) return;
 
+      // COPPA: require parental consent for under-13 before advancing
+      if (Number(age) < 13) {
+        setCoppaModalOpen(true);
+        return;
+      }
+
       if (role !== "ESTUDANTE" && !learningIntent) {
         await saveNonLearnerProfileAndFinish();
         setStep(11);
@@ -2107,6 +2119,37 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, onComplete }) => {
       setError(err?.message || "Erro ao salvar o perfil. Por favor tente novamente.");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const confirmCoppaConsent = async () => {
+    if (!coppaAgreed || !coppaParentEmail.includes("@")) return;
+    setCoppaSaving(true);
+    try {
+      if (user) {
+        await setDoc(doc(db, "users", user.uid), {
+          coppaConsent: {
+            given: true,
+            parentEmail: coppaParentEmail,
+            timestamp: Date.now(),
+            ageAtConsent: Number(age)
+          }
+        }, { merge: true });
+      }
+      setCoppaModalOpen(false);
+      // Continue onboarding — advance past step 2
+      if (role !== "ESTUDANTE" && !learningIntent) {
+        await saveNonLearnerProfileAndFinish();
+        setStep(11);
+      } else {
+        setStep(prev => prev + 1);
+      }
+    } catch {
+      // Non-blocking — still advance if Firestore save fails
+      setCoppaModalOpen(false);
+      setStep(prev => prev + 1);
+    } finally {
+      setCoppaSaving(false);
     }
   };
 
@@ -3401,6 +3444,76 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, onComplete }) => {
           )}
         </AnimatePresence>
       </div>
+
+      {/* COPPA Parental Consent Modal — shown when age < 13 */}
+      <AnimatePresence>
+        {coppaModalOpen && (
+          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              className="bg-slate-800 border border-slate-700 rounded-3xl shadow-2xl p-6 max-w-sm w-full space-y-5"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 flex items-center justify-center text-xl">🔒</div>
+                <div>
+                  <h3 className="font-black text-base text-white">Autorização Parental Necessária</h3>
+                  <span className="text-[10px] text-slate-400 uppercase font-mono tracking-wider">COPPA / GDPR Kids</span>
+                </div>
+              </div>
+
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Para criar uma conta para menores de 13 anos, a lei exige o consentimento verificável de um encarregado de educação. Por favor, introduza o e-mail de um adulto responsável.
+              </p>
+
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-400 block">E-mail do Encarregado de Educação</label>
+                  <input
+                    type="email"
+                    placeholder="pai@exemplo.com"
+                    value={coppaParentEmail}
+                    onChange={e => setCoppaParentEmail(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors text-sm"
+                  />
+                </div>
+
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={coppaAgreed}
+                    onChange={e => setCoppaAgreed(e.target.checked)}
+                    className="mt-0.5 accent-indigo-500"
+                  />
+                  <span className="text-xs text-slate-400 leading-relaxed">
+                    Confirmo que sou o encarregado de educação desta criança, que li a{" "}
+                    <span className="text-indigo-400 underline cursor-pointer">Política de Privacidade</span>{" "}
+                    e autorizo a criação desta conta de acordo com as normas COPPA e GDPR para menores.
+                  </span>
+                </label>
+              </div>
+
+              <div className="flex gap-3 pt-1">
+                <button
+                  onClick={() => { setCoppaModalOpen(false); setCoppaParentEmail(""); setCoppaAgreed(false); }}
+                  className="flex-1 py-2.5 text-xs text-slate-400 hover:text-slate-200 cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmCoppaConsent}
+                  disabled={!coppaAgreed || !coppaParentEmail.includes("@") || coppaSaving}
+                  className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white text-xs font-bold rounded-xl cursor-pointer shadow-md"
+                >
+                  {coppaSaving ? "A guardar…" : "Autorizar e Continuar"}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { db, auth } from "../../../firebase";
-import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
+import { doc, setDoc, updateDoc, onSnapshot } from "firebase/firestore";
 import { useToast } from "../../../context/ToastContext";
 import { 
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, 
@@ -200,34 +200,49 @@ export const ParentPortal: React.FC<{ setView?: (v: string) => void }> = ({ setV
     ]
   };
 
-  // Sync to firestore if logged in
+  // Real-time Firestore listener — replaces one-shot getDoc
   useEffect(() => {
     if (!user) return;
-    const fetchParentData = async () => {
-      try {
-        const docRef = doc(db, "parent_portal", user.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data();
+    const docRef = doc(db, "parent_portal", user.uid);
+
+    const unsubscribe = onSnapshot(
+      docRef,
+      (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
           if (data.dependents) setDependents(data.dependents);
           if (data.dataSharingEnabled !== undefined) setDataSharingEnabled(data.dataSharingEnabled);
           if (data.billingPlan) setBillingPlan(data.billingPlan);
+          if (data.billingCycle) setBillingCycle(data.billingCycle);
+          if (data.billingAmount) setBillingAmount(data.billingAmount);
+          if (data.paymentHistory) setPaymentHistory(data.paymentHistory);
+          if (data.auditLogs) setAuditLogs(data.auditLogs);
+          if (data.screenTimeLimits) setScreenTimeLimits(data.screenTimeLimits);
+          if (data.contentFilter) setContentFilter(data.contentFilter);
+          if (data.safeModeEnabled !== undefined) setSafeModeEnabled(data.safeModeEnabled);
         } else {
-          // Initialize in firestore
-          await setDoc(docRef, {
+          // First access — seed document with defaults
+          setDoc(docRef, {
             parentId: user.uid,
             dependents,
             dataSharingEnabled,
             billingPlan,
+            billingCycle,
+            billingAmount,
+            paymentHistory,
+            auditLogs,
+            screenTimeLimits,
+            contentFilter,
+            safeModeEnabled,
             lastAccess: new Date().toISOString()
-          });
+          }).catch(e => console.warn("Failed seeding parent_portal document:", e));
         }
-      } catch (e) {
-        console.warn("Failed fetching parent portal data from Firestore, using offline fallback.", e);
-      }
-    };
-    fetchParentData();
-  }, [user]);
+      },
+      (e) => console.warn("parent_portal onSnapshot error — offline fallback in use:", e)
+    );
+
+    return () => unsubscribe();
+  }, [user?.uid]);
 
   const savePrivacyState = async (sharing: boolean) => {
     setDataSharingEnabled(sharing);
