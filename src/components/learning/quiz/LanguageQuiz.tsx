@@ -167,7 +167,7 @@ const GRADES = [
   { id: "7º Ano", label: "7º Ano", labelEn: "7th Grade", color: "bg-purple-500 hover:bg-purple-600 text-white" }
 ] as const;
 
-export default function LanguageQuiz({ 
+export function LanguageQuiz({ 
   currentLanguage, 
   savedWords = [], 
   onAddWords, 
