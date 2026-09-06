@@ -41,4 +41,10 @@ describe("StudentDashboardExperience", () => {
     expect(screen.getByText("Present perfect")).toBeDefined();
     expect(screen.getByText("Vocabulário de reuniões")).toBeDefined();
   });
+
+  it("shows the student's profile photograph in the highlighted hero space", () => {
+    render(<StudentDashboardExperience {...baseProps} studentPhotoUrl="https://example.com/sofia.jpg" />);
+    const photograph = screen.getByRole("img", { name: "Fotografia de Sofia" });
+    expect(photograph.getAttribute("src")).toBe("https://example.com/sofia.jpg");
+  });
 });

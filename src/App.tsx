@@ -1865,6 +1865,7 @@ function AppContent() {
         {isStudentDashboard && (
           <StudentDashboardExperience
             studentName={user?.displayName || "Estudante"}
+            studentPhotoUrl={user?.photoURL}
             selectedLanguage={selectedLanguage}
             selectedProficiency={selectedProficiency}
             streakData={streakData}

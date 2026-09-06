@@ -25,6 +25,7 @@ import type { Achievement, Language, Proficiency, SavedWord, StreakData } from "
 
 export interface StudentDashboardExperienceProps {
   studentName: string;
+  studentPhotoUrl?: string | null;
   selectedLanguage: Language;
   selectedProficiency: Proficiency;
   streakData: StreakData;
@@ -105,6 +106,7 @@ function BrandMark() {
 
 export function StudentDashboardExperience({
   studentName,
+  studentPhotoUrl,
   selectedLanguage,
   selectedProficiency,
   streakData,
@@ -176,7 +178,9 @@ export function StudentDashboardExperience({
           <div className="flex items-center gap-3">
             <button className="relative grid size-10 place-items-center rounded-full text-ui-text-muted hover:bg-ui-surface-muted" aria-label="Notificações"><Bell className="size-5" /><span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-brand-primary" /></button>
             <button onClick={() => navigate("profile")} className="flex items-center gap-2 rounded-full p-1 pr-2 hover:bg-ui-surface-muted" aria-label="Abrir perfil">
-              <span className="grid size-9 place-items-center rounded-full bg-brand-primary/10 text-brand-primary"><UserRound className="size-5" /></span>
+              <span className="grid size-9 place-items-center overflow-hidden rounded-full bg-brand-primary/10 text-brand-primary">
+                {studentPhotoUrl ? <img src={studentPhotoUrl} alt="" className="size-full object-cover" /> : <UserRound className="size-5" />}
+              </span>
               <span className="rounded-full bg-brand-primary px-2 py-0.5 text-xs font-bold text-white">{level}</span>
             </button>
           </div>
@@ -185,8 +189,20 @@ export function StudentDashboardExperience({
         <main className="mx-auto max-w-7xl space-y-5 px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
           <section className="relative isolate min-h-64 overflow-hidden rounded-ui-xl bg-gradient-to-br from-violet-700 via-brand-primary to-indigo-500 px-6 py-8 text-white shadow-ui-lg sm:px-10 lg:flex lg:items-center">
             <div className="relative z-10 max-w-xl">
-              <h1 className="font-heading text-3xl font-extrabold tracking-tight sm:text-4xl">Bom dia, {firstName}!</h1>
-              <p className="mt-3 text-base font-medium text-violet-100 sm:text-lg">Pronta para continuar a sua jornada?</p>
+              <div className="flex items-center gap-4 sm:gap-5">
+                <button type="button" onClick={() => navigate("profile")} className="group relative grid size-20 shrink-0 place-items-center overflow-hidden rounded-full border-4 border-white/90 bg-white/15 text-white shadow-ui-lg transition-transform hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-primary sm:size-24" aria-label={`Abrir perfil de ${firstName}`}>
+                  {studentPhotoUrl ? (
+                    <img src={studentPhotoUrl} alt={`Fotografia de ${firstName}`} className="size-full object-cover" />
+                  ) : (
+                    <UserRound className="size-10 sm:size-12" strokeWidth={1.8} aria-hidden="true" />
+                  )}
+                  <span className="pointer-events-none absolute inset-1 rounded-full border border-white/35" aria-hidden="true" />
+                </button>
+                <div>
+                  <h1 className="font-heading text-3xl font-extrabold tracking-tight sm:text-4xl">Bom dia, {firstName}!</h1>
+                  <p className="mt-2 text-base font-medium text-violet-100 sm:text-lg">Pronta para continuar a sua jornada?</p>
+                </div>
+              </div>
               <button type="button" className="mt-7 inline-flex min-h-12 items-center justify-center gap-2 rounded-ui-md border border-white bg-white px-5 text-base font-semibold shadow-ui-sm transition-colors hover:bg-violet-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-primary" onClick={onStartPractice}>
                 <Play className="size-5 fill-current" style={{ color: "#7c3aed" }} aria-hidden="true" />
                 <span style={{ color: "#7c3aed" }}>Continuar aprendendo</span>
