@@ -81,5 +81,13 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
   ref,
 ) {
   const square = size === "sm" ? "size-8 px-0" : size === "lg" ? "size-12 px-0" : "size-10 px-0";
-  return <Button ref={ref} size={size} className={cn(square, className)} leadingIcon={icon} {...props} />;
+  return (
+    <Button
+      ref={ref}
+      size={size}
+      className={cn(square, "[&_svg]:block [&_svg]:shrink-0 [&_svg]:stroke-current [&_svg]:opacity-100", className)}
+      leadingIcon={icon}
+      {...props}
+    />
+  );
 });

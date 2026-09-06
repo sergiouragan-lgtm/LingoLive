@@ -25,7 +25,7 @@ function Showcase() {
         ]} />
       </PageContainer>
       <Modal open={modal} onClose={() => setModal(false)} title="Criar atividade" description="Defina os dados essenciais." footer={<><Button variant="ghost" onClick={() => setModal(false)}>Cancelar</Button><Button onClick={() => setModal(false)}>Criar</Button></>}><Input label="Título" autoFocus /></Modal>
-      <Drawer open={drawer} onClose={() => setDrawer(false)} title="Definições" description="Preferências da experiência."><Checkbox label="Modo focado" /><IconButton className="mt-4" aria-label="Mais opções" icon={<MoreHorizontal className="size-5" />} variant="outline" /></Drawer>
+      <Drawer open={drawer} onClose={() => setDrawer(false)} title="Definições" description="Exemplo visual do painel lateral. Nada será guardado nesta demonstração."><Checkbox label="Modo focado" /><IconButton className="mt-4" aria-label="Mais opções" title="Mais opções" icon={<MoreHorizontal className="size-5" strokeWidth={2.5} />} variant="outline" /></Drawer>
     </div>
   );
 }

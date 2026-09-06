@@ -31,6 +31,7 @@ describe("@lingolive/ui", () => {
     const onClose = vi.fn();
     render(<Modal open onClose={onClose} title="Perfil">Conteúdo</Modal>);
     expect(screen.getByRole("dialog").getAttribute("aria-modal")).toBe("true");
+    expect(screen.getByRole("button", { name: "Fechar modal" }).querySelector("svg")).not.toBeNull();
     fireEvent.keyDown(document, { key: "Escape" });
     expect(onClose).toHaveBeenCalledOnce();
   });
