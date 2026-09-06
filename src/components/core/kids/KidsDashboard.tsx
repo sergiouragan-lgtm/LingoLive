@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { Star } from 'lucide-react';
-import MissionMap from '../../learning/kids/MissionMap';
+import { MissionMap } from '../../learning/kids/MissionMap';
 
 const kidsNodes = [
   { id: 1, title: 'Floresta', status: 'completed', icon: '🌲', xp: 50 },
@@ -11,7 +11,7 @@ const kidsNodes = [
   { id: 5, title: 'Castelo', status: 'locked', icon: '🏰', xp: 500 },
 ] as const;
 
-const KidsDashboard: React.FC = () => {
+export const KidsDashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-sky-100 p-6 flex flex-col items-center">
       <header className="w-full max-w-4xl flex justify-between items-center mb-8">
@@ -46,4 +46,3 @@ const KidsDashboard: React.FC = () => {
   );
 };
 
-export default KidsDashboard;

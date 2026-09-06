@@ -201,6 +201,16 @@ export const sidebarConfig = {
       ]
     }
   ],
+  student_junior: [
+    { id: 'kids-dashboard', label: '🏠 Início', icon: LayoutDashboard },
+    { id: 'practice', label: '🎤 Falar com o Leo', icon: Mic },
+    { id: 'jogos', label: '🎮 Jogos', icon: Gamepad2 },
+    { id: 'ranking', label: '🏆 Ranking', icon: Trophy },
+    { id: 'ebook-student-dashboard', label: '📚 Os Meus Livros', icon: BookMarked },
+    { id: 'ebook-flashcards', label: '🃏 Flashcards', icon: Layers },
+    { id: 'ebook-achievements', label: '⭐ Conquistas', icon: Trophy },
+    { id: 'live-classes', label: '📹 Aulas ao Vivo', icon: Video },
+  ],
   parent: [
     { id: "marketplace", label: "Marketplace Global", icon: Store },
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },

@@ -9,6 +9,7 @@ import { AreaEscolarDashboard } from "./components/b2b/area-escolar/AreaEscolarD
 import { AreaProfessorDashboard } from "./components/b2b/area-escolar/AreaProfessorDashboard";
 import { AreaAlunoDashboard } from "./components/b2b/area-aluno/AreaAlunoDashboard";
 import { AreaPaisDashboard } from "./components/b2b/area-pais/AreaPaisDashboard";
+import { KidsDashboard } from "./components/core/kids/KidsDashboard";
 import EducatorDashboard from "./components/b2b/area-escolar/EducatorDashboard";
 import Dashboard from "./components/core/Dashboard";
 import { UserProfile } from "./components/core/UserProfile";
@@ -1957,6 +1958,10 @@ function AppContent() {
 
         {view === "area-pais" && (
           <AreaPaisDashboard setView={setView} />
+        )}
+
+        {view === "kids-dashboard" && (
+          <KidsDashboard />
         )}
 
         {view === "subscription-plans" && <SubscriptionPlans />}
