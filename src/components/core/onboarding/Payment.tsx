@@ -1,7 +1,7 @@
 import React from 'react';
 import { useOnboardingFlow } from '../../../context/OnboardingFlowContext';
 
-const Payment = () => {
+export const Payment = () => {
   const { setStep } = useOnboardingFlow();
 
   return (
@@ -18,4 +18,3 @@ const Payment = () => {
   );
 };
 
-export default Payment;

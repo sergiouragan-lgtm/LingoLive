@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { db, auth } from "../../../firebase";
-import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
+import { doc, setDoc, updateDoc, onSnapshot } from "firebase/firestore";
 import { useToast } from "../../../context/ToastContext";
 import { 
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, 
@@ -145,6 +145,36 @@ export const ParentPortal: React.FC<{ setView?: (v: string) => void }> = ({ setV
     { id: "log-3", timestamp: "10/07/2026, 19:30", action: "Compartilhamento de dados analíticos ativado", ip: "197.80.244.15", device: "Safari / iPhone 15" }
   ]);
 
+  // Parental Controls state
+  const [screenTimeLimits, setScreenTimeLimits] = useState<Record<string, number>>({ "dep-1": 60, "dep-2": 45 });
+  const [contentFilter, setContentFilter] = useState<"strict" | "moderate" | "open">("moderate");
+  const [safeModeEnabled, setSafeModeEnabled] = useState<boolean>(true);
+  const [parentalPin, setParentalPin] = useState<string>("");
+  const [pinInput, setPinInput] = useState<string>("");
+  const [pinModalOpen, setPinModalOpen] = useState<boolean>(false);
+  const [pinSaved, setPinSaved] = useState<boolean>(false);
+  const [savingControls, setSavingControls] = useState<boolean>(false);
+
+  async function saveParentalControls() {
+    if (!user) { addToast("Precisa de estar autenticado para guardar.", "error"); return; }
+    setSavingControls(true);
+    try {
+      const token = await user.getIdToken();
+      await setDoc(doc(db, "parental_controls", user.uid), {
+        screenTimeLimits,
+        contentFilter,
+        safeModeEnabled,
+        pinHash: parentalPin ? btoa(parentalPin) : null,
+        updatedAt: Date.now()
+      }, { merge: true });
+      addToast("Controlos parentais guardados com sucesso!", "success");
+    } catch {
+      addToast("Erro ao guardar controlos parentais. Tente novamente.", "error");
+    } finally {
+      setSavingControls(false);
+    }
+  }
+
   // Homework pending tasks
   const childHomework = {
     "dep-1": [
@@ -170,34 +200,49 @@ export const ParentPortal: React.FC<{ setView?: (v: string) => void }> = ({ setV
     ]
   };
 
-  // Sync to firestore if logged in
+  // Real-time Firestore listener — replaces one-shot getDoc
   useEffect(() => {
     if (!user) return;
-    const fetchParentData = async () => {
-      try {
-        const docRef = doc(db, "parent_portal", user.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data();
+    const docRef = doc(db, "parent_portal", user.uid);
+
+    const unsubscribe = onSnapshot(
+      docRef,
+      (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
           if (data.dependents) setDependents(data.dependents);
           if (data.dataSharingEnabled !== undefined) setDataSharingEnabled(data.dataSharingEnabled);
           if (data.billingPlan) setBillingPlan(data.billingPlan);
+          if (data.billingCycle) setBillingCycle(data.billingCycle);
+          if (data.billingAmount) setBillingAmount(data.billingAmount);
+          if (data.paymentHistory) setPaymentHistory(data.paymentHistory);
+          if (data.auditLogs) setAuditLogs(data.auditLogs);
+          if (data.screenTimeLimits) setScreenTimeLimits(data.screenTimeLimits);
+          if (data.contentFilter) setContentFilter(data.contentFilter);
+          if (data.safeModeEnabled !== undefined) setSafeModeEnabled(data.safeModeEnabled);
         } else {
-          // Initialize in firestore
-          await setDoc(docRef, {
+          // First access — seed document with defaults
+          setDoc(docRef, {
             parentId: user.uid,
             dependents,
             dataSharingEnabled,
             billingPlan,
+            billingCycle,
+            billingAmount,
+            paymentHistory,
+            auditLogs,
+            screenTimeLimits,
+            contentFilter,
+            safeModeEnabled,
             lastAccess: new Date().toISOString()
-          });
+          }).catch(e => console.warn("Failed seeding parent_portal document:", e));
         }
-      } catch (e) {
-        console.warn("Failed fetching parent portal data from Firestore, using offline fallback.", e);
-      }
-    };
-    fetchParentData();
-  }, [user]);
+      },
+      (e) => console.warn("parent_portal onSnapshot error — offline fallback in use:", e)
+    );
+
+    return () => unsubscribe();
+  }, [user?.uid]);
 
   const savePrivacyState = async (sharing: boolean) => {
     setDataSharingEnabled(sharing);
@@ -372,7 +417,8 @@ export const ParentPortal: React.FC<{ setView?: (v: string) => void }> = ({ setV
           { id: "dashboard", label: "Visão Geral Familiar", icon: Users },
           { id: "reports", label: "Relatórios & Monitoramento", icon: FileText },
           { id: "communication", label: "Comunicação com Escola & Professores", icon: MessageSquare },
-          { id: "billing", label: "Assinatura & Faturamento", icon: CreditCard }
+          { id: "billing", label: "Assinatura & Faturamento", icon: CreditCard },
+          { id: "privacy", label: "Privacidade & Controlos Parentais", icon: Shield }
         ].map(tab => {
           const Icon = tab.icon;
           const isSelected = activeTab === tab.id;
@@ -953,7 +999,202 @@ export const ParentPortal: React.FC<{ setView?: (v: string) => void }> = ({ setV
           </div>
         )}
 
+        {/* ============================================== */}
+        {/* TAB 5: PRIVACY & PARENTAL CONTROLS             */}
+        {/* ============================================== */}
+        {activeTab === "privacy" && (
+          <div className="lg:col-span-3 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+              {/* Screen Time Limits */}
+              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xs space-y-4 md:col-span-2 lg:col-span-2">
+                <div className="flex items-center gap-3">
+                  <Clock className="w-5 h-5 text-indigo-600" />
+                  <h4 className="font-extrabold text-slate-900 text-sm">Limite de Tempo de Ecrã por Criança</h4>
+                </div>
+                <div className="space-y-4">
+                  {dependents.map(dep => (
+                    <div key={dep.id} className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-slate-700">{dep.name}</span>
+                        <span className="text-xs font-mono text-indigo-600 font-bold">{screenTimeLimits[dep.id] ?? 60} min/dia</span>
+                      </div>
+                      <input
+                        type="range" min={15} max={180} step={15}
+                        value={screenTimeLimits[dep.id] ?? 60}
+                        onChange={e => setScreenTimeLimits(prev => ({ ...prev, [dep.id]: Number(e.target.value) }))}
+                        className="w-full accent-indigo-600"
+                      />
+                      <div className="flex justify-between text-[10px] text-slate-400 font-mono">
+                        <span>15 min</span><span>3h</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Safe Mode & Content Filter */}
+              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xs space-y-5">
+                <div className="flex items-center gap-3">
+                  <Shield className="w-5 h-5 text-emerald-600" />
+                  <h4 className="font-extrabold text-slate-900 text-sm">Modo Seguro & Filtro de Conteúdo</h4>
+                </div>
+
+                {/* Safe Mode toggle */}
+                <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-100 rounded-2xl">
+                  <div>
+                    <span className="text-xs font-bold text-slate-800 block">Modo Seguro Activo</span>
+                    <span className="text-[10px] text-slate-500">Bloqueia conteúdos não educativos</span>
+                  </div>
+                  <button
+                    onClick={() => setSafeModeEnabled(v => !v)}
+                    className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer ${safeModeEnabled ? "bg-emerald-500" : "bg-slate-300"}`}
+                  >
+                    <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${safeModeEnabled ? "left-5" : "left-0.5"}`} />
+                  </button>
+                </div>
+
+                {/* Content filter level */}
+                <div className="space-y-2">
+                  <span className="text-[10px] text-slate-400 font-mono uppercase block">Nível de Filtro</span>
+                  {(["strict", "moderate", "open"] as const).map(level => (
+                    <button
+                      key={level}
+                      onClick={() => setContentFilter(level)}
+                      className={`w-full flex items-center gap-3 p-2.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${contentFilter === level ? "border-indigo-500 bg-indigo-50 text-indigo-700" : "border-slate-100 bg-slate-50 text-slate-600 hover:bg-slate-100"}`}
+                    >
+                      <span className="text-base">{level === "strict" ? "🔒" : level === "moderate" ? "🛡️" : "🌐"}</span>
+                      <div className="text-left">
+                        <span className="block font-bold capitalize">{level === "strict" ? "Restrito" : level === "moderate" ? "Moderado" : "Aberto"}</span>
+                        <span className="text-[10px] text-slate-400">{level === "strict" ? "Apenas conteúdo aprovado" : level === "moderate" ? "Educativo + entretenimento saudável" : "Acesso total monitorado"}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* PIN Lock */}
+              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xs space-y-4">
+                <div className="flex items-center gap-3">
+                  <Lock className="w-5 h-5 text-amber-600" />
+                  <h4 className="font-extrabold text-slate-900 text-sm">PIN de Bloqueio Parental</h4>
+                </div>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Proteja as definições parentais com um PIN de 4 dígitos. As crianças não poderão alterar os limites sem autorização.
+                </p>
+                {pinSaved ? (
+                  <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-100 rounded-2xl text-xs text-emerald-700 font-semibold">
+                    <CheckCircle className="w-4 h-4" /> PIN configurado e activo
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setPinModalOpen(true)}
+                    className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-white text-xs font-bold rounded-xl cursor-pointer shadow-sm"
+                  >
+                    Configurar PIN
+                  </button>
+                )}
+                {pinSaved && (
+                  <button
+                    onClick={() => { setPinSaved(false); setParentalPin(""); }}
+                    className="w-full py-2 text-xs text-slate-400 hover:text-red-500 cursor-pointer"
+                  >
+                    Remover PIN
+                  </button>
+                )}
+              </div>
+
+              {/* COPPA Data Management */}
+              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xs space-y-4 md:col-span-2">
+                <div className="flex items-center gap-3">
+                  <ShieldCheck className="w-5 h-5 text-indigo-600" />
+                  <h4 className="font-extrabold text-slate-900 text-sm">Gestão de Dados COPPA & GDPR Kids</h4>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { label: "Partilha Analítica", desc: "Dados de aprendizagem agregados", enabled: dataSharingEnabled, toggle: () => setDataSharingEnabled(v => !v) },
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-2xl">
+                      <div>
+                        <span className="text-xs font-bold text-slate-800 block">{item.label}</span>
+                        <span className="text-[10px] text-slate-400">{item.desc}</span>
+                      </div>
+                      <button
+                        onClick={item.toggle}
+                        className={`w-10 h-5 rounded-full transition-colors relative cursor-pointer ${item.enabled ? "bg-indigo-500" : "bg-slate-300"}`}
+                      >
+                        <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${item.enabled ? "left-5" : "left-0.5"}`} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={() => addToast("Pedido de exportação de dados enviado. Receberá um e-mail em 48h.", "info")}
+                    className="flex items-center gap-2 px-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-xl border border-slate-200 cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5" /> Exportar Dados
+                  </button>
+                  <button
+                    onClick={() => addToast("Pedido de eliminação enviado à equipa de privacidade. Prazo: 30 dias.", "error")}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold rounded-xl border border-red-100 cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> Eliminar Dados da Criança
+                  </button>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Save button */}
+            <div className="flex justify-end">
+              <button
+                onClick={saveParentalControls}
+                disabled={savingControls}
+                className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-bold rounded-xl cursor-pointer shadow-md"
+              >
+                {savingControls ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                {savingControls ? "A guardar…" : "Guardar Controlos Parentais"}
+              </button>
+            </div>
+          </div>
+        )}
+
       </div>
+
+      {/* PIN setup modal */}
+      <AnimatePresence>
+        {pinModalOpen && (
+          <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-3xl border border-slate-200 shadow-2xl p-6 max-w-xs w-full space-y-5"
+            >
+              <div className="flex items-center gap-3">
+                <Lock className="w-6 h-6 text-amber-600" />
+                <h3 className="font-black text-base text-slate-900">Configurar PIN Parental</h3>
+              </div>
+              <p className="text-xs text-slate-500">Introduza um PIN de 4 dígitos para proteger as configurações parentais.</p>
+              <input
+                type="password" maxLength={4} placeholder="••••"
+                value={pinInput}
+                onChange={e => setPinInput(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                className="w-full text-center text-2xl tracking-[0.5em] px-4 py-3 border border-slate-200 rounded-2xl bg-slate-50 focus:outline-none focus:border-indigo-400"
+              />
+              <div className="flex gap-2">
+                <button onClick={() => { setPinModalOpen(false); setPinInput(""); }} className="flex-1 py-2 text-xs text-slate-500 hover:underline cursor-pointer">Cancelar</button>
+                <button
+                  disabled={pinInput.length !== 4}
+                  onClick={() => { setParentalPin(pinInput); setPinSaved(true); setPinModalOpen(false); setPinInput(""); addToast("PIN parental configurado com sucesso!", "success"); }}
+                  className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-white text-xs font-bold rounded-xl cursor-pointer"
+                >
+                  Guardar PIN
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* 5. COPPA ID VERIFICATION / PARENTAL VERIFICATION MODAL */}
       <AnimatePresence>

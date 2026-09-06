@@ -9,7 +9,7 @@ import {
 
 type LGMPSection = 'dashboard' | 'catalog' | 'services' | 'subscriptions' | 'analytics' | 'lars';
 
-export const MarketplacePlatform: React.FC<{ activeView?: string; setView?: (v: any) => void }> = ({ activeView = "marketplace", setView }) => {
+export const MarketplacePlatform: React.FC<{ activeView?: string; setView?: (v: string) => void }> = ({ activeView = "marketplace", setView }) => {
   const [activeSection, setActiveSection] = useState<LGMPSection>('dashboard');
 
   useEffect(() => {

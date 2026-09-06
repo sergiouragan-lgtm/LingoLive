@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { getAuth } from "firebase/auth";
-import EbookAIAssistant from "./EbookAIAssistant";
+import { EbookAIAssistant } from "./EbookAIAssistant";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -759,4 +759,3 @@ export function StudentReader({ ebookId, enrollment, onBack, backLabel }: Studen
   );
 }
 
-export default StudentReader;

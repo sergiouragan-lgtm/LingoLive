@@ -12,7 +12,7 @@ interface Analytic {
     timestamp: any;
 }
 
-export default function AnalyticsList() {
+export function AnalyticsList() {
     const [analytics, setAnalytics] = useState<Analytic[]>([]);
     const [error, setError] = useState<string | null>(null);
 

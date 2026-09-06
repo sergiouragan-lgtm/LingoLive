@@ -1,7 +1,7 @@
 import React from 'react';
 import { useOnboardingFlow } from '../../../context/OnboardingFlowContext';
 
-const IntelligentProfile = () => {
+export const IntelligentProfile = () => {
   const { setStep, setProfileData } = useOnboardingFlow();
 
   const handleCreateProfile = () => {
@@ -43,4 +43,3 @@ const IntelligentProfile = () => {
   );
 };
 
-export default IntelligentProfile;

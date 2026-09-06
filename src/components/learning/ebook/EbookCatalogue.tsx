@@ -14,7 +14,7 @@ import {
   Filter,
 } from "lucide-react";
 import { auth } from "../../../firebase";
-import EbookReviews from "./EbookReviews";
+import { EbookReviews } from "./EbookReviews";
 
 interface PublishedEbook {
   id: string;

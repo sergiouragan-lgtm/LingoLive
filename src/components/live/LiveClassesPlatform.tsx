@@ -9,7 +9,7 @@ import {
 
 type LCPSection = 'dashboard' | 'calendar' | 'teachers' | 'rooms' | 'recordings' | 'analytics';
 
-export const LiveClassesPlatform: React.FC<{ activeView?: string; setView?: (v: any) => void }> = ({ activeView = "live-classes", setView }) => {
+export const LiveClassesPlatform: React.FC<{ activeView?: string; setView?: (v: string) => void }> = ({ activeView = "live-classes", setView }) => {
   const [activeSection, setActiveSection] = useState<LCPSection>('dashboard');
 
   useEffect(() => {

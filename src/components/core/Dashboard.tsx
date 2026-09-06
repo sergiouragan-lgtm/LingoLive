@@ -728,7 +728,7 @@ const WeeklyProgressSection = React.memo<WeeklyProgressSectionProps>(({
 });
 WeeklyProgressSection.displayName = "WeeklyProgressSection";
 
-export default function Dashboard(props: DashboardProps) {
+export function Dashboard(props: DashboardProps) {
   const { addToast } = useToast();
   const orientation = useDeviceOrientation();
   const [achievementsData, setAchievementsData] = useState<UserAchievements | null>(null);

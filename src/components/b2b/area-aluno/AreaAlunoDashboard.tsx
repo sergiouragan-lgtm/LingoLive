@@ -2,7 +2,7 @@ import React from 'react';
 import { StudentPortal } from '../../learning/StudentPortal';
 
 interface AreaAlunoDashboardProps {
-  setView: (view: any) => void;
+  setView: (view: string) => void;
 }
 
 export const AreaAlunoDashboard: React.FC<AreaAlunoDashboardProps> = ({ setView }) => {

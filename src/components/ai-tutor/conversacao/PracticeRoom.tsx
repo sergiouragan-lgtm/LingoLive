@@ -53,7 +53,7 @@ export interface PracticeRoomProps {
   sessionContext?: TutorSessionContext;
 }
 
-export default function PracticeRoom({
+export function PracticeRoom({
   language,
   proficiency,
   ageGroup,

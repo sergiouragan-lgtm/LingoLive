@@ -48,7 +48,7 @@ interface UserProfileProps {
   achievements: Achievement[];
   selectedLanguage: Language;
   selectedProficiency: Proficiency;
-  setView: (view: any) => void;
+  setView: (view: string) => void;
   features: PlatformFeatures;
   onOpenQuiz: () => void;
 }

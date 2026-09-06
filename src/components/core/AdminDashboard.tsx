@@ -31,16 +31,16 @@ import { db, handleFirestoreError, OperationType } from '../../firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, setDoc, query, where } from 'firebase/firestore';
 import { UsageLogs } from '../growth/UsageLogs';
 import { ServiceHealthStatus } from '../../types';
-import SecurityDashboard from './SecurityDashboard';
-import BackupDashboard from './BackupDashboard';
+import { SecurityDashboard } from './SecurityDashboard';
+import { BackupDashboard } from './BackupDashboard';
 import { DisasterRecovery } from '../admin/DisasterRecovery';
 import { NotificationDiagnostic } from '../admin/NotificationDiagnostic';
-import FeatureFlagDashboard from './FeatureFlagDashboard';
-import TestAutomationDashboard from './TestAutomationDashboard';
-import GlobalDeploymentDashboard from './GlobalDeploymentDashboard';
-import BusinessIntelligenceDashboard from './BusinessIntelligenceDashboard';
-import DataWarehouseDashboard from './DataWarehouseDashboard';
-import AICostOptimizationDashboard from './AICostOptimizationDashboard';
+import { FeatureFlagDashboard } from './FeatureFlagDashboard';
+import { TestAutomationDashboard } from './TestAutomationDashboard';
+import { GlobalDeploymentDashboard } from './GlobalDeploymentDashboard';
+import { BusinessIntelligenceDashboard } from './BusinessIntelligenceDashboard';
+import { DataWarehouseDashboard } from './DataWarehouseDashboard';
+import { AICostOptimizationDashboard } from './AICostOptimizationDashboard';
 import { Shield, Sliders, Cpu, Globe, BarChart2, Coins, ShieldAlert, Bell } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -53,7 +53,7 @@ interface AdminDashboardProps {
   initialTab?: 'professores' | 'turmas' | 'alunos' | 'permissoes' | 'seguranca' | 'backups' | 'features' | 'qa' | 'deploy' | 'bi' | 'dw' | 'ai-cost' | 'disaster-recovery';
 }
 
-export default function AdminDashboard({ 
+export function AdminDashboard({ 
   metrics, 
   features, 
   onToggleFeature,

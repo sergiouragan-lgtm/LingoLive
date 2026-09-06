@@ -30,7 +30,7 @@ interface BackupRecord {
   items: string[];
 }
 
-export default function BackupDashboard() {
+export function BackupDashboard() {
   const [activeSubTab, setActiveSubTab] = useState<'status' | 'restore' | 'drp'>('status');
   const [backups, setBackups] = useState<BackupRecord[]>([]);
   const [loadingBackups, setLoadingBackups] = useState(false);

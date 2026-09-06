@@ -1,7 +1,7 @@
 import React from 'react';
 import { useOnboardingFlow } from '../../../context/OnboardingFlowContext';
 
-const SaveToFirestore = () => {
+export const SaveToFirestore = () => {
   const { setStep } = useOnboardingFlow();
 
   const handleSave = () => {
@@ -24,4 +24,3 @@ const SaveToFirestore = () => {
   );
 };
 
-export default SaveToFirestore;
