@@ -3,6 +3,8 @@ import OpenAI from "openai";
 import dotenv from "dotenv";
 import { COUNTRY_DETAILS } from "../src/data/localizationData";
 import { ai, generateContentWithRetry } from "./config/gemini";
+import { buildTutorSessionContext } from "../src/features/tutor/tutorSessionContextBuilder";
+import { composeTutorSystemInstruction } from "../src/features/tutor/tutorPromptComposer";
 
 dotenv.config();
 
@@ -164,13 +166,36 @@ ${message}
 Responda de forma curta, clara e altamente educativa, mantendo total sintonia com o perfil do aluno (idade, nível, variante, objetivo) e o tom do país ativo (${countryDetail.name}). NUNCA gere conteúdo inadequado para a idade do utilizador.
 `;
 
+  // Motor GeoLinguístico: reutiliza o mesmo motor de contexto cultural/pedagógico
+  // já usado no tutor de voz ao vivo (ver server/websocket/live.gateway.ts), para
+  // que o assistente de texto ("Professor Virtual") e o tutor de voz partilhem
+  // a mesma personalização cultural em vez de duas lógicas desligadas.
+  let finalPrompt = prompt;
+  try {
+    const sessionContext = buildTutorSessionContext({
+      targetLanguage: languageTarget,
+      cefrLevel: level,
+      geoInput: {
+        countryCode: activeCountryCode,
+        primaryLanguage: languageNative,
+        interfaceLanguage: localization?.language,
+      },
+    });
+    finalPrompt = composeTutorSystemInstruction({
+      baseInstruction: prompt,
+      sessionContext,
+    }) || prompt;
+  } catch (culturalContextError: any) {
+    console.warn("[AI Orchestrator] Falha ao compor contexto cultural (a prosseguir sem ele):", culturalContextError?.message);
+  }
+
   const activeModel = preferredAIModel || "gpt-4o";
 
   if (activeModel === "gemini") {
     try {
       const response = await generateContentWithRetry({
         model: "gemini-3.6-flash",
-        contents: prompt,
+        contents: finalPrompt,
         config: {
           systemInstruction: "You are an expert language teacher.",
           temperature: 0.7,
@@ -188,7 +213,7 @@ Responda de forma curta, clara e altamente educativa, mantendo total sintonia co
         model: "gpt-4o", // ChatGPT 4 (flagship)
         messages: [
           { role: "system", content: "You are an expert language teacher." },
-          { role: "user", content: prompt },
+          { role: "user", content: finalPrompt },
         ],
         temperature: 0.7,
       });
@@ -200,7 +225,7 @@ Responda de forma curta, clara e altamente educativa, mantendo total sintonia co
       try {
         const response = await generateContentWithRetry({
           model: "gemini-3.6-flash",
-          contents: prompt,
+          contents: finalPrompt,
           config: {
             systemInstruction: "You are an expert language teacher.",
             temperature: 0.7,

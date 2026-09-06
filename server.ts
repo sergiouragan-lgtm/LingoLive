@@ -37,6 +37,7 @@ import languagesRouter from "./server/routes/languages.routes";
 import gamificationRouter from "./server/routes/gamification.routes";
 import adminPaymentRouter from "./server/routes/adminPayment.routes";
 import geoRouter from "./server/routes/geo.routes";
+import walletRouter from "./server/routes/wallet.routes";
 import learningAnalyticsRouter from "./server/routes/learningAnalytics.routes";
 import certificationRouter from "./server/routes/certification.routes";
 import ebookRouter from "./server/routes/ebook.routes";
@@ -54,9 +55,10 @@ import ebookVocabularyRouter from "./server/routes/ebook.vocabulary.routes";
 
 const app = express();
 
-// Stripe Webhook needs express.raw BEFORE express.json() is applied globally
-// Mount paymentRouter containing Stripe webhook first
+// Stripe/Paddle webhooks need express.raw BEFORE express.json() is applied globally
+// Mount paymentRouter (Stripe webhook) and walletRouter (Paddle top-up webhook) first
 app.use("/api", paymentRouter);
+app.use("/api", walletRouter);
 
 // Global express.json() is applied only AFTER Stripe webhook route registration
 app.use(express.json({ limit: '50mb' }));

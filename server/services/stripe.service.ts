@@ -4,6 +4,7 @@ import { dbAdmin } from "../config/firebaseAdmin";
 import { appBaseUrl } from "../config/env";
 import { PaymentEngineService } from "./paymentEngine.service";
 import { safeGetDoc } from "./firestoreSafe.service";
+import { confirmTutorPayout, failTutorPayout } from "./ledger.service";
 
 // Ver nota equivalente em paymentEngine.service.ts: evita chamadas reais e
 // lentas ao Firestore durante testes automatizados (Vitest define VITEST=true).
@@ -390,6 +391,25 @@ export class StripeService {
         } else {
           await PaymentEngineService.markEventProcessed(eventId, "stripe", event.type, { warning: "missing_userId" });
         }
+      } else if (event.type === "transfer.paid" || event.type === "transfer.reversed") {
+        // LingoCoins — payout de tutor via Stripe Connect (ver ledger.service.ts
+        // e docs/LEDGER_LINGOCOINS_DESIGN.md, secção 3.6).
+        const transfer = event.data.object;
+        const payoutRequestId = transfer.metadata?.payoutRequestId;
+        if (payoutRequestId) {
+          if (event.type === "transfer.paid") {
+            await confirmTutorPayout(payoutRequestId);
+          } else {
+            await failTutorPayout(payoutRequestId, "Transfer reversed by Stripe.");
+          }
+        }
+        await PaymentEngineService.markEventProcessed(eventId, "stripe", event.type, { payoutRequestId });
+      } else if (event.type === "payment_intent.payment_failed" && event.data.object?.metadata?.payoutRequestId) {
+        // Falha na transferência Connect capturada como payment_intent falhado
+        // (dependendo da configuração da conta destino).
+        const payoutRequestId = event.data.object.metadata.payoutRequestId;
+        await failTutorPayout(payoutRequestId, event.data.object?.last_payment_error?.message || "Payment intent failed.");
+        await PaymentEngineService.markEventProcessed(eventId, "stripe", event.type, { payoutRequestId });
       } else {
         // Log other events safely
         await PaymentEngineService.markEventProcessed(eventId, "stripe", event.type, { id: event.data?.object?.id });

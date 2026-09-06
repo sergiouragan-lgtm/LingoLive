@@ -49,7 +49,7 @@ class LingoTheme {
       isPlayful: false,
       headingStyle: const TextStyle(
         fontFamily: 'Inter',
-        fontWeight: FontWeight.black,
+        fontWeight: FontWeight.w900,
         letterSpacing: -0.5,
       ),
       bodyStyle: const TextStyle(
@@ -836,7 +836,7 @@ class StudentProfileView extends StatelessWidget {
                 style: TextStyle(
                   color: theme.secondaryAccent,
                   fontSize: 32,
-                  fontWeight: FontWeight.black,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
             ),
@@ -1271,7 +1271,7 @@ class StudentProfileView extends StatelessWidget {
                       style: TextStyle(
                         color: isEnabled ? color : Colors.red,
                         fontSize: 8,
-                        fontWeight: FontWeight.black,
+                        fontWeight: FontWeight.w900,
                         letterSpacing: 0.5,
                       ),
                     ),
