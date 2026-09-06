@@ -45,6 +45,12 @@ import ebookSalesRouter from "./server/routes/ebook.sales.routes";
 import ebookStudentRouter from "./server/routes/ebook.student.routes";
 import ebookAssistantRouter from "./server/routes/ebook.assistant.routes";
 import ebookReviewRouter from "./server/routes/ebook.review.routes";
+import ebookAnalyticsRouter from "./server/routes/ebook.analytics.routes";
+import ebookRecommendationsRouter from "./server/routes/ebook.recommendations.routes";
+import ebookNotificationsRouter from "./server/routes/ebook.notifications.routes";
+import ebookGamificationRouter from "./server/routes/ebook.gamification.routes";
+import ebookAssignmentRouter from "./server/routes/ebook.assignment.routes";
+import ebookVocabularyRouter from "./server/routes/ebook.vocabulary.routes";
 
 const app = express();
 
@@ -78,6 +84,12 @@ app.use("/api/ebook/sales", ebookSalesRouter);
 app.use("/api/ebook/student", ebookStudentRouter);
 app.use("/api/ebook/assistant", ebookAssistantRouter);
 app.use("/api/ebook/reviews", ebookReviewRouter);
+app.use("/api/ebook/analytics", ebookAnalyticsRouter);
+app.use("/api/ebook/recommendations", ebookRecommendationsRouter);
+app.use("/api/ebook/notifications", ebookNotificationsRouter);
+app.use("/api/ebook/gamification", ebookGamificationRouter);
+app.use("/api/ebook/assignments", ebookAssignmentRouter);
+app.use("/api/ebook/vocabulary", ebookVocabularyRouter);
 
 // Endpoint for Service Worker Background Sync of vocabulary updates
 app.post("/api/sync-vocabulary", async (req, res) => {

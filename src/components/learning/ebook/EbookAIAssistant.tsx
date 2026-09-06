@@ -55,6 +55,8 @@ export default function EbookAIAssistant({
   } | null>(null);
   const [grammarLoading, setGrammarLoading] = useState(false);
   const [savedWords, setSavedWords] = useState<Set<string>>(new Set());
+  const [vocabError, setVocabError] = useState<string | null>(null);
+  const [grammarError, setGrammarError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -99,6 +101,7 @@ export default function EbookAIAssistant({
   async function loadVocab() {
     if (vocab.length > 0 || vocabLoading) return;
     setVocabLoading(true);
+    setVocabError(null);
     try {
       const token = await user?.getIdToken();
       const res = await fetch("/api/ebook/assistant/vocabulary", {
@@ -112,7 +115,7 @@ export default function EbookAIAssistant({
       const data = await res.json();
       setVocab(data.vocabulary ?? []);
     } catch {
-      /* silent fail */
+      setVocabError("Não foi possível carregar vocabulário. Tente novamente.");
     } finally {
       setVocabLoading(false);
     }
@@ -122,6 +125,7 @@ export default function EbookAIAssistant({
     if (!grammarSentence.trim() || grammarLoading) return;
     setGrammarLoading(true);
     setGrammarResult(null);
+    setGrammarError(null);
     try {
       const token = await user?.getIdToken();
       const res = await fetch("/api/ebook/assistant/grammar", {
@@ -135,7 +139,7 @@ export default function EbookAIAssistant({
       const data = await res.json();
       setGrammarResult(data.explanation ?? null);
     } catch {
-      /* silent fail */
+      setGrammarError("Não foi possível obter a explicação. Tente novamente.");
     } finally {
       setGrammarLoading(false);
     }
@@ -410,6 +414,10 @@ export default function EbookAIAssistant({
                   <p style={{ textAlign: "center", color: "var(--muted)", fontSize: 13, padding: 20 }}>
                     A extrair vocabulário…
                   </p>
+                ) : vocabError ? (
+                  <p style={{ textAlign: "center", color: "#ef4444", fontSize: 12, padding: 20 }}>
+                    {vocabError}
+                  </p>
                 ) : vocab.length === 0 ? (
                   <p style={{ textAlign: "center", color: "var(--muted)", fontSize: 13, padding: 20 }}>
                     Nenhum vocabulário carregado ainda.
@@ -475,6 +483,9 @@ export default function EbookAIAssistant({
                       {grammarLoading ? "…" : "Explicar"}
                     </button>
                   </div>
+                  {grammarError && (
+                    <p style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{grammarError}</p>
+                  )}
                   {grammarResult && (
                     <div className="grammar-result">
                       <p>{grammarResult.explanation}</p>
