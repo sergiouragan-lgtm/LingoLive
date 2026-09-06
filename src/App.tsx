@@ -11,6 +11,7 @@ import { AreaAlunoDashboard } from "./components/b2b/area-aluno/AreaAlunoDashboa
 import { AreaPaisDashboard } from "./components/b2b/area-pais/AreaPaisDashboard";
 import EducatorDashboard from "./components/b2b/area-escolar/EducatorDashboard";
 import Dashboard from "./components/core/Dashboard";
+import { StudentDashboardExperience } from "./components/student-dashboard/StudentDashboardExperience";
 import { UserProfile } from "./components/core/UserProfile";
 import { LanguagesView } from "./components/learning/aprender/LanguagesView";
 import { AuthScreen } from "./components/auth/AuthScreen";
@@ -1725,6 +1726,8 @@ function AppContent() {
     }
   };
 
+  const isStudentDashboard = view === "dashboard" && ["STUDENT", "Student", "student", "LEARNER"].includes(String(role));
+
   // If authenticated, show the app content (Sidebar + Main)
   return (
     <div className={`min-h-screen flex font-sans transition-all duration-300 ${
@@ -1732,7 +1735,7 @@ function AppContent() {
         ? 'theme-kiditorial bg-slate-50 text-slate-800' 
         : 'theme-corporate bg-slate-50 text-slate-800'
     }`} id="lingolive-root-app">
-      {view !== 'subscription' && view !== 'onboarding' && view !== 'welcome' && view !== 'pagamentos' && view !== 'waiting-verification' && view !== 'suspended' && view !== 'privacy-policy' && (
+      {!isStudentDashboard && view !== 'subscription' && view !== 'onboarding' && view !== 'welcome' && view !== 'pagamentos' && view !== 'waiting-verification' && view !== 'suspended' && view !== 'privacy-policy' && (
         <Sidebar 
           view={view} 
           setView={setView} 
@@ -1806,7 +1809,7 @@ function AppContent() {
         {view === "onboarding" && currentStep === "DASHBOARD" && <CreateDashboard setView={setView} />}
         {view === "activation" && <Activation setView={setView} />}
         
-        {view !== "landing" && view !== "onboarding" && view !== "activation" && view !== "practice" && view !== "subscription" && view !== "welcome" && view !== "pagamentos" && view !== "waiting-verification" && view !== "suspended" && (
+        {!isStudentDashboard && view !== "landing" && view !== "onboarding" && view !== "activation" && view !== "practice" && view !== "subscription" && view !== "welcome" && view !== "pagamentos" && view !== "waiting-verification" && view !== "suspended" && (
           <Topbar 
             user={user} 
             setView={setView} 
@@ -1828,7 +1831,7 @@ function AppContent() {
           />
         )}
       {/* Interactive Router Screens */}
-      <main className={`flex-1 transition-all duration-300 ${
+      <main className={`flex-1 transition-all duration-300 ${isStudentDashboard ? "p-0 w-full" :
         orientation === 'landscape' 
           ? 'p-2 sm:p-4 md:p-5 lg:p-6 max-w-7xl mx-auto w-full' 
           : 'p-4 sm:p-6 md:p-8 w-full'
@@ -1859,7 +1862,21 @@ function AppContent() {
           <TeacherProfessionalPlatform activeView="dashboard" setView={setView} />
         )}
 
-        {view === "dashboard" && role !== "TEACHER" && role !== "NATIVE_TEACHER" && (
+        {isStudentDashboard && (
+          <StudentDashboardExperience
+            studentName={user?.displayName || "Estudante"}
+            selectedLanguage={selectedLanguage}
+            selectedProficiency={selectedProficiency}
+            streakData={streakData}
+            savedWords={savedWords}
+            achievements={achievements}
+            userProfile={userProfile as Record<string, unknown>}
+            onStartPractice={handleStartPractice}
+            onNavigate={(v) => setView(v as AppView)}
+          />
+        )}
+
+        {view === "dashboard" && !isStudentDashboard && role !== "TEACHER" && role !== "NATIVE_TEACHER" && (
           <Dashboard
             selectedLanguage={selectedLanguage}
             setSelectedLanguage={setSelectedLanguage}
