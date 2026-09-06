@@ -1,10 +1,10 @@
 import React, { useEffect } from 'react';
 
 interface CreateDashboardProps {
-  setView?: (view: any) => void;
+  setView?: (view: string) => void;
 }
 
-const CreateDashboard: React.FC<CreateDashboardProps> = ({ setView }) => {
+export const CreateDashboard: React.FC<CreateDashboardProps> = ({ setView }) => {
   useEffect(() => {
     if (setView) {
       setView("dashboard");
@@ -20,5 +20,4 @@ const CreateDashboard: React.FC<CreateDashboardProps> = ({ setView }) => {
   );
 };
 
-export default CreateDashboard;
 

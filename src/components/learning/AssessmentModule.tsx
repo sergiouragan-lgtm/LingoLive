@@ -67,7 +67,7 @@ import { AssessmentService } from "../../services/assessment.service";
 import { Exam, ScheduledExam, ExamAttempt, Certificate, Question } from "../../types/assessment";
 
 interface AssessmentModuleProps {
-  setView?: (view: any) => void;
+  setView?: (view: string) => void;
 
   onAddXp?: (xp: number) => void;
 }

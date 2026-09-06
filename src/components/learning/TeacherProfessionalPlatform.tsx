@@ -10,7 +10,7 @@ import {
 
 type TPPSection = 'dashboard' | 'classes' | 'planning' | 'builder' | 'ai-copilot' | 'analytics' | 'live';
 
-export const TeacherProfessionalPlatform: React.FC<{ activeView?: string; setView?: (v: any) => void }> = ({ activeView = "dashboard", setView }) => {
+export const TeacherProfessionalPlatform: React.FC<{ activeView?: string; setView?: (v: string) => void }> = ({ activeView = "dashboard", setView }) => {
   const [activeSection, setActiveSection] = useState<TPPSection>('dashboard');
 
   useEffect(() => {

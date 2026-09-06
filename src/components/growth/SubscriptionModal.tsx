@@ -1,5 +1,5 @@
 import React from 'react';
-import SubscriptionCheckout from './assinaturas/SubscriptionCheckout';
+import { SubscriptionCheckout } from './assinaturas/SubscriptionCheckout';
 
 interface SubscriptionModalProps {
   isOpen: boolean;
@@ -7,7 +7,7 @@ interface SubscriptionModalProps {
   setView: (v: string) => void;
 }
 
-export default function SubscriptionModal({ isOpen, onClose, setView }: SubscriptionModalProps) {
+export function SubscriptionModal({ isOpen, onClose, setView }: SubscriptionModalProps) {
   if (!isOpen) return null;
 
   return (

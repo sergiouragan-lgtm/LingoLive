@@ -1,7 +1,7 @@
 import React from 'react';
 import { useOnboardingFlow } from '../../../context/OnboardingFlowContext';
 
-const ConfirmCreation = () => {
+export const ConfirmCreation = () => {
   const { setStep } = useOnboardingFlow();
 
   return (
@@ -18,4 +18,3 @@ const ConfirmCreation = () => {
   );
 };
 
-export default ConfirmCreation;

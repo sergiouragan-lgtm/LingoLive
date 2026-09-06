@@ -10,7 +10,7 @@ import { GlobalSearch } from './GlobalSearch';
 
 interface SidebarProps {
   view: string;
-  setView: (view: any) => void;
+  setView: (view: string) => void;
   healthStatus?: ServiceHealthStatus | null;
   isOpen?: boolean;
   onClose?: () => void;

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useLocalization } from '../../context/LocalizationContext';
 
-export default function LandingPage({ onSelectPlan }: { onSelectPlan: (plan: string) => void }) {
+export function LandingPage({ onSelectPlan }: { onSelectPlan: (plan: string) => void }) {
   const { setLocalization, localization, t } = useLocalization();
   const plans = [
     { id: 'test', name: 'Plano de Teste', price: 0 },

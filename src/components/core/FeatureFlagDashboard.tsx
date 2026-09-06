@@ -40,7 +40,7 @@ interface FlagRule {
   };
 }
 
-export default function FeatureFlagDashboard() {
+export function FeatureFlagDashboard() {
   const [activeTab, setActiveTab] = useState<'flags' | 'experiments' | 'auditor' | 'simulator'>('flags');
   const [flags, setFlags] = useState<FlagRule[]>([]);
   const [loading, setLoading] = useState(false);

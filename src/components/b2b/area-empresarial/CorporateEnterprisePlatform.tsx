@@ -60,7 +60,7 @@ type CEPSection =
 
 export const CorporateEnterprisePlatform: React.FC<{
   activeView?: string;
-  setView?: (v: any) => void;
+  setView?: (v: string) => void;
 }> = ({ activeView = "dashboard", setView }) => {
   const [activeSection, setActiveSection] = useState<CEPSection>("dashboard");
 

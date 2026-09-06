@@ -13,7 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { auth } from "../../../firebase";
-import EbookAIAssistant from "./EbookAIAssistant";
+import { EbookAIAssistant } from "./EbookAIAssistant";
 
 interface Chapter {
   id: string;

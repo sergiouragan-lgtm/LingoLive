@@ -27,7 +27,7 @@ interface LearningProfileScreenProps {
   setSelectedLanguage: (lang: Language) => void;
   selectedProficiency: Proficiency;
   setSelectedProficiency: (prof: Proficiency) => void;
-  setView: (view: any) => void;
+  setView: (view: string) => void;
 }
 
 export const LearningProfileScreen = ({
