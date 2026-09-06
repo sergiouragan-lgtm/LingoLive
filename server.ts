@@ -20,6 +20,7 @@ import { PORT, ENABLE_SANDBOX_FALLBACK } from "./server/config/env";
 import { dbAdmin, authAdmin, verifyFirebaseConnection } from "./server/config/firebaseAdmin";
 import { localMemoryDb, safeSetDoc, logSandboxWarning } from "./server/services/firestoreSafe.service";
 import { setupWebSocket } from "./server/websocket/live.gateway";
+import { deliverPush } from "./server/services/pushDelivery.service";
 
 // Import Routers
 import healthRouter from "./server/routes/health.routes";
@@ -39,6 +40,8 @@ import adminPaymentRouter from "./server/routes/adminPayment.routes";
 import geoRouter from "./server/routes/geo.routes";
 import learningAnalyticsRouter from "./server/routes/learningAnalytics.routes";
 import certificationRouter from "./server/routes/certification.routes";
+import mobileRouter from "./server/routes/mobile.routes";
+import mobilePaymentRouter from "./server/routes/mobilePayment.routes";
 import ebookRouter from "./server/routes/ebook.routes";
 import ebookExportRouter from "./server/routes/ebook.export.routes";
 import ebookSalesRouter from "./server/routes/ebook.sales.routes";
@@ -78,6 +81,11 @@ app.use("/api", adminPaymentRouter);
 app.use("/api/geo", geoRouter);
 app.use("/api/analytics", learningAnalyticsRouter);
 app.use("/api/certification", certificationRouter);
+// O router de faturação vem antes do genérico: `/api/mobile` também
+// corresponde a `/api/mobile/billing/...`, pelo que a rota mais específica
+// tem de ser registada primeiro.
+app.use("/api/mobile/billing", mobilePaymentRouter);
+app.use("/api/mobile", mobileRouter);
 app.use("/api/ebook", ebookRouter);
 app.use("/api/ebook/export", ebookExportRouter);
 app.use("/api/ebook/sales", ebookSalesRouter);
@@ -190,25 +198,27 @@ async function startServer() {
       if (settings && settings.enabled) {
         // 1. Daily Study Goal Reminder
         if (settings.dailyReminderEnabled && settings.dailyReminderTime === currentHourMin) {
-          const token = settings.fcmToken;
           const title = "LingoLive: Hora de Aprender! 🚀";
           const body = `Olá, ${userData.displayName || userData.name || 'Estudante'}! Está na hora de começar sua meta diária de estudo! Vamos conversar com o Kamba IA.`;
-          
-          console.log(`[Scheduler] Triggering study reminder for ${userData.email || userData.id} (Token: ${token})`);
-          if (token && !token.startsWith("simulated_")) {
-            try {
-              const admin = (await import("firebase-admin")).default;
-              await (admin as any).messaging().send({
-                token: token,
-                notification: { title, body },
-                data: { type: "daily_reminder" }
-              });
-              console.log(`[Scheduler] Real FCM notification sent to ${userData.email}`);
-            } catch (err: any) {
-              console.warn(`[Scheduler] FCM notification failed for ${userData.email || userData.id}:`, err.message);
-            }
-          } else {
-            console.log(`[Scheduler] Simulated daily reminder triggered for ${userData.email || userData.id}`);
+
+          // Entrega em todos os destinos reais: o token web guardado nas
+          // definições e os tokens nativos registados pela app mobile.
+          try {
+            const report = await deliverPush({
+              userId: userData.id,
+              title,
+              body,
+              data: { type: "daily_reminder" },
+              webToken: settings.fcmToken,
+              kind: "daily_reminder",
+            });
+            console.log(
+              `[Scheduler] Daily reminder for ${userData.email || userData.id}: ` +
+              `${report.accepted}/${report.attempted} entregues` +
+              `${report.skippedReason ? ` (${report.skippedReason})` : ""}`
+            );
+          } catch (err: any) {
+            console.warn(`[Scheduler] Push delivery failed for ${userData.email || userData.id}:`, err.message);
           }
         }
       }

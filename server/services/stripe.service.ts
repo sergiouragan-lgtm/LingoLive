@@ -9,8 +9,36 @@ import { safeGetDoc } from "./firestoreSafe.service";
 // lentas ao Firestore durante testes automatizados (Vitest define VITEST=true).
 const isRunningUnderTests = process.env.VITEST === "true" || process.env.NODE_ENV === "test";
 
+export type CheckoutPlatform = "web" | "mobile";
+
 export class StripeService {
-  static async createCheckoutSession(userId: string, planId: string) {
+  /**
+   * URLs de retorno do checkout.
+   *
+   * Em mobile o Stripe redireciona sempre para uma URL HTTPS controlada por nós
+   * (`/api/mobile/billing/return`), que por sua vez reencaminha para o deep link
+   * da app. Esquemas personalizados não são aceites pelo Stripe Checkout e as
+   * App Links do Android exigem um domínio verificado — este salto HTTPS é a
+   * forma suportada de devolver o utilizador à app num dispositivo real.
+   */
+  static buildReturnUrls(platform: CheckoutPlatform) {
+    if (platform === "mobile") {
+      return {
+        success_url: `${appBaseUrl}/api/mobile/billing/return?outcome=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${appBaseUrl}/api/mobile/billing/return?outcome=cancel`,
+      };
+    }
+    return {
+      success_url: `${appBaseUrl}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${appBaseUrl}/billing/cancel`,
+    };
+  }
+
+  static async createCheckoutSession(
+    userId: string,
+    planId: string,
+    platform: CheckoutPlatform = "web",
+  ) {
     const stripe = getStripeClient();
     if (!stripe) {
       throw new Error("Stripe is not configured in this environment.");
@@ -21,8 +49,10 @@ export class StripeService {
       throw new Error("Plano de subscrição inválido.");
     }
 
+    const returnUrls = StripeService.buildReturnUrls(platform);
+
     console.log(`[Stripe Debug] appBaseUrl: ${appBaseUrl}`);
-    console.log(`[Stripe Debug] success_url: ${appBaseUrl}/billing/success?session_id={CHECKOUT_SESSION_ID}`);
+    console.log(`[Stripe Debug] success_url: ${returnUrls.success_url}`);
     console.log(`[Stripe Debug] Creating session for user ${userId}, plan ${planId}`);
 
     const session = await stripe.checkout.sessions.create({
@@ -44,11 +74,12 @@ export class StripeService {
         },
       ],
       mode: 'subscription',
-      success_url: `${appBaseUrl}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${appBaseUrl}/billing/cancel`,
+      success_url: returnUrls.success_url,
+      cancel_url: returnUrls.cancel_url,
       metadata: {
         userId: userId,
-        planId: planId
+        planId: planId,
+        platform
       }
     });
     console.log(`[Stripe Debug] Session created: ${session.id}, url: ${session.url}`);
