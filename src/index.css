@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&family=Nunito:wght@400;600;800&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
+@import "../packages/design-system/tailwind.css";
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
@@ -8,7 +9,7 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
   /* Design System Colors */
-  --color-primary: #2563EB; /* Azul */
+  --color-primary: #8B5CF6; /* Violeta canónico do Design System */
   --color-success: #10B981; /* Verde */
   --color-gamification: #F59E0B; /* Laranja */
   --color-alert: #EF4444; /* Vermelho */
