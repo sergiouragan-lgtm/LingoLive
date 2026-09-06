@@ -203,6 +203,7 @@ export const sidebarConfig = {
   ],
   student_junior: [
     { id: 'kids-dashboard', label: '🏠 Início', icon: LayoutDashboard },
+    { id: 'kids-hub', label: '📖 Vocabulário', icon: BookOpen },
     { id: 'practice', label: '🎤 Falar com o Leo', icon: Mic },
     { id: 'jogos', label: '🎮 Jogos', icon: Gamepad2 },
     { id: 'ranking', label: '🏆 Ranking', icon: Trophy },
