@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Button, Checkbox, Dropdown, Input, Modal, Tabs } from "./index";
+import { Alert, Button, Checkbox, Dropdown, Input, Modal, Tabs } from "./index";
 
 describe("@lingolive/ui", () => {
   afterEach(cleanup);
@@ -11,6 +11,12 @@ describe("@lingolive/ui", () => {
     const button = screen.getByRole("button", { name: "Guardar" }) as HTMLButtonElement;
     expect(button.disabled).toBe(true);
     expect(button.getAttribute("aria-busy")).toBe("true");
+  });
+
+  it("keeps confirmation text readable independently from its semantic accent", () => {
+    render(<Alert variant="success" title="Concluído">Progresso guardado.</Alert>);
+    expect(screen.getByText("Concluído").classList.contains("text-feedback-success-strong")).toBe(true);
+    expect(screen.getByText("Progresso guardado.").classList.contains("text-ui-text")).toBe(true);
   });
 
   it("connects field errors and checkbox descriptions", () => {
