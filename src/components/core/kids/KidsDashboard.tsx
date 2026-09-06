@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Star, Lock, Zap, Flame } from 'lucide-react';
+import { Star, Lock, Zap, Flame, ShieldCheck } from 'lucide-react';
 import { SceneBackground } from './SceneBackground';
+import { KidsParentGate } from './KidsParentGate';
+import { KidsParentArea } from './KidsParentArea';
 
 interface KidsDashboardProps {
   setView: (v: string) => void;
@@ -17,10 +19,47 @@ const mapNodes = [
 
 export const KidsDashboard: React.FC<KidsDashboardProps> = ({ setView }) => {
   const [hoveredNode, setHoveredNode] = useState<number | null>(null);
+  const [showParentGate, setShowParentGate] = useState(false);
+  const [showParentArea, setShowParentArea] = useState(false);
 
   return (
     <div className="relative min-h-screen overflow-y-auto">
       <SceneBackground />
+
+      {/* Floating parent lock button */}
+      <motion.button
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.92 }}
+        onClick={() => setShowParentGate(true)}
+        initial={{ opacity: 0, scale: 0 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.8, type: 'spring', stiffness: 260 }}
+        className="fixed bottom-24 right-4 z-30 w-12 h-12 rounded-full flex items-center justify-center shadow-xl"
+        style={{ background: 'linear-gradient(135deg, #6366F1, #7C3AED)', boxShadow: '0 4px 0 #4F46E5, 0 8px 24px rgba(99,102,241,0.45)' }}
+        title="Área dos Pais"
+      >
+        <ShieldCheck className="w-5 h-5 text-white" />
+      </motion.button>
+
+      {/* Parent Gate (PIN auth) */}
+      <AnimatePresence>
+        {showParentGate && (
+          <KidsParentGate
+            onAuthenticated={() => {
+              setShowParentGate(false);
+              setShowParentArea(true);
+            }}
+            onClose={() => setShowParentGate(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Parent Area (dashboard after auth) */}
+      <AnimatePresence>
+        {showParentArea && (
+          <KidsParentArea onClose={() => setShowParentArea(false)} />
+        )}
+      </AnimatePresence>
 
       <div className="relative z-10 p-4 lg:p-6 max-w-4xl mx-auto space-y-4 pb-10 pt-14 lg:pt-6">
 
