@@ -10,6 +10,15 @@ const baseProps = {
   streakData: { count: 4, lastDate: "", history: [] },
   savedWords: [],
   achievements: [],
+  userProfile: {
+    identity: { preferredDisplayName: { value: "Sofia Martins" } },
+    learning: {
+      targetLanguage: { value: "Inglês" },
+      cefrLevel: { value: "B2" },
+      learningStyle: { value: "visual" },
+    },
+    account: { dailyGoal: { value: 20 } },
+  },
   onStartPractice: vi.fn(),
   onNavigate: vi.fn(),
 };
@@ -20,12 +29,13 @@ describe("StudentDashboardExperience", () => {
     vi.clearAllMocks();
   });
 
-  it("renders the approved dashboard hierarchy with real-data empty states", () => {
-    render(<StudentDashboardExperience {...baseProps} />);
+  it("renders the eight dashboard sections in the approved order", () => {
+    const { container } = render(<StudentDashboardExperience {...baseProps} />);
     expect(screen.getByRole("heading", { name: "Bom dia, Sofia!" })).toBeDefined();
-    expect(screen.getByText("Próxima atividade")).toBeDefined();
-    expect(screen.getByText("Nenhum ponto prioritário")).toBeDefined();
-    expect(screen.getByText("A primeira conquista está próxima")).toBeDefined();
+    expect([...container.querySelectorAll("[data-dashboard-section]")].map((element) => element.getAttribute("data-dashboard-section"))).toEqual([
+      "continue-learning", "daily-goal", "study-streak", "next-class",
+      "adaptive-recommendations", "recent-progress", "vocabulary-review", "achievements",
+    ]);
   });
 
   it("connects primary practice and navigation actions", () => {
@@ -37,9 +47,31 @@ describe("StudentDashboardExperience", () => {
   });
 
   it("renders profile learning gaps without inventing production data", () => {
-    render(<StudentDashboardExperience {...baseProps} userProfile={{ learningGaps: ["Present perfect", "Vocabulário de reuniões"] }} />);
+    render(<StudentDashboardExperience {...baseProps} userProfile={{ ...baseProps.userProfile, learningGaps: ["Present perfect", "Vocabulário de reuniões"] }} />);
     expect(screen.getByText("Present perfect")).toBeDefined();
     expect(screen.getByText("Vocabulário de reuniões")).toBeDefined();
+  });
+
+  it("prioritizes the Perfil Inteligente over authentication fallbacks", () => {
+    render(<StudentDashboardExperience {...baseProps} studentName="Nome da autenticação" />);
+    expect(screen.getByRole("heading", { name: "Bom dia, Sofia!" })).toBeDefined();
+    expect(screen.getByText("Inglês · nível B2")).toBeDefined();
+    expect(screen.getByText("20 min")).toBeDefined();
+  });
+
+  it.each([
+    ["loading", "A carregar dashboard"],
+    ["empty", "Complete o seu Perfil Inteligente"],
+    ["unavailable", "Dashboard temporariamente indisponível"],
+  ] as const)("renders the %s state", (dataState, accessibleName) => {
+    render(<StudentDashboardExperience {...baseProps} dataState={dataState} onRetry={vi.fn()} />);
+    expect(screen.queryByText(accessibleName) ?? screen.getByLabelText(accessibleName)).toBeDefined();
+  });
+
+  it("keeps available content visible during a partial failure", () => {
+    render(<StudentDashboardExperience {...baseProps} dataState="partial" userProfile={{ identity: baseProps.userProfile.identity }} />);
+    expect(screen.getByText("Alguns dados não foram carregados")).toBeDefined();
+    expect(screen.getByText("Objetivo diário")).toBeDefined();
   });
 
   it("shows the student's profile photograph in the highlighted hero space", () => {
