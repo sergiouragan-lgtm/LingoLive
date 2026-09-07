@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bell, User, Sparkles, Search, Menu, Globe, ChevronDown, Flame } from 'lucide-react';
+import { Bell, User, Sparkles, Menu, ChevronDown, Flame, Settings } from 'lucide-react';
 import { Localization, Language, StreakData } from '../../types';
 import { COUNTRY_DETAILS } from '../../data/localizationData';
 import { useLocalization } from '../../context/LocalizationContext';
@@ -32,8 +32,12 @@ export const Topbar: React.FC<TopbarProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isLangOpen, setIsLangOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const langDropdownRef = useRef<HTMLDivElement>(null);
+  const notificationsRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   const { ot } = useLocalization();
 
   const getTodayString = () => {
@@ -55,6 +59,8 @@ export const Topbar: React.FC<TopbarProps> = ({
       if (langDropdownRef.current && !langDropdownRef.current.contains(event.target as Node)) {
         setIsLangOpen(false);
       }
+      if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) setNotificationsOpen(false);
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) setUserMenuOpen(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -81,6 +87,7 @@ export const Topbar: React.FC<TopbarProps> = ({
           type="button"
           onClick={toggleSidebar}
           className="md:hidden p-1.5 hover:bg-slate-100 text-slate-600 rounded-xl transition-colors cursor-pointer shrink-0"
+          aria-label="Abrir navegação"
         >
           <Menu className="w-6 h-6" />
         </button>
@@ -222,12 +229,18 @@ export const Topbar: React.FC<TopbarProps> = ({
           <Sparkles className="w-4 h-4" />
           {ot('iaAssistant', 'IA Assistente')}
         </button>
-        <button className="text-slate-500 hover:text-primary transition">
-          <Bell className="w-5 h-5" />
-        </button>
-        <button onClick={() => setView('profile')} className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-300 transition">
-          <User className="w-5 h-5" />
-        </button>
+        <div className="relative" ref={notificationsRef}>
+          <button onClick={() => setNotificationsOpen((open) => !open)} className="grid size-10 place-items-center rounded-full text-slate-500 transition hover:bg-indigo-50 hover:text-primary" aria-label="Abrir notificações" aria-expanded={notificationsOpen}>
+            <Bell className="w-5 h-5" />
+          </button>
+          {notificationsOpen && <div className="absolute right-0 mt-2 w-72 rounded-ui-lg border border-ui-border bg-white p-4 shadow-ui-lg" role="dialog" aria-label="Notificações"><p className="font-heading text-sm font-bold text-ui-text">Notificações</p><p className="mt-2 text-sm text-ui-text-muted">Não existem novas notificações.</p></div>}
+        </div>
+        <div className="relative" ref={userMenuRef}>
+          <button onClick={() => setUserMenuOpen((open) => !open)} className="grid size-10 place-items-center overflow-hidden rounded-full bg-slate-100 text-slate-600 transition hover:bg-slate-200" aria-label="Abrir menu do utilizador" aria-expanded={userMenuOpen}>
+            {user?.photoURL ? <img src={user.photoURL} alt="" className="size-full object-cover" /> : <User className="w-5 h-5" />}
+          </button>
+          {userMenuOpen && <div className="absolute right-0 mt-2 w-64 overflow-hidden rounded-ui-lg border border-ui-border bg-white shadow-ui-lg" role="menu" aria-label="Menu do utilizador"><div className="border-b border-ui-border px-4 py-3"><p className="truncate text-sm font-bold text-ui-text">{user?.displayName || "Utilizador"}</p><p className="truncate text-xs text-ui-text-muted">{user?.email}</p></div><button role="menuitem" onClick={() => { setUserMenuOpen(false); setView('profile'); }} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-semibold hover:bg-ui-surface-muted"><User className="size-4" /> Perfil</button><button role="menuitem" onClick={() => { setUserMenuOpen(false); setView('settings'); }} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-semibold hover:bg-ui-surface-muted"><Settings className="size-4" /> Configurações</button></div>}
+        </div>
       </div>
     </header>
   );

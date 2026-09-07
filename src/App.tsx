@@ -12,6 +12,7 @@ import { AreaPaisDashboard } from "./components/b2b/area-pais/AreaPaisDashboard"
 import EducatorDashboard from "./components/b2b/area-escolar/EducatorDashboard";
 import Dashboard from "./components/core/Dashboard";
 import { StudentDashboardExperience } from "./components/student-dashboard/StudentDashboardExperience";
+import { AppShell } from "./components/app-shell/AppShell";
 import { UserProfile } from "./components/core/UserProfile";
 import { LanguagesView } from "./components/learning/aprender/LanguagesView";
 import { AuthScreen } from "./components/auth/AuthScreen";
@@ -1727,15 +1728,16 @@ function AppContent() {
   };
 
   const isStudentDashboard = view === "dashboard" && ["STUDENT", "Student", "student", "LEARNER"].includes(String(role));
+  const usesGlobalShell = !isStudentDashboard && !["subscription", "onboarding", "welcome", "pagamentos", "waiting-verification", "suspended", "privacy-policy", "landing", "activation", "practice"].includes(view);
 
   // If authenticated, show the app content (Sidebar + Main)
   return (
-    <div className={`min-h-screen flex font-sans transition-all duration-300 ${
-      theme === 'kiditorial' 
-        ? 'theme-kiditorial bg-slate-50 text-slate-800' 
-        : 'theme-corporate bg-slate-50 text-slate-800'
-    }`} id="lingolive-root-app">
-      {!isStudentDashboard && view !== 'subscription' && view !== 'onboarding' && view !== 'welcome' && view !== 'pagamentos' && view !== 'waiting-verification' && view !== 'suspended' && view !== 'privacy-policy' && (
+    <>
+    <AppShell
+      activeView={view}
+      className={`font-sans transition-all duration-300 ${theme === 'kiditorial' ? 'theme-kiditorial' : 'theme-corporate'}`}
+      showBreadcrumbs={usesGlobalShell}
+      sidebar={usesGlobalShell ? (
         <Sidebar 
           view={view} 
           setView={setView} 
@@ -1746,9 +1748,31 @@ function AppContent() {
           streakHistory={streakData.history}
           selectedLanguage={selectedLanguage}
         />
-      )}
+      ) : undefined}
+      topbar={usesGlobalShell ? (
+        <Topbar
+          user={user}
+          setView={setView}
+          toggleSidebar={() => setIsMobileSidebarOpen(true)}
+          GlobalSearchComponent={
+            <GlobalSearch
+              savedWords={savedWords}
+              streakHistory={streakData.history}
+              selectedLanguage={selectedLanguage}
+              setView={setView}
+            />
+          }
+          localization={localization}
+          setLocalization={setLocalization}
+          selectedLanguage={selectedLanguage}
+          setSelectedLanguage={setSelectedLanguage}
+          streakData={streakData}
+          onProtectStreakWithPoints={handleProtectStreakWithPoints}
+        />
+      ) : undefined}
+      mainClassName={`transition-all duration-300 ${isStudentDashboard ? "p-0 w-full" : orientation === 'landscape' ? 'p-2 sm:p-4 md:p-5 lg:p-6 max-w-7xl mx-auto w-full' : 'p-4 sm:p-6 md:p-8 w-full'}`}
+    >
       <ToastContainer />
-      <div className="flex-1 flex flex-col min-w-0">
         <InstallBanner />
         {/* Dynamic Global Top Header Navigation */}
         {view === "landing" && <Landing setView={setView} />}
@@ -1809,33 +1833,7 @@ function AppContent() {
         {view === "onboarding" && currentStep === "DASHBOARD" && <CreateDashboard setView={setView} />}
         {view === "activation" && <Activation setView={setView} />}
         
-        {!isStudentDashboard && view !== "landing" && view !== "onboarding" && view !== "activation" && view !== "practice" && view !== "subscription" && view !== "welcome" && view !== "pagamentos" && view !== "waiting-verification" && view !== "suspended" && (
-          <Topbar 
-            user={user} 
-            setView={setView} 
-            toggleSidebar={() => setIsMobileSidebarOpen(true)}
-            GlobalSearchComponent={
-              <GlobalSearch
-                savedWords={savedWords}
-                streakHistory={streakData.history}
-                selectedLanguage={selectedLanguage}
-                setView={setView}
-              />
-            }
-            localization={localization}
-            setLocalization={setLocalization}
-            selectedLanguage={selectedLanguage}
-            setSelectedLanguage={setSelectedLanguage}
-            streakData={streakData}
-            onProtectStreakWithPoints={handleProtectStreakWithPoints}
-          />
-        )}
       {/* Interactive Router Screens */}
-      <main className={`flex-1 transition-all duration-300 ${isStudentDashboard ? "p-0 w-full" :
-        orientation === 'landscape' 
-          ? 'p-2 sm:p-4 md:p-5 lg:p-6 max-w-7xl mx-auto w-full' 
-          : 'p-4 sm:p-6 md:p-8 w-full'
-      }`}>
         {view === "waiting-verification" && user && (
           <WaitingVerificationScreen 
             user={user}
@@ -2342,8 +2340,7 @@ function AppContent() {
         {view === "subscription" && (
           <SubscriptionCheckout setView={setView} user={user} />
         )}
-      </main>
-      </div>
+    </AppShell>
 
       <WelcomeTour 
         isOpen={showWelcomeTour}
@@ -2977,7 +2974,7 @@ function AppContent() {
       </AnimatePresence>
 
       <AIAssistant userId={user?.uid} />
-    </div>
+    </>
   );
 
 }

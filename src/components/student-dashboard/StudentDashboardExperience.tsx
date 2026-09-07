@@ -186,7 +186,7 @@ export function StudentDashboardExperience({
           </div>
         </header>
 
-        <main className="mx-auto max-w-7xl space-y-5 px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
+        <div className="mx-auto max-w-7xl space-y-5 px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
           <section className="relative isolate min-h-64 overflow-hidden rounded-ui-xl bg-gradient-to-br from-violet-700 via-brand-primary to-indigo-500 px-6 py-8 text-white shadow-ui-lg sm:px-10 lg:flex lg:items-center">
             <div className="relative z-10 max-w-xl">
               <div className="flex items-center gap-4 sm:gap-5">
@@ -198,9 +198,9 @@ export function StudentDashboardExperience({
                   )}
                   <span className="pointer-events-none absolute inset-1 rounded-full border border-white/35" aria-hidden="true" />
                 </button>
-                <div>
-                  <h1 className="font-heading text-3xl font-extrabold tracking-tight sm:text-4xl">Bom dia, {firstName}!</h1>
-                  <p className="mt-2 text-base font-medium text-violet-100 sm:text-lg">Pronta para continuar a sua jornada?</p>
+                <div className="min-w-0">
+                  <h1 className="font-heading text-2xl font-extrabold tracking-tight sm:text-4xl">Bom dia, {firstName}!</h1>
+                  <p className="mt-2 text-sm font-medium text-violet-100 sm:text-lg">Pronta para continuar a sua jornada?</p>
                 </div>
               </div>
               <button type="button" className="mt-7 inline-flex min-h-12 items-center justify-center gap-2 rounded-ui-md border border-white bg-white px-5 text-base font-semibold shadow-ui-sm transition-colors hover:bg-violet-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-primary" onClick={onStartPractice}>
@@ -237,7 +237,7 @@ export function StudentDashboardExperience({
               <button onClick={() => navigate("ebook-achievements")} className="mt-4 flex items-center gap-1 text-sm font-bold text-brand-primary hover:underline">Ver todas as conquistas <ChevronRight className="size-4" /></button>
             </Panel>
           </section>
-        </main>
+        </div>
       </div>
     </div>
   );
