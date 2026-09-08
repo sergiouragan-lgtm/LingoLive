@@ -78,6 +78,7 @@ import { checkAndNotifyStreakRisk } from "./services/streakNotification.service"
 import { notificationService } from "./services/notification.service";
 import { Landing } from "./components/core/Landing";
 import { Onboarding } from "./components/core/Onboarding";
+import { ageGroupFromAge, completeStudentOnboarding } from "./onboarding/studentOnboardingCompletion";
 import { Activation } from "./components/core/Activation";
 import IntelligentProfile from './components/core/onboarding/IntelligentProfile';
 import SaveToFirestore from './components/core/onboarding/SaveToFirestore';
@@ -1786,14 +1787,7 @@ function AppContent() {
           <Onboarding 
             user={user} 
             onComplete={async (profileData) => {
-              const updatedProfile = {
-                ...userProfile,
-                ...profileData,
-                status: "ACTIVE",
-                welcomeCompleted: true,
-                onboardingCompleted: true,
-                paymentCompleted: true,
-              };
+              const updatedProfile = completeStudentOnboarding(userProfile, profileData);
               setUserProfile(updatedProfile as any);
               if (profileData.dailyGoal) {
                 setDailyGoal(profileData.dailyGoal);
@@ -1808,11 +1802,7 @@ function AppContent() {
                 }
               }
               if (typeof profileData.age === "number") {
-                const mappedAgeGroup: AgeGroup = 
-                  profileData.age < 8 ? "Infancy" :
-                  profileData.age < 12 ? "Kids" :
-                  profileData.age < 16 ? "PreTeens" : "Teens";
-                setSelectedAgeGroup(mappedAgeGroup);
+                setSelectedAgeGroup(ageGroupFromAge(profileData.age));
               }
               if (profileData.level) {
                 const mappedProficiency: Proficiency = 

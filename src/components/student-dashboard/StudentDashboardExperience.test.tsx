@@ -79,4 +79,25 @@ describe("StudentDashboardExperience", () => {
     const photograph = screen.getByRole("img", { name: "Fotografia de Sofia" });
     expect(photograph.getAttribute("src")).toBe("https://example.com/sofia.jpg");
   });
+
+  it("provides landmarks, a skip link and keyboard-operable primary actions", () => {
+    render(<StudentDashboardExperience {...baseProps} />);
+    const skipLink = screen.getByRole("link", { name: "Saltar para o conteúdo" });
+    expect(skipLink.getAttribute("href")).toBe("#student-dashboard-content");
+    expect(screen.getByRole("main").getAttribute("tabindex")).toBe("-1");
+    const practice = screen.getByRole("button", { name: /Continuar aprendendo/i });
+    practice.focus();
+    fireEvent.keyDown(practice, { key: "Enter" });
+    fireEvent.click(practice);
+    expect(baseProps.onStartPractice).toHaveBeenCalledOnce();
+  });
+
+  it("announces loss of connection while keeping cached dashboard content visible", () => {
+    render(<StudentDashboardExperience {...baseProps} />);
+    fireEvent(window, new Event("offline"));
+    expect(screen.getByText("Sem ligação à internet")).toBeDefined();
+    expect(screen.getByRole("heading", { name: "Bom dia, Sofia!" })).toBeDefined();
+    fireEvent(window, new Event("online"));
+    expect(screen.queryByText("Sem ligação à internet")).toBeNull();
+  });
 });
