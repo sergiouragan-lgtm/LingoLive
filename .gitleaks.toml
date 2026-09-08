@@ -1,0 +1,10 @@
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+
+  [[rules.allowlists]]
+  description = "Known synthetic idempotency fixture, never a credential"
+  regexTarget = "secret"
+  regexes = ['''^attempt-regional-1$''']
