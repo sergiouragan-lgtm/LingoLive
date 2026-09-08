@@ -16,6 +16,7 @@ export interface LearningEventV1 {
   response: { actual: string; expected?: string };
   target: { type: "grammar" | "vocabulary"; key: string; label: string };
   result: { outcome: LearningOutcome; score: number; confirmed: boolean };
+  classification?: { category: "none" | "grammar" | "vocabulary" | "spelling" | "pronunciation" | "semantic"; reason: string; acceptedRegionalVariant?: string; classifiedBy: "server" };
   severity: LearningSeverity;
   occurredAt: string;
   idempotencyKey: string;
@@ -42,6 +43,7 @@ export function validateLearningEvent(value: unknown): string[] {
   if (!event.response || typeof event.response.actual !== "string" || event.response.actual.length > 4000 || (event.response.expected !== undefined && (typeof event.response.expected !== "string" || event.response.expected.length > 4000))) errors.push("invalid response");
   if (!event.target || !["grammar", "vocabulary"].includes(event.target.type) || !boundedText(event.target.key, 128) || !boundedText(event.target.label, 256)) errors.push("invalid target");
   if (!event.result || !["correct", "incorrect"].includes(event.result.outcome) || typeof event.result.score !== "number" || !Number.isFinite(event.result.score) || event.result.score < 0 || event.result.score > 1 || event.result.confirmed !== true) errors.push("invalid confirmed result");
+  if (event.classification && (!event.classification.category || !["none", "grammar", "vocabulary", "spelling", "pronunciation", "semantic"].includes(event.classification.category) || !boundedText(event.classification.reason, 128) || event.classification.classifiedBy !== "server" || (event.classification.acceptedRegionalVariant !== undefined && !boundedText(event.classification.acceptedRegionalVariant, 16)))) errors.push("invalid classification");
   if (!event.severity || !Object.hasOwn(severityDelta, event.severity) || (event.result?.outcome === "incorrect" && event.severity === "none")) errors.push("invalid severity");
   const occurredAt = Date.parse(String(event.occurredAt ?? ""));
   if (!Number.isFinite(occurredAt) || occurredAt > Date.now() + 5 * 60_000 || occurredAt < Date.now() - 90 * 24 * 60 * 60_000) errors.push("invalid occurredAt");

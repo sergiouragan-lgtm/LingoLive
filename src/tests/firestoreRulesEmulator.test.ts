@@ -695,6 +695,13 @@ describe('Firestore Security Rules Real Emulator Test Suite', () => {
       await assertFails(setDoc(doc(attacker.firestore(), 'learning_events', 'forged'), { ...eventData, studentId: 'student-other' }));
       await assertFails(updateDoc(doc(attacker.firestore(), 'student_learning_gaps', 'gap-1'), { weaknessScore: 0 }));
     });
+
+    it('keeps authoritative activity definitions invisible and immutable to clients', async () => {
+      const student = testEnv.authenticatedContext('student-owner', { email_verified: true });
+      const definitionRef = doc(student.firestore(), 'learning_activity_definitions', 'definition-1');
+      await assertFails(getDoc(definitionRef));
+      await assertFails(setDoc(definitionRef, { expectedAnswers: ['forged answer'], errorSeverity: 'none' }));
+    });
   });
 
   // GRUPO 7: REGRESSÃO E COERÊNCIA GLOBAL (Cenários 68 a 76)

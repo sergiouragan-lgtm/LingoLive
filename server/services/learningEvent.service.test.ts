@@ -7,7 +7,10 @@ const mocks = vi.hoisted(() => {
     create: vi.fn(), set: vi.fn(),
   };
   const db = {
-    collection: vi.fn((collection: string) => ({ doc: (id: string) => ({ path: `${collection}/${id}` }) })),
+    collection: vi.fn((collection: string) => ({ doc: (id: string) => {
+      const path = `${collection}/${id}`;
+      return { path, get: vi.fn(async () => ({ exists: documents.has(path), data: () => documents.get(path) })) };
+    } })),
     runTransaction: vi.fn(async (callback: (tx: typeof transaction) => unknown) => callback(transaction)),
   };
   return { documents, transaction, db };
@@ -16,7 +19,7 @@ const mocks = vi.hoisted(() => {
 vi.mock("../config/firebaseAdmin", () => ({ dbAdmin: mocks.db }));
 
 import { LEARNING_EVENT_SCHEMA_VERSION, stableDocumentId, type LearningEventV1 } from "../domain/learning/learningEvent";
-import { recordLearningEvent } from "./learningEvent.service";
+import { learningActivityDefinitionId, recordLearningEvent, recordRawLearningAttempt } from "./learningEvent.service";
 
 const makeEvent = (): LearningEventV1 => ({
   schemaVersion: LEARNING_EVENT_SCHEMA_VERSION, eventType: "ATTEMPT_EVALUATED",
@@ -55,6 +58,23 @@ describe("recordLearningEvent transaction", () => {
 
     expect(result.gap).toBeNull();
     expect(mocks.transaction.create).toHaveBeenCalledOnce();
+    expect(mocks.transaction.set).not.toHaveBeenCalled();
+  });
+
+  it("classifies raw evidence using the authoritative server definition", async () => {
+    const definitionId = learningActivityDefinitionId("tenant-1", "activity-1");
+    mocks.documents.set(`learning_activity_definitions/${definitionId}`, {
+      tenantId: "tenant-1", activityId: "activity-1", activityType: "cloze", languageCode: "pt", cefrLevel: "B1",
+      target: { type: "vocabulary", key: "leave-verb", label: "Verbo sair" }, expectedAnswers: ["sair"],
+      acceptedRegionalAnswers: { "pt-AO": ["bazar"] }, errorCategory: "vocabulary", errorSeverity: "medium", evaluationMode: "attempt", active: true,
+    });
+
+    await recordRawLearningAttempt({ tenantId: "tenant-1", studentId: "student-1", activityId: "activity-1", actualResponse: "bazar", occurredAt: new Date().toISOString(), idempotencyKey: "attempt-regional-1" });
+
+    expect(mocks.transaction.create).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      result: expect.objectContaining({ outcome: "correct" }),
+      classification: expect.objectContaining({ reason: "VALID_REGIONAL_VARIANT", classifiedBy: "server", acceptedRegionalVariant: "pt-AO" }),
+    }));
     expect(mocks.transaction.set).not.toHaveBeenCalled();
   });
 });

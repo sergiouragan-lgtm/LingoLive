@@ -148,7 +148,7 @@ Required corrections before any PostgreSQL adoption:
 
 ### 02.5 Learning-gap aggregation
 
-`[ ]` No production implementation matching `student_error_logs -> student_learning_gaps` was found.
+`[x]` Motor server-side implementado sobre Firestore: tentativa bruta → classificação autoritativa → evento imutável → projeção idempotente do gap.
 
 Required behavior:
 
@@ -159,6 +159,8 @@ Required behavior:
 - recompute status from evidence instead of only increasing weakness;
 - protect regional language variants from being classified as errors;
 - retain an auditable link to the source attempt.
+
+Implementado em `server/domain/learning/gapEngine.ts` e `server/services/learningEvent.service.ts`, incluindo respostas regionais explicitamente aprovadas, categorias pedagógicas, severidade, redução após acertos e histórico em `/api/learning/history`.
 
 ### 02.6 Personalized fascicle generation
 

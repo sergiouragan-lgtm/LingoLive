@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { dbAdmin } from "../config/firebaseAdmin";
 import { requireAuth } from "../middleware/requireAuth";
-import { recordLearningEvent } from "../services/learningEvent.service";
-import type { LearningEventV1 } from "../domain/learning/learningEvent";
+import { recordRawLearningAttempt } from "../services/learningEvent.service";
+import type { RawLearningAttempt } from "../domain/learning/gapEngine";
 
 const router = Router();
 
@@ -11,19 +11,32 @@ async function canonicalTenantId(user: any): Promise<string> {
   return String(user.tenantId || (account.exists ? account.data()?.tenantId : "") || `individual:${user.uid}`);
 }
 
-router.post("/events", requireAuth, async (req: any, res) => {
-  const event = req.body as LearningEventV1;
-  if (!event || event.studentId !== req.user.uid) return res.status(403).json({ error: "STUDENT_ID_MISMATCH" });
+router.post("/attempts", requireAuth, async (req: any, res) => {
+  const attempt = req.body as RawLearningAttempt;
+  if (!attempt || attempt.studentId !== req.user.uid) return res.status(403).json({ error: "STUDENT_ID_MISMATCH" });
   if (!dbAdmin) return res.status(503).json({ error: "FIRESTORE_UNAVAILABLE" });
   try {
     const tenantId = await canonicalTenantId(req.user);
-    if (event.tenantId !== tenantId) return res.status(403).json({ error: "TENANT_ID_MISMATCH" });
-    const result = await recordLearningEvent(event);
+    if (attempt.tenantId !== tenantId) return res.status(403).json({ error: "TENANT_ID_MISMATCH" });
+    const result = await recordRawLearningAttempt(attempt);
     return res.status(result.duplicate ? 200 : 201).json(result);
   } catch (error: any) {
-    if (error?.code === "INVALID_LEARNING_EVENT") return res.status(400).json({ error: error.code, details: error.message.split(", ") });
-    console.error("[LearningEvent] Failed to persist canonical event", error?.message);
-    return res.status(500).json({ error: "LEARNING_EVENT_PERSISTENCE_FAILED" });
+    if (["INVALID_LEARNING_ATTEMPT", "INVALID_ACTIVITY_DEFINITION"].includes(error?.code)) return res.status(400).json({ error: error.code, details: error.message.split(", ") });
+    if (error?.code === "ACTIVITY_DEFINITION_NOT_FOUND") return res.status(404).json({ error: error.code });
+    console.error("[GapEngine] Failed to classify learning attempt", error?.message);
+    return res.status(500).json({ error: "LEARNING_ATTEMPT_CLASSIFICATION_FAILED" });
+  }
+});
+
+router.get("/history", requireAuth, async (req: any, res) => {
+  if (!dbAdmin) return res.status(503).json({ error: "FIRESTORE_UNAVAILABLE" });
+  try {
+    const tenantId = await canonicalTenantId(req.user);
+    const snapshot = await dbAdmin.collection("learning_events").where("tenantId", "==", tenantId).where("studentId", "==", req.user.uid).orderBy("occurredAt", "desc").limit(50).get();
+    return res.json({ tenantId, events: snapshot.docs.map((document: any) => ({ id: document.id, ...document.data() })) });
+  } catch (error: any) {
+    console.error("[GapEngine] Failed to load learning history", error?.message);
+    return res.status(500).json({ error: "LEARNING_HISTORY_READ_FAILED" });
   }
 });
 

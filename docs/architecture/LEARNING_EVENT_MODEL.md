@@ -31,6 +31,12 @@ Eventos `ATTEMPT_EVALUATED` incorretos aumentam o gap conforme a gravidade e cri
 
 Clientes autenticados leem apenas documentos cujo `studentId` seja o seu UID. Escritas diretas são negadas; somente o Admin SDK do backend projeta estado.
 
+## Motor de gaps server-side
+
+O cliente envia somente evidência bruta para `POST /api/learning/attempts`. O backend carrega `learning_activity_definitions/{sha256(tenantId,activityId)}`, valida a definição e determina resultado, categoria e gravidade. Não existe endpoint público para gravar eventos já classificados; o projetor é invocado apenas dentro do backend.
+
+Cada definição contém respostas canónicas e um mapa limitado de respostas regionais aprovadas por BCP-47. Uma correspondência regional é registada como `VALID_REGIONAL_VARIANT`, recebe score correto e nunca cria ou aumenta um gap. Respostas não reconhecidas usam a categoria e gravidade autoritativas da definição. O histórico auditável fica disponível em `GET /api/learning/history`.
+
 ## Idempotência e concorrência
 
 A chave de idempotência gera o ID do evento. A transação lê evento e gap antes de escrever. Um retry encontra o evento existente e retorna `duplicate: true`, sem incrementar novamente o gap.

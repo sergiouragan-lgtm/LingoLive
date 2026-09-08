@@ -1,5 +1,43 @@
 import { dbAdmin } from "../config/firebaseAdmin";
 import { projectLearningGap, stableDocumentId, validateLearningEvent, type LearningEventV1, type LearningGapProjection } from "../domain/learning/learningEvent";
+import { classifyLearningAttempt, validateActivityDefinition, validateRawLearningAttempt, type LearningActivityDefinition, type RawLearningAttempt } from "../domain/learning/gapEngine";
+
+export function learningActivityDefinitionId(tenantId: string, activityId: string) {
+  return stableDocumentId(tenantId, activityId);
+}
+
+export async function recordRawLearningAttempt(attempt: RawLearningAttempt) {
+  const attemptErrors = validateRawLearningAttempt(attempt);
+  if (attemptErrors.length) throw Object.assign(new Error(attemptErrors.join(", ")), { code: "INVALID_LEARNING_ATTEMPT" });
+  if (!dbAdmin) throw Object.assign(new Error("Firestore is unavailable"), { code: "FIRESTORE_UNAVAILABLE" });
+
+  const definitionSnapshot = await dbAdmin.collection("learning_activity_definitions").doc(learningActivityDefinitionId(attempt.tenantId, attempt.activityId)).get();
+  if (!definitionSnapshot.exists) throw Object.assign(new Error("Learning activity definition was not found"), { code: "ACTIVITY_DEFINITION_NOT_FOUND" });
+  const definition = definitionSnapshot.data() as LearningActivityDefinition;
+  const definitionErrors = validateActivityDefinition(definition);
+  if (definitionErrors.length || definition.tenantId !== attempt.tenantId || definition.activityId !== attempt.activityId) {
+    throw Object.assign(new Error(definitionErrors.join(", ") || "Activity scope mismatch"), { code: "INVALID_ACTIVITY_DEFINITION" });
+  }
+
+  const classification = classifyLearningAttempt(attempt.actualResponse, definition);
+  const event: LearningEventV1 = {
+    schemaVersion: "1.0",
+    eventType: definition.evaluationMode === "reassessment" ? "REASSESSMENT_EVALUATED" : "ATTEMPT_EVALUATED",
+    tenantId: attempt.tenantId,
+    studentId: attempt.studentId,
+    languageCode: definition.languageCode,
+    cefrLevel: definition.cefrLevel,
+    activity: { id: definition.activityId, type: definition.activityType },
+    response: { actual: attempt.actualResponse, expected: definition.expectedAnswers[0] },
+    target: definition.target,
+    result: { outcome: classification.outcome, score: classification.score, confirmed: true },
+    classification: { category: classification.category, reason: classification.reason, ...(classification.acceptedRegionalVariant ? { acceptedRegionalVariant: classification.acceptedRegionalVariant } : {}), classifiedBy: "server" },
+    severity: classification.severity,
+    occurredAt: attempt.occurredAt,
+    idempotencyKey: attempt.idempotencyKey,
+  };
+  return recordLearningEvent(event);
+}
 
 export async function recordLearningEvent(event: LearningEventV1) {
   const errors = validateLearningEvent(event);

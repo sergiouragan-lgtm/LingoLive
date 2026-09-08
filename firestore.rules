@@ -758,6 +758,9 @@ service cloud.firestore {
       allow get, list: if isSignedIn() && (resource.data.studentId == request.auth.uid || isAdmin());
       allow create, update, delete: if false;
     }
+    match /learning_activity_definitions/{definitionId} {
+      allow read, create, update, delete: if false;
+    }
     match /student_learning_gaps/{gapId} {
       allow get, list: if isSignedIn() && (resource.data.studentId == request.auth.uid || isAdmin());
       allow create, update, delete: if false;
