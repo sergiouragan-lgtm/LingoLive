@@ -243,11 +243,11 @@ Corrections required in the supplied TypeScript proposal:
 
 ### 05.1 Event contract
 
-`[ ]` Define a versioned learning event containing tenant, student, activity, language, CEFR, target item, answer evidence, correctness, severity, timestamps and idempotency key.
+`[x]` Evento de aprendizagem v1 definido com tenant, aluno, atividade, idioma, CEFR, item-alvo, resposta real, resultado confirmado, gravidade, data e chave de idempotência.
 
 ### 05.2 Gap projection
 
-`[ ]` Build a server-side projector that transforms validated learning events into active, remediating or mastered gaps.
+`[x]` Projetor transacional server-side implementado para transformar eventos validados em gaps `active`, `remediating` ou `mastered`, com retry idempotente.
 
 ### 05.3 Just-in-time fascicle
 

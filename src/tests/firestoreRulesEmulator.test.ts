@@ -666,6 +666,37 @@ describe('Firestore Security Rules Real Emulator Test Suite', () => {
     });
   });
 
+  describe('Learning loop: backend-only writes and student isolation', () => {
+    const eventData = {
+      schemaVersion: '1.0', eventType: 'ATTEMPT_EVALUATED', tenantId: 'tenant-1',
+      studentId: 'student-owner', languageCode: 'en', cefrLevel: 'B1',
+      activity: { id: 'activity-1', type: 'cloze_test' }, response: { actual: 'has' },
+      target: { type: 'grammar', key: 'present-perfect', label: 'Present perfect' },
+      result: { outcome: 'incorrect', score: 0, confirmed: true }, severity: 'medium',
+      occurredAt: new Date(), receivedAt: new Date(), idempotencyKey: 'attempt-1:item-1',
+    };
+
+    beforeEach(async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await setDoc(doc(context.firestore(), 'learning_events', 'event-1'), eventData);
+        await setDoc(doc(context.firestore(), 'student_learning_gaps', 'gap-1'), { ...eventData, status: 'active', weaknessScore: 0.2 });
+      });
+    });
+
+    it('allows the student to read own canonical evidence and gap', async () => {
+      const owner = testEnv.authenticatedContext('student-owner');
+      await assertSucceeds(getDoc(doc(owner.firestore(), 'learning_events', 'event-1')));
+      await assertSucceeds(getDoc(doc(owner.firestore(), 'student_learning_gaps', 'gap-1')));
+    });
+
+    it('blocks cross-student reads and all direct client writes', async () => {
+      const attacker = testEnv.authenticatedContext('student-other', { email_verified: true });
+      await assertFails(getDoc(doc(attacker.firestore(), 'learning_events', 'event-1')));
+      await assertFails(setDoc(doc(attacker.firestore(), 'learning_events', 'forged'), { ...eventData, studentId: 'student-other' }));
+      await assertFails(updateDoc(doc(attacker.firestore(), 'student_learning_gaps', 'gap-1'), { weaknessScore: 0 }));
+    });
+  });
+
   // GRUPO 7: REGRESSÃO E COERÊNCIA GLOBAL (Cenários 68 a 76)
   describe('GRUPO 7: Regressão e Coerência Global da Aplicação', () => {
     it('68. Criação inicial continua funcional', async () => {
