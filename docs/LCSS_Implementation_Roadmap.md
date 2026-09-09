@@ -189,21 +189,15 @@ Corrections required in the supplied TypeScript proposal:
 
 ### 03.2 Editor
 
-`[~]` A chapter-oriented editor and Markdown content workflow exist.
-
-**Missing from the supplied target:** true block-based WYSIWYG behavior for rearranging text, tables, audio and callout blocks.
+`[x]` Editor por blocos com texto, diálogos, tabelas, vocabulário, acordeões, quiz e áudio; suporta criação, duplicação, reordenação, adaptação CEFR e testes dedicados.
 
 ### 03.3 Persistence
 
-`[*]` Ebook projects can be listed, saved and deleted in Firestore with author ownership checks.
-
-**Approval criterion:** formal Firestore schema, versioning, autosave conflict handling, draft recovery and security-rule tests.
+`[x]` Persistência server-side com schema 2.0, autosave, versão otimista, histórico, restauração, deteção de conflitos e recuperação pela versão remota ou cópia independente. Escrita cliente é bloqueada e testada.
 
 ### 03.4 Export
 
-`[~]` Client-side PDF export exists.
-
-**Pending:** EPUB3, WebReader package, accessibility metadata, embedded audio/timestamps, server-side deterministic export and reader validation.
+`[x]` PDF determinístico e EPUB3 são gerados no servidor e cobertos por testes binários/estruturais. O WebReader renderiza blocos responsivos, navegação por teclado, metadados de acessibilidade e áudio sincronizado versionado.
 
 ## Phase 04 Flutter Student Application
 

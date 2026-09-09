@@ -510,13 +510,14 @@ export function StudentReader({ ebookId, enrollment, onBack, backLabel }: Studen
 
   return (
     <div style={{ display: "flex", height: "100vh", flexDirection: "column", background: "var(--bg)", color: "var(--text-primary)" }}>
+      <a href="#ebook-reader-content" style={{ position: "absolute", left: -9999 }} onFocus={event => { event.currentTarget.style.left = "16px"; event.currentTarget.style.top = "8px"; }} onBlur={event => { event.currentTarget.style.left = "-9999px"; }}>Saltar para a leitura</a>
       {/* ─── Top bar ─── */}
       <header style={{ display: "flex", alignItems: "center", gap: 12, padding: "0 20px", height: 52, borderBottom: "1px solid var(--border)", background: "var(--card-bg)", flexShrink: 0 }}>
         <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, padding: "0 4px" }}>
           <span style={{ fontSize: 22, lineHeight: 1 }}>←</span>
           {backLabel && <span style={{ fontSize: 13 }}>{backLabel}</span>}
         </button>
-        <button onClick={() => setSidebarOpen(o => !o)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: 18 }}>☰</button>
+        <button aria-label="Alternar índice" aria-expanded={sidebarOpen} onClick={() => setSidebarOpen(o => !o)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: 18 }}>☰</button>
         <div style={{ flex: 1, fontWeight: 700, fontSize: 16, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--text-primary)" }}>
           {ebook?.title ?? "A carregar..."}
           {selectedChapter && <span style={{ fontWeight: 400, color: "var(--text-secondary)", marginLeft: 8, fontSize: 14 }}>— {selectedChapter.title}</span>}
@@ -530,6 +531,7 @@ export function StudentReader({ ebookId, enrollment, onBack, backLabel }: Studen
               key={lvl}
               onClick={() => handleCefrChange(lvl)}
               title={CEFR_LABELS[lvl]}
+              aria-pressed={cefrLevel === lvl}
               style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid", fontSize: 12, fontWeight: cefrLevel === lvl ? 700 : 400, cursor: "pointer", background: cefrLevel === lvl ? CEFR_COLORS[lvl] : "transparent", color: cefrLevel === lvl ? "#fff" : CEFR_COLORS[lvl], borderColor: CEFR_COLORS[lvl], transition: "all 0.15s" }}
             >
               {lvl}
@@ -550,7 +552,7 @@ export function StudentReader({ ebookId, enrollment, onBack, backLabel }: Studen
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
         {/* ─── Sidebar ─── */}
         {sidebarOpen && (
-          <aside style={{ width: 260, borderRight: "1px solid var(--border)", background: "var(--card-bg)", overflowY: "auto", flexShrink: 0 }}>
+          <aside aria-label="Índice do e-book" style={{ width: 260, borderRight: "1px solid var(--border)", background: "var(--card-bg)", overflowY: "auto", flexShrink: 0 }}>
             <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--border)", fontWeight: 700, fontSize: 13, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: 1 }}>
               Índice
             </div>
@@ -581,7 +583,7 @@ export function StudentReader({ ebookId, enrollment, onBack, backLabel }: Studen
         )}
 
         {/* ─── Content ─── */}
-        <main ref={contentRef} style={{ flex: 1, overflowY: "auto", padding: "32px 0" }}>
+        <main id="ebook-reader-content" tabIndex={-1} ref={contentRef} style={{ flex: 1, overflowY: "auto", padding: "32px 0" }}>
           {adapting && (
             <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--text-secondary)" }}>
               <div style={{ fontSize: 32, marginBottom: 12 }}>🔄</div>

@@ -28,14 +28,18 @@ export interface ExportBook {
   authorEmail: string;
   chapters: ExportChapter[];
   coverColor?: string;
+  updatedAt?: number;
 }
+
+const exportDate = (book: ExportBook) => new Date(book.updatedAt || Date.UTC(2026, 0, 1));
 
 // ─── ePub 3.2 ────────────────────────────────────────────────────────────────
 
 export async function generateEpub(book: ExportBook): Promise<Buffer> {
   const zip = new JSZip();
   const bookId = book.id || crypto.randomUUID();
-  const now = new Date().toISOString().split("T")[0];
+  const fixedDate = exportDate(book);
+  const now = fixedDate.toISOString().split("T")[0];
 
   // mimetype MUST be first, uncompressed
   zip.file("mimetype", "application/epub+zip", { compression: "STORE" });
@@ -137,7 +141,11 @@ ${navItems}
     <dc:language>${book.language}</dc:language>
     <dc:description>${escapeXml(book.description ?? "")}</dc:description>
     <dc:date>${now}</dc:date>
-    <meta property="dcterms:modified">${new Date().toISOString()}</meta>
+    <meta property="dcterms:modified">${fixedDate.toISOString().replace(/\.\d{3}Z$/, "Z")}</meta>
+    <meta property="schema:accessMode">textual</meta>
+    <meta property="schema:accessMode">auditory</meta>
+    <meta property="schema:accessibilityFeature">structuralNavigation</meta>
+    <meta property="schema:accessibilityFeature">tableOfContents</meta>
   </metadata>
   <manifest>
     <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
@@ -150,6 +158,7 @@ ${spineItems}
 </package>`
   );
 
+  Object.values(zip.files).forEach(entry => { entry.date = fixedDate; });
   const buffer = await zip.generateAsync({
     type: "nodebuffer",
     compression: "DEFLATE",
@@ -157,6 +166,19 @@ ${spineItems}
   });
 
   return buffer;
+}
+
+export async function generatePdf(book: ExportBook): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = []; const fixedDate = exportDate(book);
+    const doc = new PDFDocument({ size: "A4", margin: 72, info: { Title: book.title, Author: book.authorName, CreationDate: fixedDate, ModDate: fixedDate } });
+    doc.on("data", (chunk: Buffer) => chunks.push(chunk)); doc.on("end", () => resolve(Buffer.concat(chunks))); doc.on("error", reject);
+    doc.fillColor("#5558E8").font("Helvetica-Bold").fontSize(28).text(book.title, { align: "center" });
+    if (book.subtitle) doc.moveDown(.5).fillColor("#666666").font("Helvetica").fontSize(14).text(book.subtitle, { align: "center" });
+    doc.moveDown(2).fontSize(10).text(`${book.language} - CEFR ${book.cefrLevel}`, { align: "center" });
+    book.chapters.forEach((chapter, index) => { doc.addPage(); doc.fillColor("#5558E8").font("Helvetica-Bold").fontSize(12).text(`Capítulo ${chapter.number}`); doc.fillColor("#1a1a1a").fontSize(20).text(chapter.title); doc.moveDown(); renderMarkdownToPdf(doc, chapter.content, "#666666"); if (index === book.chapters.length - 1) doc.fillColor("#777777").fontSize(8).text(`LingoLive · ${fixedDate.toISOString().slice(0, 10)}`, 72, doc.page.height - 40, { width: doc.page.width - 144, align: "center" }); });
+    doc.end();
+  });
 }
 
 // ─── DRM PDF with Social Watermark ───────────────────────────────────────────
@@ -259,7 +281,7 @@ function injectSteganographicWatermark(pdfBuffer: Buffer, buyer: DrmBuyerInfo): 
 }
 
 function markdownToHtml(md: string): string {
-  return md
+  return escapeXml(md)
     .replace(/^### (.+)$/gm, "<h3>$1</h3>")
     .replace(/^## (.+)$/gm, "<h2>$1</h2>")
     .replace(/^# (.+)$/gm, "<h1>$1</h1>")

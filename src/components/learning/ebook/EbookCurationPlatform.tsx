@@ -13,7 +13,6 @@ import { motion, AnimatePresence } from "motion/react";
 import { auth, db } from "../../../firebase";
 import { useToast } from "../../../context/ToastContext";
 import { useUserRole } from "../../../context/UserRoleContext";
-import jsPDF from "jspdf";
 import { BlockEditor, type Block, blocksToMarkdown, markdownToBlocks } from "./BlockEditor";
 
 // ─────────────────────────── types ───────────────────────────
@@ -58,6 +57,8 @@ interface EbookProject {
   updatedAt?: number;
   coverColor?: string;
   priceUsd?: number;
+  schemaVersion?: string;
+  contentVersion?: number;
 }
 
 // ─────────────────────────── constants ───────────────────────────
@@ -122,7 +123,7 @@ async function apiFetch(path: string, body: object) {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: "Erro desconhecido" }));
-    throw new Error(err.error ?? "Erro na API");
+    throw Object.assign(new Error(err.error ?? "Erro na API"), { code: err.error, data: err });
   }
   return res.json();
 }
@@ -339,6 +340,11 @@ export function EbookCurationPlatform() {
   const [editorPanel, setEditorPanel] = useState<"edit" | "ai" | "exercises">("edit");
   const [generatingChapter, setGeneratingChapter] = useState(false);
   const [savingProject, setSavingProject] = useState(false);
+  const [saveState, setSaveState] = useState<"saved" | "pending" | "saving" | "conflict" | "error">("saved");
+  const [saveConflict, setSaveConflict] = useState<{ currentVersion: number; serverProject: EbookProject & { id: string } } | null>(null);
+  const savedFingerprintRef = useRef("");
+  const [versionHistory, setVersionHistory] = useState<any[]>([]);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [aiInstruction, setAiInstruction] = useState("");
   const [improvingContent, setImprovingContent] = useState(false);
   const [analyzingTone, setAnalyzingTone] = useState(false);
@@ -410,6 +416,7 @@ export function EbookCurationPlatform() {
       setProjectId(undefined);
       setSelectedChapterIdx(0);
       setScreen("editor");
+      savedFingerprintRef.current = "";
       showToast("Estrutura gerada com sucesso!", "success");
     } catch (err: any) {
       showToast(err.message ?? "Erro ao gerar estrutura", "error");
@@ -586,23 +593,60 @@ export function EbookCurationPlatform() {
     }
   };
 
-  const handleSaveProject = async () => {
+  const persistProject = useCallback(async (conflictStrategy?: "fork") => {
     if (!project) return;
     setSavingProject(true);
+    setSaveState("saving");
     try {
       const data = await apiFetch("save", {
         id: projectId,
+        baseVersion: project.contentVersion,
+        conflictStrategy,
         ...project,
       } as any);
-      if (!projectId && data.id) setProjectId(data.id);
-      showToast("E-book guardado!", "success");
+      if (data.id) setProjectId(data.id);
+      setProject(current => {
+        if (!current) return current;
+        const saved = { ...current, id: data.id, contentVersion: data.contentVersion, schemaVersion: "2.0" };
+        savedFingerprintRef.current = JSON.stringify(saved);
+        return saved;
+      });
+      setSaveConflict(null); setSaveState("saved");
+      showToast(data.forked ? "Conflito recuperado numa nova cópia" : "E-book guardado!", "success");
       setListLoaded(false);
-    } catch {
-      showToast("Erro ao guardar e-book", "error");
+    } catch (error: any) {
+      if (error.code === "EBOOK_CONFLICT") { setSaveConflict(error.data); setSaveState("conflict"); showToast("Outra sessão alterou este e-book", "error"); }
+      else { setSaveState("error"); showToast("Erro ao guardar e-book", "error"); }
     } finally {
       setSavingProject(false);
     }
+  }, [project, projectId, showToast]);
+
+  const handleSaveProject = () => void persistProject();
+
+  const openVersionHistory = async () => {
+    if (!projectId) return;
+    const token = await auth.currentUser?.getIdToken(); const response = await fetch(`/api/ebook/${projectId}/versions`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    if (!response.ok) return showToast("Não foi possível carregar o histórico", "error");
+    setVersionHistory((await response.json()).versions || []); setShowVersionHistory(true);
   };
+
+  const restoreVersion = async (version: number) => {
+    if (!projectId || !project) return;
+    const token = await auth.currentUser?.getIdToken(); const response = await fetch(`/api/ebook/${projectId}/versions/${version}/restore`, { method: "POST", headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ baseVersion: project.contentVersion }) });
+    if (!response.ok) return showToast("A versão não pôde ser restaurada", "error");
+    const result = await response.json(); setProject(result.project); savedFingerprintRef.current = JSON.stringify(result.project); setShowVersionHistory(false); setSaveState("saved"); showToast(`Versão ${version} restaurada`, "success");
+  };
+
+  useEffect(() => {
+    if (screen !== "editor" || !projectId || !project || saveState === "saving" || saveState === "conflict") return;
+    const fingerprint = JSON.stringify(project);
+    if (!savedFingerprintRef.current) { savedFingerprintRef.current = fingerprint; return; }
+    if (fingerprint === savedFingerprintRef.current) return;
+    setSaveState("pending");
+    const timer = window.setTimeout(() => void persistProject(), 1500);
+    return () => window.clearTimeout(timer);
+  }, [project, projectId, screen, saveState, persistProject]);
 
   const handleDeleteEbook = async (id: string) => {
     if (!confirm("Tem a certeza que quer eliminar este e-book?")) return;
@@ -615,67 +659,15 @@ export function EbookCurationPlatform() {
     }
   };
 
-  const handleExportPDF = () => {
-    if (!project) return;
+  const handleExportPDF = async () => {
+    if (!project || !projectId) { showToast("Guarde o e-book antes de exportar PDF", "error"); return; }
     try {
-      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const margin = 20;
-      const contentWidth = pageWidth - margin * 2;
-
-      // Cover page
-      doc.setFillColor(67, 56, 202);
-      doc.rect(0, 0, pageWidth, doc.internal.pageSize.getHeight(), "F");
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(28);
-      doc.setFont("helvetica", "bold");
-      const titleLines = doc.splitTextToSize(project.title, contentWidth);
-      doc.text(titleLines, pageWidth / 2, 80, { align: "center" });
-      if (project.subtitle) {
-        doc.setFontSize(14);
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(200, 200, 255);
-        const subtitleLines = doc.splitTextToSize(project.subtitle, contentWidth);
-        doc.text(subtitleLines, pageWidth / 2, 100, { align: "center" });
-      }
-      doc.setFontSize(11);
-      doc.setTextColor(180, 180, 255);
-      doc.text(`${project.language}  ·  CEFR ${project.cefrLevel}`, pageWidth / 2, 130, { align: "center" });
-
-      // Chapters
-      project.chapters.forEach((ch) => {
-        if (!ch.content) return;
-        doc.addPage();
-        doc.setFillColor(248, 248, 255);
-        doc.rect(0, 0, pageWidth, doc.internal.pageSize.getHeight(), "F");
-
-        doc.setTextColor(67, 56, 202);
-        doc.setFontSize(13);
-        doc.setFont("helvetica", "bold");
-        doc.text(`Capítulo ${ch.number}`, margin, 20);
-
-        doc.setTextColor(30, 30, 60);
-        doc.setFontSize(18);
-        const chTitleLines = doc.splitTextToSize(ch.title, contentWidth);
-        doc.text(chTitleLines, margin, 30);
-
-        doc.setFontSize(10);
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(80, 80, 100);
-        const plainText = ch.content.replace(/#{1,6}\s/g, "").replace(/\*\*/g, "").replace(/\*/g, "");
-        const bodyLines = doc.splitTextToSize(plainText, contentWidth);
-        let y = 48;
-        const pageH = doc.internal.pageSize.getHeight() - margin;
-        bodyLines.forEach((line: string) => {
-          if (y > pageH) { doc.addPage(); y = margin; }
-          doc.text(line, margin, y);
-          y += 5;
-        });
-      });
-
-      doc.save(`${project.title.replace(/\s+/g, "_")}.pdf`);
+      const token = await auth.currentUser?.getIdToken();
+      const response = await fetch("/api/ebook/export/pdf", { method: "POST", headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ ebookId: projectId }) });
+      if (!response.ok) throw new Error("PDF_EXPORT_FAILED");
+      const url = URL.createObjectURL(await response.blob()); const anchor = document.createElement("a"); anchor.href = url; anchor.download = `${project.title.replace(/[^a-z0-9]/gi, "_").toLowerCase()}.pdf`; document.body.appendChild(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(url);
       showToast("PDF exportado com sucesso!", "success");
-    } catch (err) {
+    } catch {
       showToast("Erro ao exportar PDF", "error");
     }
   };
@@ -692,7 +684,9 @@ export function EbookCurationPlatform() {
       loading={loadingList}
       onNew={() => { setWizardStep(0); setTopic(""); setTitleSuggestions([]); setScreen("create"); }}
       onOpen={(eb) => {
-        setProject(eb);
+        const normalized = { ...eb, schemaVersion: eb.schemaVersion ?? "2.0", contentVersion: eb.contentVersion ?? 1 };
+        setProject(normalized);
+        savedFingerprintRef.current = JSON.stringify(normalized);
         setProjectId(eb.id);
         setSelectedChapterIdx(0);
         setScreen("editor");
@@ -748,7 +742,7 @@ export function EbookCurationPlatform() {
     <div className="flex h-full bg-slate-900 text-white overflow-hidden">
 
       {/* ── Left: chapter list ── */}
-      <div className="w-64 border-r border-slate-700/50 flex flex-col bg-slate-900/80 flex-shrink-0">
+      <div className="hidden w-64 flex-shrink-0 flex-col border-r border-slate-700/50 bg-slate-900/80 md:flex">
         {/* header */}
         <div className="p-4 border-b border-slate-700/50">
           <button
@@ -758,6 +752,7 @@ export function EbookCurationPlatform() {
             <ArrowLeft className="w-3.5 h-3.5" />
             Voltar
           </button>
+          {projectId && <button type="button" onClick={() => void openVersionHistory()} className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl border border-slate-600 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800"><RotateCcw className="size-3.5"/>Histórico de versões</button>}
           <div className={`h-16 rounded-xl bg-gradient-to-br ${project.coverColor ?? COVER_COLORS[0]} flex items-center justify-center mb-3 relative overflow-hidden`}>
             <BookOpen className="w-7 h-7 text-white/70" />
             <Badge color="slate" >{project.cefrLevel}</Badge>
@@ -810,6 +805,8 @@ export function EbookCurationPlatform() {
 
         {/* actions */}
         <div className="p-3 border-t border-slate-700/50 space-y-2">
+          <p role="status" className={`text-center text-xs font-semibold ${saveState === "conflict" || saveState === "error" ? "text-rose-400" : saveState === "saved" ? "text-emerald-400" : "text-amber-300"}`}>{saveState === "saved" ? "Alterações guardadas" : saveState === "pending" ? "Autosave pendente…" : saveState === "saving" ? "A guardar automaticamente…" : saveState === "conflict" ? "Conflito de edição" : "Falha ao guardar"}</p>
+          {saveConflict && <div role="alert" className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-3 text-xs text-rose-100"><p>Existe uma versão mais recente ({saveConflict.currentVersion}).</p><div className="mt-2 flex gap-2"><button type="button" onClick={() => { setProject(saveConflict.serverProject); savedFingerprintRef.current = JSON.stringify(saveConflict.serverProject); setSaveConflict(null); setSaveState("saved"); }} className="rounded-lg bg-slate-700 px-2 py-1 font-bold">Carregar versão remota</button><button type="button" onClick={() => void persistProject("fork")} className="rounded-lg bg-rose-600 px-2 py-1 font-bold text-white">Guardar como cópia</button></div></div>}
           <button
             onClick={handleSaveProject}
             disabled={savingProject}
@@ -845,9 +842,9 @@ export function EbookCurationPlatform() {
       </div>
 
       {/* ── Center: editor ── */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {/* toolbar */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-700/50 bg-slate-900/60">
+        <div className="flex items-center gap-1 overflow-x-auto border-b border-slate-700/50 bg-slate-900/60 px-2 py-3 sm:gap-3 sm:px-4">
           {(["edit", "ai", "exercises"] as const).map((panel) => (
             <button
               key={panel}
@@ -865,7 +862,7 @@ export function EbookCurationPlatform() {
             </button>
           ))}
 
-          <div className="ml-auto flex items-center gap-2 text-xs text-slate-400">
+          <div className="ml-auto hidden items-center gap-2 whitespace-nowrap text-xs text-slate-400 lg:flex">
             {currentChapter && (
               <>
                 <span>{currentChapter.wordCount.toLocaleString()} palavras</span>
@@ -886,7 +883,7 @@ export function EbookCurationPlatform() {
 
         {/* chapter header */}
         {currentChapter && (
-          <div className="px-6 py-4 border-b border-slate-700/30 bg-slate-800/30">
+          <div className="border-b border-slate-700/30 bg-slate-800/30 px-4 py-4 sm:px-6">
             <div className="flex items-center gap-3">
               <span className="text-xs font-bold text-indigo-400 uppercase tracking-widest">
                 Capítulo {currentChapter.number}
@@ -912,7 +909,7 @@ export function EbookCurationPlatform() {
         )}
 
         {/* main editor area */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-6">
           {editorPanel === "edit" && currentChapter && (
             <div className="space-y-4">
               {!currentChapter.content && (
@@ -982,6 +979,7 @@ export function EbookCurationPlatform() {
       </div>
 
       {/* ── Right: tone panel ── */}
+      <div className="hidden xl:block">
       <ToneControlPanel
         tone={project.tone}
         onChange={(key, val) => setProject({ ...project, tone: { ...project.tone, [key]: val } })}
@@ -992,6 +990,8 @@ export function EbookCurationPlatform() {
         priceUsd={project.priceUsd}
         onPriceChange={(v) => setProject({ ...project, priceUsd: v })}
       />
+      </div>
+      {showVersionHistory && <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/70 p-4" role="dialog" aria-modal="true" aria-labelledby="version-history-title"><div className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-700 bg-slate-900 p-5 shadow-2xl"><div className="flex items-center justify-between"><h2 id="version-history-title" className="text-lg font-bold">Histórico de versões</h2><button type="button" aria-label="Fechar histórico" onClick={() => setShowVersionHistory(false)} className="rounded-lg p-2 hover:bg-slate-800"><X className="size-4"/></button></div><div className="mt-4 space-y-2">{versionHistory.length ? versionHistory.map(version => <div key={version.version} className="flex items-center justify-between rounded-xl border border-slate-700 p-3"><div><p className="text-sm font-bold">Versão {version.version}</p><p className="text-xs text-slate-400">{version.title}</p></div><button type="button" onClick={() => void restoreVersion(Number(version.version))} className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-bold">Restaurar</button></div>) : <p className="py-8 text-center text-sm text-slate-400">Ainda não existem versões anteriores.</p>}</div></div></div>}
     </div>
   );
 }

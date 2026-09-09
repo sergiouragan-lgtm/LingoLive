@@ -10,7 +10,8 @@ import {
   adaptToLevel,
   type ToneConfig,
 } from "../services/ebook/EbookCurationService";
-import { safeAddDoc, safeSetDoc, safeGetDoc, safeQueryDocs, safeListDocs } from "../services/firestoreSafe.service";
+import { safeSetDoc, safeGetDoc, safeQueryDocs, safeListDocs } from "../services/firestoreSafe.service";
+import { listEbookVersions, restoreEbookVersion, saveVersionedEbook } from "../services/ebook/EbookDocumentService";
 
 const router = Router();
 
@@ -162,15 +163,13 @@ router.post("/save", requireAuth, async (req: any, res) => {
   const userId = req.user?.uid;
   if (!userId) return res.status(401).json({ error: "Não autenticado" });
 
-  const { id, title, subtitle, description, language, cefrLevel, tone, chapters, status } = req.body;
+  const { id, baseVersion, conflictStrategy, title, subtitle, description, language, cefrLevel, tone, chapters, status, coverColor, priceUsd } = req.body;
 
   if (!title || !language) {
     return res.status(400).json({ error: "title e language são obrigatórios" });
   }
 
-  const now = Date.now();
   const ebookData = {
-    authorId: userId,
     title,
     subtitle: subtitle ?? "",
     description: description ?? "",
@@ -179,21 +178,30 @@ router.post("/save", requireAuth, async (req: any, res) => {
     tone: tone ?? {},
     chapters: chapters ?? [],
     status: status ?? "draft",
-    updatedAt: now,
+    coverColor: coverColor ?? "",
+    priceUsd: priceUsd ?? 0,
   };
 
   try {
-    if (id) {
-      await safeSetDoc("ebooks", id, { ...ebookData });
-      return res.json({ success: true, id });
-    } else {
-      const docRef = await safeAddDoc("ebooks", { ...ebookData, createdAt: now });
-      return res.json({ success: true, id: docRef.id });
-    }
+    const result = await saveVersionedEbook(userId, ebookData, { id, baseVersion, conflictStrategy });
+    return res.status(result.forked ? 201 : 200).json({ success: true, ...result });
   } catch (err: any) {
+    if (err.code === "EBOOK_CONFLICT") return res.status(409).json({ error: err.code, currentVersion: err.currentVersion, serverProject: err.serverProject });
+    if (err.code === "INVALID_EBOOK") return res.status(400).json({ error: err.code });
+    if (err.code === "EBOOK_NOT_FOUND") return res.status(404).json({ error: err.code });
     console.error("[ebook] save error:", err.message);
     return res.status(500).json({ error: "Falha ao guardar e-book" });
   }
+});
+
+router.get("/:id/versions", requireAuth, async (req: any, res) => {
+  try { return res.json({ versions: await listEbookVersions(req.user.uid, req.params.id) }); }
+  catch { return res.status(404).json({ error: "EBOOK_NOT_FOUND" }); }
+});
+
+router.post("/:id/versions/:version/restore", requireAuth, async (req: any, res) => {
+  try { return res.json(await restoreEbookVersion(req.user.uid, req.params.id, Number(req.params.version), Number(req.body?.baseVersion))); }
+  catch (error: any) { if (error.code === "EBOOK_CONFLICT") return res.status(409).json({ error: error.code, currentVersion: error.currentVersion, serverProject: error.serverProject }); return res.status(error.code === "INVALID_EBOOK" ? 400 : 404).json({ error: error.code || "EBOOK_NOT_FOUND" }); }
 });
 
 // ── Get single ebook (published = any auth user; draft = author only) ─────────

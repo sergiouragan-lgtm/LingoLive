@@ -785,6 +785,13 @@ service cloud.firestore {
       // Audio metadata and authoritative timestamps are served through the authenticated backend.
       allow read, create, update, delete: if false;
     }
+    match /ebooks/{ebookId} {
+      // Versioned editorial writes and catalogue reads pass through the authenticated backend.
+      allow read, create, update, delete: if false;
+      match /versions/{versionId} {
+        allow read, create, update, delete: if false;
+      }
+    }
 
     // Global Deny-All Catch-all Safety Net
     match /{document=**} {

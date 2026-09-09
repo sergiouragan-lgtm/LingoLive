@@ -208,7 +208,7 @@ function DialogueEditor({
 }) {
   return (
     <div className="space-y-3">
-      <div className="flex gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
         <div className="flex-1">
           <label className="text-xs text-slate-400 mb-1 block">Personagem</label>
           <input
@@ -218,7 +218,7 @@ function DialogueEditor({
             placeholder="Nome do personagem"
           />
         </div>
-        <div>
+        <div className="min-w-0">
           <label className="text-xs text-slate-400 mb-1 block">Tom</label>
           <select
             value={data.tone}
@@ -604,13 +604,13 @@ function BlockShell({
       onMouseLeave={() => { setHovered(false); setShowLevelPicker(false); }}
     >
       {/* Block toolbar */}
-      <div className={`flex items-center gap-2 px-4 py-2.5 border-b transition-colors ${hovered ? "border-slate-600/60" : "border-transparent"}`}>
+      <div className={`flex flex-wrap items-center gap-2 px-3 py-2.5 border-b transition-colors sm:px-4 ${hovered ? "border-slate-600/60" : "border-transparent"}`}>
         <div className={`flex items-center gap-1.5 flex-1 ${hovered ? "opacity-100" : "opacity-40"}`}>
           <GripVertical className="w-3.5 h-3.5 text-slate-500" />
           <Icon className="w-3.5 h-3.5 text-slate-400" />
           <span className="text-xs text-slate-400 font-medium">{meta.label}</span>
         </div>
-        <div className={`flex items-center gap-1 transition-opacity ${hovered ? "opacity-100" : "opacity-0"}`}>
+        <div className={`flex items-center gap-1 transition-opacity focus-within:opacity-100 ${hovered ? "opacity-100" : "opacity-60 sm:opacity-0"}`}>
           {/* Level Adapter */}
           <div className="relative">
             <button
@@ -646,7 +646,7 @@ function BlockShell({
       </div>
 
       {/* Editor content */}
-      <div className="p-4">{renderEditor()}</div>
+      <div className="min-w-0 p-3 sm:p-4">{renderEditor()}</div>
     </div>
   );
 }

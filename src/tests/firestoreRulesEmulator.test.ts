@@ -722,6 +722,12 @@ describe('Firestore Security Rules Real Emulator Test Suite', () => {
       await assertFails(getDoc(assetRef));
       await assertFails(setDoc(assetRef, { authorId: 'author-audio', audioPath: 'forged.mp3', words: [] }));
     });
+
+    it('prevents clients from bypassing versioned ebook persistence', async () => {
+      const author = testEnv.authenticatedContext('ebook-author');
+      await assertFails(setDoc(doc(author.firestore(), 'ebooks', 'ebook-1'), { authorId: 'ebook-author', title: 'Bypass', contentVersion: 99 }));
+      await assertFails(getDoc(doc(author.firestore(), 'ebooks', 'ebook-1', 'versions', '1')));
+    });
   });
 
   // GRUPO 7: REGRESSÃO E COERÊNCIA GLOBAL (Cenários 68 a 76)
