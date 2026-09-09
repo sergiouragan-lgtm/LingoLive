@@ -142,7 +142,7 @@ Required corrections before any PostgreSQL adoption:
 
 ### 02.4 Audio and word synchronization
 
-`[~]` Voice, recording and playback capabilities exist. The Web practice room contains a karaoke-like progression, but part of it is explicitly time-simulated. A backend-generated audio file with authoritative word timestamps was not found.
+`[x]` O backend gera TTS com alinhamento autoritativo do provedor, converte caracteres em timestamps por palavra, persiste áudio privado e metadados versionados e bloqueia escrita cliente. O WebReader usa procura binária para realce, suporta pausa, busca e velocidade e recalcula a palavra após interrupções.
 
 **Approval criterion:** provider-generated or aligned word timings, deterministic timestamp contract, audio/timing persistence and synchronization tests at normal and changed playback speeds.
 

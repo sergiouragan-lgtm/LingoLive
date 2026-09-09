@@ -53,6 +53,7 @@ import ebookAssignmentRouter from "./server/routes/ebook.assignment.routes";
 import ebookVocabularyRouter from "./server/routes/ebook.vocabulary.routes";
 import learningEventsRouter from "./server/routes/learningEvents.routes";
 import adaptiveFascicleRouter from "./server/routes/adaptiveFascicle.routes";
+import ebookAudioRouter from "./server/routes/ebook.audio.routes";
 
 const app = express();
 
@@ -94,6 +95,7 @@ app.use("/api/ebook/assignments", ebookAssignmentRouter);
 app.use("/api/ebook/vocabulary", ebookVocabularyRouter);
 app.use("/api/learning", learningEventsRouter);
 app.use("/api/adaptive-fascicles", adaptiveFascicleRouter);
+app.use("/api/ebook/audio", ebookAudioRouter);
 
 // Endpoint for Service Worker Background Sync of vocabulary updates
 app.post("/api/sync-vocabulary", async (req, res) => {

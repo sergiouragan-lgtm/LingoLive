@@ -451,6 +451,21 @@ export function EbookCurationPlatform() {
     return data.adapted ?? text;
   };
 
+  const handleGenerateBlockAudio = async (blockId: string, text: string, voiceId: string): Promise<{ assetId: string }> => {
+    if (!projectId || !currentChapter) {
+      showToast("Guarde o e-book antes de gerar áudio", "error");
+      throw new Error("EBOOK_MUST_BE_SAVED");
+    }
+    try {
+      const data = await apiFetch("audio/generate", { ebookId: projectId, chapterId: currentChapter.id, blockId, text, voiceId });
+      showToast(data.duplicate ? "Áudio sincronizado já existente" : "Áudio e timestamps gerados", "success");
+      return { assetId: data.asset.id };
+    } catch (error) {
+      showToast("Não foi possível gerar o áudio sincronizado", "error");
+      throw error;
+    }
+  };
+
   const handleExportEpub = async () => {
     if (!project || !projectId) {
       showToast("Guarde o e-book antes de exportar ePub", "error");
@@ -934,6 +949,7 @@ export function EbookCurationPlatform() {
                     onChange={updateChapterBlocks}
                     onAdaptBlock={handleAdaptBlock}
                     language={project.language}
+                    onGenerateAudio={handleGenerateBlockAudio}
                   />
                 </>
               )}

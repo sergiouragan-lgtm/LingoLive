@@ -715,6 +715,13 @@ describe('Firestore Security Rules Real Emulator Test Suite', () => {
       await assertFails(getDoc(doc(attacker.firestore(), 'adaptive_generated_materials', 'material-1')));
       await assertFails(setDoc(doc(owner.firestore(), 'adaptive_generated_materials', 'forged'), { studentId: 'student-owner' }));
     });
+
+    it('keeps authoritative ebook audio assets server-only', async () => {
+      const author = testEnv.authenticatedContext('author-audio');
+      const assetRef = doc(author.firestore(), 'ebook_audio_assets', 'asset-1');
+      await assertFails(getDoc(assetRef));
+      await assertFails(setDoc(assetRef, { authorId: 'author-audio', audioPath: 'forged.mp3', words: [] }));
+    });
   });
 
   // GRUPO 7: REGRESSÃO E COERÊNCIA GLOBAL (Cenários 68 a 76)

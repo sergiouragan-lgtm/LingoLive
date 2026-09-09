@@ -1,13 +1,15 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { getAuth } from "firebase/auth";
 import EbookAIAssistant from "./EbookAIAssistant";
+import { KaraokePlayer } from "./KaraokePlayer";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 interface Block {
   id: string;
   type: string;
-  content: string;
+  content?: string;
+  data?: Record<string, any>;
   meta?: Record<string, unknown>;
 }
 
@@ -299,7 +301,8 @@ function QuizBlock({ content, blockId }: { content: string; blockId: string }) {
   );
 }
 
-function AudioPlayerBlock({ content }: { content: string }) {
+function AudioPlayerBlock({ content, assetId }: { content: string; assetId?: string }) {
+  if (assetId) return <KaraokePlayer assetId={assetId} />;
   const lines = content.split("\n").filter(Boolean);
   const title = lines[0] ?? "Áudio";
   const url = lines[1] ?? "";
@@ -316,15 +319,17 @@ function AudioPlayerBlock({ content }: { content: string }) {
 }
 
 function ReadOnlyBlock({ block }: { block: Block }) {
+  const data = block.data || {};
+  const content = block.content ?? (block.type === "paragraph" ? data.text : block.type === "dialogue" ? `${data.speaker || ""}: ${data.text || ""}` : block.type === "vocab-card" ? `${data.word || ""} — ${data.definition || ""}\n${data.example || ""}` : block.type === "accordion" ? `${data.title || ""}\n${data.content || ""}` : block.type === "quiz" ? `${data.question || ""}\n${(data.options || []).map((option: string, index: number) => `${index === data.correctIndex ? "*" : ""}${option}`).join("\n")}` : block.type === "audio-player" ? data.text || "" : "");
   switch (block.type) {
-    case "paragraph": return <ParagraphBlock content={block.content} />;
-    case "dialogue": return <DialogueBlock content={block.content} />;
-    case "vocab-card": return <VocabCard content={block.content} />;
-    case "grammar-table": return <GrammarTable content={block.content} />;
-    case "accordion": return <AccordionBlock content={block.content} blockId={block.id} />;
-    case "quiz": return <QuizBlock content={block.content} blockId={block.id} />;
-    case "audio-player": return <AudioPlayerBlock content={block.content} />;
-    default: return <ParagraphBlock content={block.content} />;
+    case "paragraph": return <ParagraphBlock content={content} />;
+    case "dialogue": return <DialogueBlock content={content} />;
+    case "vocab-card": return <VocabCard content={content} />;
+    case "grammar-table": return <GrammarTable content={content} />;
+    case "accordion": return <AccordionBlock content={content} blockId={block.id} />;
+    case "quiz": return <QuizBlock content={content} blockId={block.id} />;
+    case "audio-player": return <AudioPlayerBlock content={content} assetId={data.assetId || block.meta?.audioAssetId as string | undefined} />;
+    default: return <ParagraphBlock content={content} />;
   }
 }
 
@@ -552,7 +557,7 @@ export function StudentReader({ ebookId, enrollment, onBack, backLabel }: Studen
             {ebook?.chapters.map((ch, i) => {
               const read = isChapterRead(ch.id);
               const active = selectedChapter?.id === ch.id;
-              const chWords = ch.blocks?.reduce((n, b) => n + b.content.split(/\s+/).length, 0)
+              const chWords = ch.blocks?.reduce((n, b) => n + (b.content || String(b.data?.text || b.data?.content || "")).split(/\s+/).filter(Boolean).length, 0)
                 ?? ch.content?.trim().split(/\s+/).filter(Boolean).length ?? 0;
               const chMins = Math.max(1, Math.ceil(chWords / 200));
               return (
@@ -599,7 +604,7 @@ export function StudentReader({ ebookId, enrollment, onBack, backLabel }: Studen
                     {cefrLevel} — {CEFR_LABELS[cefrLevel]}
                   </span>
                   {adaptedBlocks.length > 0 && (() => {
-                    const words = adaptedBlocks.reduce((n, b) => n + b.content.split(/\s+/).length, 0);
+                    const words = adaptedBlocks.reduce((n, b) => n + (b.content || String(b.data?.text || b.data?.content || "")).split(/\s+/).filter(Boolean).length, 0);
                     const mins = Math.max(1, Math.ceil(words / 200));
                     return (
                       <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
@@ -672,7 +677,7 @@ export function StudentReader({ ebookId, enrollment, onBack, backLabel }: Studen
           chapterContent={
             adaptedBlocks
               .filter(b => b.type === "paragraph" || b.type === "dialogue")
-              .map(b => b.content)
+              .map(b => b.content || String(b.data?.text || ""))
               .join("\n\n")
           }
           ebookLanguage={ebook.language}
