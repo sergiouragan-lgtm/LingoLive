@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { StudentDashboardExperience } from "./StudentDashboardExperience";
@@ -50,6 +50,26 @@ describe("StudentDashboardExperience", () => {
     render(<StudentDashboardExperience {...baseProps} userProfile={{ ...baseProps.userProfile, learningGaps: ["Present perfect", "Vocabulário de reuniões"] }} />);
     expect(screen.getByText("Present perfect")).toBeDefined();
     expect(screen.getByText("Vocabulário de reuniões")).toBeDefined();
+  });
+
+  it("shows a real adaptive fascicle and its evidence on the dashboard", () => {
+    render(<StudentDashboardExperience {...baseProps} adaptiveMaterials={[{ id: "material-1", title: "Reforço de Present Perfect", status: "ready", content: { summary: "Prática criada a partir dos seus resultados.", sections: [{ heading: "Explicação prática", explanation: "Use have com o particípio." }], exercises: [{ id: "exercise-1", prompt: "Complete: I ___ finished." }] }, gaps: [{ label: "Present perfect" }] }]} />);
+    expect(screen.getByText("Fascículo personalizado")).toBeDefined();
+    expect(screen.getByText("Reforço de Present Perfect")).toBeDefined();
+    expect(screen.getByText("Present perfect")).toBeDefined();
+    fireEvent.click(screen.getByText("Abrir material"));
+    expect(screen.getByText("Explicação prática")).toBeDefined();
+    expect(screen.getByText("Complete: I ___ finished.")).toBeDefined();
+  });
+
+  it("submits fascicle answers and announces the server score", async () => {
+    const onCompleteAdaptiveMaterial = vi.fn().mockResolvedValue({ score: 100 });
+    render(<StudentDashboardExperience {...baseProps} onCompleteAdaptiveMaterial={onCompleteAdaptiveMaterial} adaptiveMaterials={[{ id: "material-1", title: "Reforço", status: "ready", content: { exercises: [{ id: "exercise-1", prompt: "Complete: I ___ finished." }] } }]} />);
+    fireEvent.click(screen.getByText("Abrir material"));
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "have" } });
+    fireEvent.click(screen.getByRole("button", { name: "Concluir fascículo" }));
+    await waitFor(() => expect(onCompleteAdaptiveMaterial).toHaveBeenCalledWith("material-1", [{ exerciseId: "exercise-1", answer: "have" }]));
+    expect((await screen.findByRole("status")).textContent).toBe("Resultado: 100%");
   });
 
   it("prioritizes the Perfil Inteligente over authentication fallbacks", () => {

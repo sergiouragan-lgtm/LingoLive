@@ -702,6 +702,19 @@ describe('Firestore Security Rules Real Emulator Test Suite', () => {
       await assertFails(getDoc(definitionRef));
       await assertFails(setDoc(definitionRef, { expectedAnswers: ['forged answer'], errorSeverity: 'none' }));
     });
+
+    it('allows owner reads but blocks client writes for adaptive materials and completions', async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await setDoc(doc(context.firestore(), 'adaptive_generated_materials', 'material-1'), { studentId: 'student-owner', tenantId: 'tenant-1', status: 'ready' });
+        await setDoc(doc(context.firestore(), 'adaptive_material_completions', 'completion-1'), { studentId: 'student-owner', tenantId: 'tenant-1', score: 100 });
+      });
+      const owner = testEnv.authenticatedContext('student-owner');
+      const attacker = testEnv.authenticatedContext('student-other');
+      await assertSucceeds(getDoc(doc(owner.firestore(), 'adaptive_generated_materials', 'material-1')));
+      await assertSucceeds(getDoc(doc(owner.firestore(), 'adaptive_material_completions', 'completion-1')));
+      await assertFails(getDoc(doc(attacker.firestore(), 'adaptive_generated_materials', 'material-1')));
+      await assertFails(setDoc(doc(owner.firestore(), 'adaptive_generated_materials', 'forged'), { studentId: 'student-owner' }));
+    });
   });
 
   // GRUPO 7: REGRESSÃO E COERÊNCIA GLOBAL (Cenários 68 a 76)

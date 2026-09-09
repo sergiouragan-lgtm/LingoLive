@@ -131,6 +131,8 @@ function AppContent() {
   const [view, setView] = useAppRouter();
   const [readerEbookId, setReaderEbookId] = useState<string | null>(null);
   const [readerBackView, setReaderBackView] = useState<AppView>("ebook-student-dashboard");
+  const [adaptiveMaterials, setAdaptiveMaterials] = useState<Array<{ id: string; title: string; status: string; content?: { summary?: string; sections?: Array<{ heading: string; explanation: string }>; exercises?: Array<{ id: string; prompt: string }> }; gaps?: Array<{ label: string }> }>>([]);
+  const adaptiveCompletionKeys = useRef<Record<string, string>>({});
   const [showWelcomeTour, setShowWelcomeTour] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [showLogoTooltip, setShowLogoTooltip] = useState(false);
@@ -144,6 +146,26 @@ function AppContent() {
     }
     
   }, [view, authLoaded, user?.uid]);
+
+  const loadAdaptiveMaterials = useCallback(async () => {
+    if (!user) return setAdaptiveMaterials([]);
+    try { const token = await user.getIdToken(); const response = await fetch("/api/adaptive-fascicles", { headers: { Authorization: `Bearer ${token}` } }); if (response.ok) setAdaptiveMaterials((await response.json()).materials || []); } catch (error) { console.warn("[Dashboard] Adaptive materials unavailable", error); }
+  }, [user]);
+  useEffect(() => { if (view === "dashboard") void loadAdaptiveMaterials(); }, [view, loadAdaptiveMaterials]);
+
+  const generateAdaptiveMaterial = useCallback(async () => {
+    if (!user) return;
+    try { const token = await user.getIdToken(); const response = await fetch("/api/adaptive-fascicles/generate", { method: "POST", headers: { Authorization: `Bearer ${token}` } }); if (response.ok) await loadAdaptiveMaterials(); else addToast("Ainda não existem gaps ativos para gerar o fascículo.", "info"); } catch { addToast("Não foi possível gerar o fascículo agora.", "error"); }
+  }, [user, loadAdaptiveMaterials, addToast]);
+
+  const completeAdaptiveMaterial = useCallback(async (materialId: string, answers: Array<{ exerciseId: string; answer: string }>) => {
+    if (!user) throw new Error("AUTH_REQUIRED");
+    const token = await user.getIdToken();
+    adaptiveCompletionKeys.current[materialId] ||= crypto.randomUUID();
+    const response = await fetch(`/api/adaptive-fascicles/${materialId}/complete`, { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ answers, completionKey: adaptiveCompletionKeys.current[materialId] }) });
+    if (!response.ok) throw new Error("COMPLETION_FAILED");
+    const result = await response.json(); await loadAdaptiveMaterials(); return result;
+  }, [user, loadAdaptiveMaterials]);
 
   // Browser Notification handler for inactivity > 24h
   useEffect(() => {
@@ -1867,6 +1889,9 @@ function AppContent() {
             userProfile={userProfile as Record<string, unknown>}
             onStartPractice={handleStartPractice}
             onNavigate={(v) => setView(v as AppView)}
+            adaptiveMaterials={adaptiveMaterials}
+            onGenerateAdaptiveMaterial={generateAdaptiveMaterial}
+            onCompleteAdaptiveMaterial={completeAdaptiveMaterial}
           />
         )}
 

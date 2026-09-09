@@ -164,7 +164,7 @@ Implementado em `server/domain/learning/gapEngine.ts` e `server/services/learnin
 
 ### 02.6 Personalized fascicle generation
 
-`[~]` Generic Ebook Studio generation is implemented. Automatic generation from the learner's top persisted gaps is not implemented.
+`[x]` Ebook Studio integrado aos gaps: seleção das dificuldades prioritárias, geração validada e deduplicada, proveniência de modelo/prompt/evidência, Dashboard e conclusão com reavaliação.
 
 Corrections required in the supplied TypeScript proposal:
 

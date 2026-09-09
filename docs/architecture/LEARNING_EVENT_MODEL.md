@@ -37,6 +37,10 @@ O cliente envia somente evidência bruta para `POST /api/learning/attempts`. O b
 
 Cada definição contém respostas canónicas e um mapa limitado de respostas regionais aprovadas por BCP-47. Uma correspondência regional é registada como `VALID_REGIONAL_VARIANT`, recebe score correto e nunca cria ou aumenta um gap. Respostas não reconhecidas usam a categoria e gravidade autoritativas da definição. O histórico auditável fica disponível em `GET /api/learning/history`.
 
+## Fascículos adaptativos
+
+`POST /api/adaptive-fascicles/generate` seleciona os cinco gaps ativos/remediating com maior fraqueza. O ID deriva do tenant, aluno, target e evento-fonte, impedindo geração duplicada para a mesma evidência. Modelo, prompt delimitado, snapshots dos gaps e conteúdo JSON validado ficam em `adaptive_generated_materials`. `POST /api/adaptive-fascicles/:id/complete` valida respostas no servidor, grava `adaptive_material_completions` e envia cada resultado como reavaliação idempotente ao motor de gaps.
+
 ## Idempotência e concorrência
 
 A chave de idempotência gera o ID do evento. A transação lê evento e gap antes de escrever. Um retry encontra o evento existente e retorna `duplicate: true`, sem incrementar novamente o gap.

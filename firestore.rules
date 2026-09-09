@@ -773,6 +773,14 @@ service cloud.firestore {
       allow get, list: if isSignedIn() && (resource.data.studentId == request.auth.uid || isAdmin());
       allow create, update, delete: if false;
     }
+    match /adaptive_generated_materials/{materialId} {
+      allow get, list: if isSignedIn() && (resource.data.studentId == request.auth.uid || isAdmin());
+      allow create, update, delete: if false;
+    }
+    match /adaptive_material_completions/{completionId} {
+      allow get, list: if isSignedIn() && (resource.data.studentId == request.auth.uid || isAdmin());
+      allow create, update, delete: if false;
+    }
 
     // Global Deny-All Catch-all Safety Net
     match /{document=**} {

@@ -1,6 +1,6 @@
 # Auditoria adversarial — modelo de aprendizagem
 
-Escopo: `learning_activity_definitions`, `learning_events`, `student_learning_gaps`, `learning_recommendations` e `corrective_activities`.
+Escopo: `learning_activity_definitions`, `learning_events`, `student_learning_gaps`, `learning_recommendations`, `corrective_activities`, `adaptive_generated_materials` e `adaptive_material_completions`.
 
 | Ataque | Resultado |
 | --- | --- |
@@ -16,5 +16,7 @@ Escopo: `learning_activity_definitions`, `learning_events`, `student_learning_ga
 | gap órfão sem evento | a transação grava evento e projeção atomicamente |
 | classificação forjada pelo aluno | endpoint público aceita apenas tentativa bruta; não existe rota pública para eventos classificados |
 | regionalismo válido convertido em erro | respostas regionais provêm da definição server-only e são classificadas como corretas |
+| geração duplicada | ID determinístico e reserva transacional bloqueiam concorrência/replay |
+| material ou conclusão forjados | clientes têm somente leitura dos próprios documentos; toda escrita é Admin SDK |
 
 Os testes no emulador comprovam isolamento, leitura do proprietário e bloqueio de escritas clientes. Estas regras são um protótipo seguro por padrão e devem ser revistas novamente com os claims e tenants reais antes de uma disponibilização ampla.
