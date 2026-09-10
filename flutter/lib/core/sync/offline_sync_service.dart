@@ -16,8 +16,12 @@ class PreferencesQueueStore implements QueueStore {
   PreferencesQueueStore({SharedPreferencesAsync? preferences})
     : _preferences = preferences ?? SharedPreferencesAsync();
   final SharedPreferencesAsync _preferences;
-  @override Future<String?> read() => _preferences.getString(OfflineSyncService.queueKey);
-  @override Future<void> write(String value) => _preferences.setString(OfflineSyncService.queueKey, value);
+  @override
+  Future<String?> read() =>
+      _preferences.getString(OfflineSyncService.storageSlot);
+  @override
+  Future<void> write(String value) =>
+      _preferences.setString(OfflineSyncService.storageSlot, value);
 }
 
 class OfflineSyncService {
@@ -28,7 +32,7 @@ class OfflineSyncService {
   }) : _store = store ?? PreferencesQueueStore(),
        _writer = writer ?? _firestoreWriter,
        _networkChecker = networkChecker ?? _isOnline;
-  static const queueKey = 'lingolive.pending_attempts.v1';
+  static const storageSlot = 'lingolive.pending_attempts.v1';
   final QueueStore _store;
   final AttemptWriter _writer;
   final NetworkChecker _networkChecker;
