@@ -27,7 +27,7 @@ Status is evidence-based. A visual prototype, static data, documentation, or an 
 - Automated suite: `[V]` 939 of 939 application tests and 124 of 124 Firestore rule checks passed
 - Dependency gate: `[V]` zero high or critical advisories in the production graph; 9 moderate advisories remain documented by npm
 - Workflow audit: `[V]` zero findings after permissions, SHA pinning and governance hardening
-- Mobile application build: `[ ]` not available; the repository contains three standalone Dart files but no complete Flutter project
+- Mobile application build: `[V]` Flutter workspace, Android/iOS targets, static analysis, unit tests and Android APK build available
 - Full browser and device validation: `[ ]` pending
 
 ## Master status board
@@ -38,7 +38,7 @@ Status is evidence-based. A visual prototype, static data, documentation, or an 
 | 01 | Database and Authentication | `[V]` | Firebase Auth, Firestore, role-aware entry flow, protected server middleware and security rules exist. This approval applies to the Firebase architecture, not the proposed PostgreSQL schema. | Run emulator and deployed-project security validation |
 | 02 | AI and Adaptive Learning Engine | `[~]` | Gemini and OpenAI integrations, CEFR context, adaptive profiles, recommendations, paths, pronunciation and tests exist. A persisted error-to-gap-to-remediation loop is not complete. | Implement real learning-gap aggregation and remove simulated fallbacks |
 | 03 | Ebook Studio Web | `[*]` | Authenticated API, AI structure and chapter generation, improvement, title suggestions, exercises, tone analysis, Firestore save/list/delete, editor UI and PDF export exist. EPUB3, WebReader, block-based WYSIWYG and dedicated tests were not found. | Add persisted schema validation, tests and multi-format export |
-| 04 | Flutter Student App | `[~]` | Profile, navigation and conversation wizard prototypes exist as standalone Dart files. Clean Architecture, dependency manifest, buildable app, reader, karaoke engine, exercises, offline sync and DRM are absent. | Create a real Flutter application and pass a device build |
+| 04 | Flutter Student App | `[*]` | Feature-first Flutter workspace now compiles with Firebase Auth/Firestore, AppShell, intelligent-profile dashboard, native reader, audio/karaoke, exercises and idempotent offline queue. Production Firebase files, real-device validation and DRM remain gated. | Inject environment credentials and pass Android/iOS real-device validation |
 | 05 | LingoLive Adaptive Synchronization Loop | `[~]` | Web learning profiles, attempts, adaptive paths and Firestore repositories exist. The new `student_learning_gaps` trigger and personalized fascicle generator are proposals only and target a different database. | Approve the canonical data architecture and implement the loop transactionally |
 | 06 | Monetization and DRM | `[~]` | Stripe checkout/webhooks, PayPal routes, Multicaixa flows and a payment engine exist. Marketplace split payments, ebook entitlements, social watermarking and mobile reader DRM are not complete. | Prove sandbox transactions and define entitlement/author settlement rules |
 | 07 | Deployment and Hardening | `[*]` | The required Web quality gate, workflow hardening, CODEOWNERS, Dependabot and security policy are implemented. Remote branch-protection enforcement, Flutter release, load evidence and launch validation remain. | Enable the required check in a GitHub ruleset, then add load and release evidence |
@@ -142,13 +142,13 @@ Required corrections before any PostgreSQL adoption:
 
 ### 02.4 Audio and word synchronization
 
-`[~]` Voice, recording and playback capabilities exist. The Web practice room contains a karaoke-like progression, but part of it is explicitly time-simulated. A backend-generated audio file with authoritative word timestamps was not found.
+`[x]` O backend gera TTS com alinhamento autoritativo do provedor, converte caracteres em timestamps por palavra, persiste áudio privado e metadados versionados e bloqueia escrita cliente. O WebReader usa procura binária para realce, suporta pausa, busca e velocidade e recalcula a palavra após interrupções.
 
 **Approval criterion:** provider-generated or aligned word timings, deterministic timestamp contract, audio/timing persistence and synchronization tests at normal and changed playback speeds.
 
 ### 02.5 Learning-gap aggregation
 
-`[ ]` No production implementation matching `student_error_logs -> student_learning_gaps` was found.
+`[x]` Motor server-side implementado sobre Firestore: tentativa bruta → classificação autoritativa → evento imutável → projeção idempotente do gap.
 
 Required behavior:
 
@@ -160,9 +160,11 @@ Required behavior:
 - protect regional language variants from being classified as errors;
 - retain an auditable link to the source attempt.
 
+Implementado em `server/domain/learning/gapEngine.ts` e `server/services/learningEvent.service.ts`, incluindo respostas regionais explicitamente aprovadas, categorias pedagógicas, severidade, redução após acertos e histórico em `/api/learning/history`.
+
 ### 02.6 Personalized fascicle generation
 
-`[~]` Generic Ebook Studio generation is implemented. Automatic generation from the learner's top persisted gaps is not implemented.
+`[x]` Ebook Studio integrado aos gaps: seleção das dificuldades prioritárias, geração validada e deduplicada, proveniência de modelo/prompt/evidência, Dashboard e conclusão com reavaliação.
 
 Corrections required in the supplied TypeScript proposal:
 
@@ -187,27 +189,21 @@ Corrections required in the supplied TypeScript proposal:
 
 ### 03.2 Editor
 
-`[~]` A chapter-oriented editor and Markdown content workflow exist.
-
-**Missing from the supplied target:** true block-based WYSIWYG behavior for rearranging text, tables, audio and callout blocks.
+`[x]` Editor por blocos com texto, diálogos, tabelas, vocabulário, acordeões, quiz e áudio; suporta criação, duplicação, reordenação, adaptação CEFR e testes dedicados.
 
 ### 03.3 Persistence
 
-`[*]` Ebook projects can be listed, saved and deleted in Firestore with author ownership checks.
-
-**Approval criterion:** formal Firestore schema, versioning, autosave conflict handling, draft recovery and security-rule tests.
+`[x]` Persistência server-side com schema 2.0, autosave, versão otimista, histórico, restauração, deteção de conflitos e recuperação pela versão remota ou cópia independente. Escrita cliente é bloqueada e testada.
 
 ### 03.4 Export
 
-`[~]` Client-side PDF export exists.
-
-**Pending:** EPUB3, WebReader package, accessibility metadata, embedded audio/timestamps, server-side deterministic export and reader validation.
+`[x]` PDF determinístico e EPUB3 são gerados no servidor e cobertos por testes binários/estruturais. O WebReader renderiza blocos responsivos, navegação por teclado, metadados de acessibilidade e áudio sincronizado versionado.
 
 ## Phase 04 Flutter Student Application
 
 ### 04.1 Application foundation
 
-`[~]` Three standalone Dart prototypes exist for profile, navigation and conversation setup.
+`[x]` Buildable Android/iOS workspace with `lib/app`, `lib/core`, feature-first modules, Firebase bootstrap/authentication, Material 3 theme, tests and CI build target. Legacy standalone prototypes remain excluded and documented rather than silently deleted.
 
 **Required implementation:** create a complete Flutter workspace with `pubspec.yaml`, `lib/app`, `lib/core`, feature-first modules, environment configuration, Firebase integration, tests and Android/iOS build targets.
 
@@ -215,23 +211,23 @@ Corrections required in the supplied TypeScript proposal:
 
 ### 04.2 Ebook reader
 
-`[ ]` Implement chapter navigation, semantic reading order, scalable typography, themes, bookmarks and offline availability.
+`[~]` Controlled native reader foundation uses semantic selectable responsive text. Chapter navigation, themes and bookmarks remain for product validation against real catalog documents.
 
 **Decision required:** compare an EPUB renderer with a controlled native chapter renderer. Do not select a PDF-only reader if karaoke, semantic accessibility and responsive text are core requirements.
 
 ### 04.3 Karaoke engine
 
-`[ ]` Implement `just_audio`, a validated word-timestamp model, efficient index lookup, seeking, speed changes and synchronization recovery.
+`[x]` `just_audio`, validated word timestamps, binary-search highlighting, seeking, pause/resume, speed controls and disposable player lifecycle are implemented.
 
 **Engineering annotation:** the supplied linear scan over every timestamp on every position event is acceptable for a prototype but should be replaced by indexed progression or binary search for long chapters. Stream subscriptions must be stored and cancelled on reload/dispose.
 
 ### 04.4 Interactive exercises
 
-`[ ]` Implement multiple choice, cloze, matching, listening and pronunciation activities with local persistence and server-confirmed scoring.
+`[~]` Multiple-choice interaction is implemented. Cloze, matching, listening, pronunciation and server-confirmed scoring remain incremental activity types.
 
 ### 04.5 Offline synchronization
 
-`[ ]` Implement an offline operation queue, conflict policy, retries, idempotency keys and visible sync state. Because Firestore is currently canonical, Supabase synchronization is not approved without the Phase 01 architecture decision.
+`[x]` Firestore offline persistence and an ordered local operation queue with duplicate-key suppression, stop-on-failure retry semantics and idempotent Firestore document IDs are implemented. Firestore remains canonical.
 
 ### 04.6 Mobile DRM
 
@@ -243,11 +239,11 @@ Corrections required in the supplied TypeScript proposal:
 
 ### 05.1 Event contract
 
-`[ ]` Define a versioned learning event containing tenant, student, activity, language, CEFR, target item, answer evidence, correctness, severity, timestamps and idempotency key.
+`[x]` Evento de aprendizagem v1 definido com tenant, aluno, atividade, idioma, CEFR, item-alvo, resposta real, resultado confirmado, gravidade, data e chave de idempotência.
 
 ### 05.2 Gap projection
 
-`[ ]` Build a server-side projector that transforms validated learning events into active, remediating or mastered gaps.
+`[x]` Projetor transacional server-side implementado para transformar eventos validados em gaps `active`, `remediating` ou `mastered`, com retry idempotente.
 
 ### 05.3 Just-in-time fascicle
 

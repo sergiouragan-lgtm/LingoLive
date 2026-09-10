@@ -146,7 +146,7 @@ export default function FeedbackReportCard({
 
   if (loading) {
     return (
-      <div className="max-w-xl mx-auto px-4 py-20 flex flex-col items-center justify-center text-center space-y-6" id="feedback-loading-view">
+      <div className="max-w-xl mx-auto px-4 py-20 flex flex-col items-center justify-center text-center space-y-6" id="feedback-loading-view" role="status" aria-live="polite" aria-label="A analisar a conversa">
         <div className="relative">
           <div className="w-20 h-20 rounded-full border-4 border-indigo-100 border-t-indigo-600 animate-spin" />
           <Award className="w-10 h-10 text-indigo-600 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animate-bounce" />
@@ -168,7 +168,7 @@ export default function FeedbackReportCard({
 
   if (error) {
     return (
-      <div className="max-w-xl mx-auto px-4 py-16 text-center space-y-6" id="feedback-error-view">
+      <div className="max-w-xl mx-auto px-4 py-16 text-center space-y-6" id="feedback-error-view" role="alert" aria-live="assertive">
         <div className="inline-flex p-4 bg-rose-50 border border-rose-100 rounded-2xl text-rose-500">
           <XCircle className="w-12 h-12" />
         </div>
@@ -221,7 +221,7 @@ export default function FeedbackReportCard({
   const COLORS = ['#10b981', '#94a3b8', '#f43f5e'];
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 space-y-8" id="feedback-report-card">
+    <div className="max-w-4xl mx-auto px-4 py-8 space-y-8" id="feedback-report-card" role="region" aria-labelledby="feedback-report-title">
       {/* Upper Badge & Score summary */}
       <div className="bg-gradient-to-tr from-indigo-900 via-indigo-950 to-slate-900 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
         {/* Background visual graphics */}
@@ -234,7 +234,7 @@ export default function FeedbackReportCard({
               <Sparkles className="w-3.5 h-3.5" />
               <span>Linguistic Feedback Card</span>
             </div>
-            <h2 className="font-display text-3xl font-bold tracking-tight">
+            <h2 id="feedback-report-title" className="font-display text-3xl font-bold tracking-tight">
               Congratulations on completing your session!
             </h2>
             <p className="text-indigo-200 text-sm max-w-lg leading-relaxed">

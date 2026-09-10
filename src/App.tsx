@@ -1,16 +1,17 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { lazy, Suspense, useState, useEffect, useRef, useCallback } from "react";
 import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, User, sendPasswordResetEmail } from 'firebase/auth';
 import { Scanner } from '@yudiel/react-qr-scanner';
 import { auth, db, handleFirestoreError, OperationType } from './firebase';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import AdminDashboard from "./components/core/AdminDashboard";
-import { MarketplacePlatform } from "./components/marketplace/MarketplacePlatform";
 import { AreaEscolarDashboard } from "./components/b2b/area-escolar/AreaEscolarDashboard";
 import { AreaProfessorDashboard } from "./components/b2b/area-escolar/AreaProfessorDashboard";
 import { AreaAlunoDashboard } from "./components/b2b/area-aluno/AreaAlunoDashboard";
 import { AreaPaisDashboard } from "./components/b2b/area-pais/AreaPaisDashboard";
 import EducatorDashboard from "./components/b2b/area-escolar/EducatorDashboard";
 import Dashboard from "./components/core/Dashboard";
+import { StudentDashboardExperience } from "./components/student-dashboard/StudentDashboardExperience";
+import { AppShell } from "./components/app-shell/AppShell";
 import { UserProfile } from "./components/core/UserProfile";
 import { LanguagesView } from "./components/learning/aprender/LanguagesView";
 import { AuthScreen } from "./components/auth/AuthScreen";
@@ -40,7 +41,6 @@ import { RankingModule } from "./components/learning/RankingModule";
 import { EducationalCMS } from "./components/learning/EducationalCMS";
 import { CertificationPlatform } from "./components/learning/CertificationPlatform";
 import { LearningAnalyticsPlatform } from "./components/learning/LearningAnalyticsPlatform";
-import { TeacherProfessionalPlatform } from "./components/learning/TeacherProfessionalPlatform";
 import { EbookCurationPlatform } from "./components/learning/ebook/EbookCurationPlatform";
 import { EbookAnalyticsDashboard } from "./components/learning/ebook/EbookAnalyticsDashboard";
 import { EbookRecommendations } from "./components/learning/ebook/EbookRecommendations";
@@ -71,16 +71,14 @@ import { motion, AnimatePresence } from 'motion/react';
 import { SettingsView } from "./components/core/SettingsView";
 import { SchoolRegistration } from "./components/core/SchoolRegistration";
 import { B2BPayment } from "./components/core/B2BPayment";
-import { SchoolEnterprisePlatform } from "./components/b2b/area-escolar/SchoolEnterprisePlatform";
-import { CorporateEnterprisePlatform } from "./components/b2b/area-empresarial/CorporateEnterprisePlatform";
 import { FinancialManagementModule } from "./components/admin/FinancialManagementModule";
-import { LiveClassesPlatform } from "./components/live/LiveClassesPlatform";
 import { Sidebar } from "./components/core/Sidebar";
 import { Topbar } from "./components/core/Topbar";
 import { checkAndNotifyStreakRisk } from "./services/streakNotification.service";
 import { notificationService } from "./services/notification.service";
 import { Landing } from "./components/core/Landing";
 import { Onboarding } from "./components/core/Onboarding";
+import { ageGroupFromAge, completeStudentOnboarding } from "./onboarding/studentOnboardingCompletion";
 import { Activation } from "./components/core/Activation";
 import IntelligentProfile from './components/core/onboarding/IntelligentProfile';
 import SaveToFirestore from './components/core/onboarding/SaveToFirestore';
@@ -108,6 +106,14 @@ import { COUNTRY_DETAILS } from "./data/localizationData";
 import { recordLanguageExplored, recordQuizCompleted, recordSavedWordsCount, backupSavedWordsToFirestore, recordStreakProgress } from "./lib/AchievementsManager";
 import { getWordsFromDB, saveAllWordsToDB, getProgressFromDB, saveProgressToDB, savePendingSync, triggerManualSync, registerBackgroundSync } from "./utils/indexedDB";
 import { requestFullscreen, exitFullscreen, isFullscreenActive } from "./utils/fullscreen";
+import { useAppRouter } from "./routing/useAppRouter";
+import { canAccessRoute, getRoute } from "./routing/routeRegistry";
+
+const MarketplacePlatform = lazy(() => import("./components/marketplace/MarketplacePlatform").then((module) => ({ default: module.MarketplacePlatform })));
+const TeacherProfessionalPlatform = lazy(() => import("./components/learning/TeacherProfessionalPlatform").then((module) => ({ default: module.TeacherProfessionalPlatform })));
+const SchoolEnterprisePlatform = lazy(() => import("./components/b2b/area-escolar/SchoolEnterprisePlatform").then((module) => ({ default: module.SchoolEnterprisePlatform })));
+const CorporateEnterprisePlatform = lazy(() => import("./components/b2b/area-empresarial/CorporateEnterprisePlatform").then((module) => ({ default: module.CorporateEnterprisePlatform })));
+const LiveClassesPlatform = lazy(() => import("./components/live/LiveClassesPlatform").then((module) => ({ default: module.LiveClassesPlatform })));
 
 function AppContent() {
   const { currentStep, setStep } = useOnboardingFlow();
@@ -122,9 +128,11 @@ function AppContent() {
   const [userProfile, setUserProfile] = useState<SmartProfile | null>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
   // Navigation Router state
-  const [view, setView] = useState<AppView>("landing");
+  const [view, setView] = useAppRouter();
   const [readerEbookId, setReaderEbookId] = useState<string | null>(null);
   const [readerBackView, setReaderBackView] = useState<AppView>("ebook-student-dashboard");
+  const [adaptiveMaterials, setAdaptiveMaterials] = useState<Array<{ id: string; title: string; status: string; content?: { summary?: string; sections?: Array<{ heading: string; explanation: string }>; exercises?: Array<{ id: string; prompt: string }> }; gaps?: Array<{ label: string }> }>>([]);
+  const adaptiveCompletionKeys = useRef<Record<string, string>>({});
   const [showWelcomeTour, setShowWelcomeTour] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [showLogoTooltip, setShowLogoTooltip] = useState(false);
@@ -137,10 +145,27 @@ function AppContent() {
         }
     }
     
-    if (window.location.pathname.startsWith("/billing/success")) {
-      setView("pagamentos-sucesso");
-    }
   }, [view, authLoaded, user?.uid]);
+
+  const loadAdaptiveMaterials = useCallback(async () => {
+    if (!user) return setAdaptiveMaterials([]);
+    try { const token = await user.getIdToken(); const response = await fetch("/api/adaptive-fascicles", { headers: { Authorization: `Bearer ${token}` } }); if (response.ok) setAdaptiveMaterials((await response.json()).materials || []); } catch (error) { console.warn("[Dashboard] Adaptive materials unavailable", error); }
+  }, [user]);
+  useEffect(() => { if (view === "dashboard") void loadAdaptiveMaterials(); }, [view, loadAdaptiveMaterials]);
+
+  const generateAdaptiveMaterial = useCallback(async () => {
+    if (!user) return;
+    try { const token = await user.getIdToken(); const response = await fetch("/api/adaptive-fascicles/generate", { method: "POST", headers: { Authorization: `Bearer ${token}` } }); if (response.ok) await loadAdaptiveMaterials(); else addToast("Ainda não existem gaps ativos para gerar o fascículo.", "info"); } catch { addToast("Não foi possível gerar o fascículo agora.", "error"); }
+  }, [user, loadAdaptiveMaterials, addToast]);
+
+  const completeAdaptiveMaterial = useCallback(async (materialId: string, answers: Array<{ exerciseId: string; answer: string }>) => {
+    if (!user) throw new Error("AUTH_REQUIRED");
+    const token = await user.getIdToken();
+    adaptiveCompletionKeys.current[materialId] ||= crypto.randomUUID();
+    const response = await fetch(`/api/adaptive-fascicles/${materialId}/complete`, { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ answers, completionKey: adaptiveCompletionKeys.current[materialId] }) });
+    if (!response.ok) throw new Error("COMPLETION_FAILED");
+    const result = await response.json(); await loadAdaptiveMaterials(); return result;
+  }, [user, loadAdaptiveMaterials]);
 
   // Browser Notification handler for inactivity > 24h
   useEffect(() => {
@@ -269,6 +294,11 @@ function AppContent() {
         setView(prevView => getRequiredView(userProfile, prevView));
     }
   }, [authLoaded, user, userProfile, getRequiredView]);
+
+  useEffect(() => {
+    if (!authLoaded || !user) return;
+    if (!canAccessRoute(getRoute(view), role, true)) setView("dashboard");
+  }, [authLoaded, role, setView, user, view]);
 
   const [healthStatus, setHealthStatus] = useState<ServiceHealthStatus | null>(null);
   const [isCheckingHealth, setIsCheckingHealth] = useState<boolean>(false);
@@ -1725,14 +1755,17 @@ function AppContent() {
     }
   };
 
+  const isStudentDashboard = view === "dashboard" && ["STUDENT", "Student", "student", "LEARNER"].includes(String(role));
+  const usesGlobalShell = !isStudentDashboard && !["subscription", "onboarding", "welcome", "pagamentos", "waiting-verification", "suspended", "privacy-policy", "landing", "activation", "practice"].includes(view);
+
   // If authenticated, show the app content (Sidebar + Main)
   return (
-    <div className={`min-h-screen flex font-sans transition-all duration-300 ${
-      theme === 'kiditorial' 
-        ? 'theme-kiditorial bg-slate-50 text-slate-800' 
-        : 'theme-corporate bg-slate-50 text-slate-800'
-    }`} id="lingolive-root-app">
-      {view !== 'subscription' && view !== 'onboarding' && view !== 'welcome' && view !== 'pagamentos' && view !== 'waiting-verification' && view !== 'suspended' && view !== 'privacy-policy' && (
+    <>
+    <AppShell
+      activeView={view}
+      className={`font-sans transition-all duration-300 ${theme === 'kiditorial' ? 'theme-kiditorial' : 'theme-corporate'}`}
+      showBreadcrumbs={usesGlobalShell}
+      sidebar={usesGlobalShell ? (
         <Sidebar 
           view={view} 
           setView={setView} 
@@ -1743,9 +1776,31 @@ function AppContent() {
           streakHistory={streakData.history}
           selectedLanguage={selectedLanguage}
         />
-      )}
+      ) : undefined}
+      topbar={usesGlobalShell ? (
+        <Topbar
+          user={user}
+          setView={setView}
+          toggleSidebar={() => setIsMobileSidebarOpen(true)}
+          GlobalSearchComponent={
+            <GlobalSearch
+              savedWords={savedWords}
+              streakHistory={streakData.history}
+              selectedLanguage={selectedLanguage}
+              setView={setView}
+            />
+          }
+          localization={localization}
+          setLocalization={setLocalization}
+          selectedLanguage={selectedLanguage}
+          setSelectedLanguage={setSelectedLanguage}
+          streakData={streakData}
+          onProtectStreakWithPoints={handleProtectStreakWithPoints}
+        />
+      ) : undefined}
+      mainClassName={`transition-all duration-300 ${isStudentDashboard ? "p-0 w-full" : orientation === 'landscape' ? 'p-2 sm:p-4 md:p-5 lg:p-6 max-w-7xl mx-auto w-full' : 'p-4 sm:p-6 md:p-8 w-full'}`}
+    >
       <ToastContainer />
-      <div className="flex-1 flex flex-col min-w-0">
         <InstallBanner />
         {/* Dynamic Global Top Header Navigation */}
         {view === "landing" && <Landing setView={setView} />}
@@ -1754,14 +1809,7 @@ function AppContent() {
           <Onboarding 
             user={user} 
             onComplete={async (profileData) => {
-              const updatedProfile = {
-                ...userProfile,
-                ...profileData,
-                status: "ACTIVE",
-                welcomeCompleted: true,
-                onboardingCompleted: true,
-                paymentCompleted: true,
-              };
+              const updatedProfile = completeStudentOnboarding(userProfile, profileData);
               setUserProfile(updatedProfile as any);
               if (profileData.dailyGoal) {
                 setDailyGoal(profileData.dailyGoal);
@@ -1776,11 +1824,7 @@ function AppContent() {
                 }
               }
               if (typeof profileData.age === "number") {
-                const mappedAgeGroup: AgeGroup = 
-                  profileData.age < 8 ? "Infancy" :
-                  profileData.age < 12 ? "Kids" :
-                  profileData.age < 16 ? "PreTeens" : "Teens";
-                setSelectedAgeGroup(mappedAgeGroup);
+                setSelectedAgeGroup(ageGroupFromAge(profileData.age));
               }
               if (profileData.level) {
                 const mappedProficiency: Proficiency = 
@@ -1806,33 +1850,7 @@ function AppContent() {
         {view === "onboarding" && currentStep === "DASHBOARD" && <CreateDashboard setView={setView} />}
         {view === "activation" && <Activation setView={setView} />}
         
-        {view !== "landing" && view !== "onboarding" && view !== "activation" && view !== "practice" && view !== "subscription" && view !== "welcome" && view !== "pagamentos" && view !== "waiting-verification" && view !== "suspended" && (
-          <Topbar 
-            user={user} 
-            setView={setView} 
-            toggleSidebar={() => setIsMobileSidebarOpen(true)}
-            GlobalSearchComponent={
-              <GlobalSearch
-                savedWords={savedWords}
-                streakHistory={streakData.history}
-                selectedLanguage={selectedLanguage}
-                setView={setView}
-              />
-            }
-            localization={localization}
-            setLocalization={setLocalization}
-            selectedLanguage={selectedLanguage}
-            setSelectedLanguage={setSelectedLanguage}
-            streakData={streakData}
-            onProtectStreakWithPoints={handleProtectStreakWithPoints}
-          />
-        )}
       {/* Interactive Router Screens */}
-      <main className={`flex-1 transition-all duration-300 ${
-        orientation === 'landscape' 
-          ? 'p-2 sm:p-4 md:p-5 lg:p-6 max-w-7xl mx-auto w-full' 
-          : 'p-4 sm:p-6 md:p-8 w-full'
-      }`}>
         {view === "waiting-verification" && user && (
           <WaitingVerificationScreen 
             user={user}
@@ -1859,7 +1877,25 @@ function AppContent() {
           <TeacherProfessionalPlatform activeView="dashboard" setView={setView} />
         )}
 
-        {view === "dashboard" && role !== "TEACHER" && role !== "NATIVE_TEACHER" && (
+        {isStudentDashboard && (
+          <StudentDashboardExperience
+            studentName={user?.displayName || "Estudante"}
+            studentPhotoUrl={user?.photoURL}
+            selectedLanguage={selectedLanguage}
+            selectedProficiency={selectedProficiency}
+            streakData={streakData}
+            savedWords={savedWords}
+            achievements={achievements}
+            userProfile={userProfile as Record<string, unknown>}
+            onStartPractice={handleStartPractice}
+            onNavigate={(v) => setView(v as AppView)}
+            adaptiveMaterials={adaptiveMaterials}
+            onGenerateAdaptiveMaterial={generateAdaptiveMaterial}
+            onCompleteAdaptiveMaterial={completeAdaptiveMaterial}
+          />
+        )}
+
+        {view === "dashboard" && !isStudentDashboard && role !== "TEACHER" && role !== "NATIVE_TEACHER" && (
           <Dashboard
             selectedLanguage={selectedLanguage}
             setSelectedLanguage={setSelectedLanguage}
@@ -1997,7 +2033,6 @@ function AppContent() {
           <PaymentSuccessScreen 
             onComplete={() => {
               setView("dashboard");
-              window.history.replaceState({}, document.title, window.location.pathname);
             }}
           />
         )}
@@ -2324,8 +2359,7 @@ function AppContent() {
         {view === "subscription" && (
           <SubscriptionCheckout setView={setView} user={user} />
         )}
-      </main>
-      </div>
+    </AppShell>
 
       <WelcomeTour 
         isOpen={showWelcomeTour}
@@ -2959,7 +2993,7 @@ function AppContent() {
       </AnimatePresence>
 
       <AIAssistant userId={user?.uid} />
-    </div>
+    </>
   );
 
 }
@@ -2971,7 +3005,9 @@ export default function App() {
         <ThemeProvider>
           <LocalizationProvider>
             <OnboardingFlowProvider>
-              <AppContent />
+              <Suspense fallback={<LoadingFallback title="A carregar módulo" subMessage="Preparando a próxima área..." />}>
+                <AppContent />
+              </Suspense>
             </OnboardingFlowProvider>
           </LocalizationProvider>
         </ThemeProvider>

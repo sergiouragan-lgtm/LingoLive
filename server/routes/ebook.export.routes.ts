@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { requireAuth } from "../middleware/requireAuth";
-import { generateEpub, generateDrmPdf, type ExportBook, type DrmBuyerInfo } from "../services/ebook/EbookExportService";
+import { generateEpub, generatePdf, generateDrmPdf, type ExportBook, type DrmBuyerInfo } from "../services/ebook/EbookExportService";
 import { safeGetDoc } from "../services/firestoreSafe.service";
 
 const router = Router();
@@ -34,6 +34,7 @@ router.post("/epub", requireAuth, async (req: any, res) => {
         content: ch.content ?? "",
       })),
       coverColor: data.coverColor,
+      updatedAt: data.updatedAt,
     };
 
     const epubBuffer = await generateEpub(book);
@@ -47,6 +48,17 @@ router.post("/epub", requireAuth, async (req: any, res) => {
     console.error("[ebook-export] epub error:", err.message);
     return res.status(500).json({ error: "Falha ao gerar ePub" });
   }
+});
+
+router.post("/pdf", requireAuth, async (req: any, res) => {
+  try {
+    const document = await safeGetDoc("ebooks", req.body?.ebookId);
+    if (!document.exists || document.data()?.authorId !== req.user.uid) return res.status(404).json({ error: "E-book não encontrado" });
+    const data = document.data() as any;
+    const book: ExportBook = { id: req.body.ebookId, title: data.title, subtitle: data.subtitle, description: data.description, language: data.language || "pt", cefrLevel: data.cefrLevel || "B1", authorName: data.authorName || req.user.name || "Autor", authorEmail: req.user.email || "", updatedAt: data.updatedAt, chapters: (data.chapters || []).map((chapter: any, index: number) => ({ number: chapter.number || index + 1, title: chapter.title || `Capítulo ${index + 1}`, content: chapter.content || "" })) };
+    const pdf = await generatePdf(book); const filename = `${book.title.replace(/[^a-z0-9]/gi, "_").toLowerCase()}.pdf`;
+    res.setHeader("Content-Type", "application/pdf"); res.setHeader("Content-Disposition", `attachment; filename="${filename}"`); res.setHeader("Content-Length", pdf.length); return res.send(pdf);
+  } catch (error: any) { console.error("[ebook-export] pdf error:", error.message); return res.status(500).json({ error: "Falha ao gerar PDF" }); }
 });
 
 router.post("/pdf-drm", requireAuth, async (req: any, res) => {
@@ -80,6 +92,7 @@ router.post("/pdf-drm", requireAuth, async (req: any, res) => {
         content: ch.content ?? "",
       })),
       coverColor: data.coverColor,
+      updatedAt: data.updatedAt,
     };
 
     const buyer: DrmBuyerInfo = {

@@ -54,8 +54,9 @@ export interface QuizData {
 }
 export interface AudioPlayerData {
   text: string;
-  voice: string;
-  status: "pending" | "ready";
+  voiceId: string;
+  status: "pending" | "generating" | "ready" | "failed";
+  assetId?: string;
 }
 
 export type AnyBlockData =
@@ -92,7 +93,7 @@ export function createBlock(type: BlockType): Block {
     "vocab-card": { word: "", phonetic: "", partOfSpeech: "nome", definition: "", example: "" },
     accordion: { title: "Clique para expandir", content: "" },
     quiz: { question: "", options: ["", "", "", ""], correctIndex: 0, explanation: "" },
-    "audio-player": { text: "", voice: "Rachel", status: "pending" },
+    "audio-player": { text: "", voiceId: "21m00Tcm4TlvDq8ikWAM", status: "pending" },
   };
   return { id: newId(), type, data: defaults[type] };
 }
@@ -207,7 +208,7 @@ function DialogueEditor({
 }) {
   return (
     <div className="space-y-3">
-      <div className="flex gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
         <div className="flex-1">
           <label className="text-xs text-slate-400 mb-1 block">Personagem</label>
           <input
@@ -217,7 +218,7 @@ function DialogueEditor({
             placeholder="Nome do personagem"
           />
         </div>
-        <div>
+        <div className="min-w-0">
           <label className="text-xs text-slate-400 mb-1 block">Tom</label>
           <select
             value={data.tone}
@@ -480,24 +481,18 @@ function QuizEditor({
 }
 
 function AudioPlayerEditor({
-  data, onChange,
+  data, onChange, onGenerate,
 }: {
   data: AudioPlayerData;
   onChange: (d: AudioPlayerData) => void;
+  onGenerate?: () => Promise<void>;
 }) {
-  const VOICES = ["Rachel", "Adam", "Elli", "Sam", "Josh", "Arnold", "Bella", "Domi", "Emily"];
   return (
     <div className="space-y-3">
       <div className="flex gap-3">
         <div className="flex-1">
           <label className="text-xs text-slate-400 mb-1 block">Voz Neural</label>
-          <select
-            value={data.voice}
-            onChange={(e) => onChange({ ...data, voice: e.target.value })}
-            className="bg-slate-800/60 border border-slate-600/40 rounded-lg px-2 py-2 text-sm text-white focus:outline-none"
-          >
-            {VOICES.map((v) => <option key={v} value={v}>{v}</option>)}
-          </select>
+          <input value={data.voiceId} onChange={(e) => onChange({ ...data, voiceId: e.target.value, status: "pending", assetId: undefined })} className="w-full bg-slate-800/60 border border-slate-600/40 rounded-lg px-3 py-2 text-sm text-white focus:outline-none" aria-label="ID da voz neural" />
         </div>
         <div className="flex items-end">
           <span className={`px-2.5 py-2 rounded-lg text-xs font-bold ${data.status === "ready" ? "bg-emerald-500/20 text-emerald-400" : "bg-slate-700 text-slate-400"}`}>
@@ -517,9 +512,8 @@ function AudioPlayerEditor({
       </div>
       <div className="flex items-center gap-2 bg-slate-800/40 border border-slate-700/30 rounded-xl px-4 py-3">
         <Volume2 className="w-4 h-4 text-indigo-400" />
-        <span className="text-xs text-slate-400 flex-1">
-          A geração TTS será processada ao exportar o e-book
-        </span>
+        <span className="text-xs text-slate-400 flex-1">{data.assetId ? "Áudio e timestamps guardados" : "Gere áudio com timestamps reais antes de publicar"}</span>
+        {onGenerate && <button type="button" onClick={() => void onGenerate()} disabled={!data.text.trim() || data.status === "generating"} className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">{data.status === "generating" ? "A gerar…" : data.assetId ? "Regenerar" : "Gerar áudio"}</button>}
       </div>
     </div>
   );
@@ -564,7 +558,7 @@ function LevelAdapterPopover({
 function BlockShell({
   block, index, isFirst, isLast,
   onUpdate, onMoveUp, onMoveDown, onDelete, onDuplicate,
-  onAdaptLevel, adaptingLevel,
+  onAdaptLevel, adaptingLevel, onGenerateAudio,
 }: {
   block: Block;
   index: number;
@@ -577,6 +571,7 @@ function BlockShell({
   onDuplicate: () => void;
   onAdaptLevel: (level: string) => Promise<void>;
   adaptingLevel: boolean;
+  onGenerateAudio?: () => Promise<void>;
 }) {
   const [hovered, setHovered] = useState(false);
   const [showLevelPicker, setShowLevelPicker] = useState(false);
@@ -598,7 +593,7 @@ function BlockShell({
       case "quiz":
         return <QuizEditor data={block.data as QuizData} onChange={onUpdate} />;
       case "audio-player":
-        return <AudioPlayerEditor data={block.data as AudioPlayerData} onChange={onUpdate} />;
+        return <AudioPlayerEditor data={block.data as AudioPlayerData} onChange={onUpdate} onGenerate={onGenerateAudio} />;
     }
   };
 
@@ -609,13 +604,13 @@ function BlockShell({
       onMouseLeave={() => { setHovered(false); setShowLevelPicker(false); }}
     >
       {/* Block toolbar */}
-      <div className={`flex items-center gap-2 px-4 py-2.5 border-b transition-colors ${hovered ? "border-slate-600/60" : "border-transparent"}`}>
+      <div className={`flex flex-wrap items-center gap-2 px-3 py-2.5 border-b transition-colors sm:px-4 ${hovered ? "border-slate-600/60" : "border-transparent"}`}>
         <div className={`flex items-center gap-1.5 flex-1 ${hovered ? "opacity-100" : "opacity-40"}`}>
           <GripVertical className="w-3.5 h-3.5 text-slate-500" />
           <Icon className="w-3.5 h-3.5 text-slate-400" />
           <span className="text-xs text-slate-400 font-medium">{meta.label}</span>
         </div>
-        <div className={`flex items-center gap-1 transition-opacity ${hovered ? "opacity-100" : "opacity-0"}`}>
+        <div className={`flex items-center gap-1 transition-opacity focus-within:opacity-100 ${hovered ? "opacity-100" : "opacity-60 sm:opacity-0"}`}>
           {/* Level Adapter */}
           <div className="relative">
             <button
@@ -651,7 +646,7 @@ function BlockShell({
       </div>
 
       {/* Editor content */}
-      <div className="p-4">{renderEditor()}</div>
+      <div className="min-w-0 p-3 sm:p-4">{renderEditor()}</div>
     </div>
   );
 }
@@ -696,10 +691,11 @@ interface BlockEditorProps {
       Should return the adapted text to replace the block's content. */
   onAdaptBlock?: (blockId: string, text: string, targetLevel: string) => Promise<string>;
   language?: string;
+  onGenerateAudio?: (blockId: string, text: string, voiceId: string) => Promise<{ assetId: string }>;
 }
 
 export function BlockEditor({
-  blocks, onChange, onAdaptBlock, language,
+  blocks, onChange, onAdaptBlock, language, onGenerateAudio,
 }: BlockEditorProps) {
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [adaptingBlockId, setAdaptingBlockId] = useState<string | null>(null);
@@ -845,6 +841,12 @@ export function BlockEditor({
             onDuplicate={() => duplicateBlock(block.id)}
             onAdaptLevel={(level) => adaptLevel(block.id, level)}
             adaptingLevel={adaptingBlockId === block.id}
+            onGenerateAudio={block.type === "audio-player" && onGenerateAudio ? async () => {
+              const audio = block.data as AudioPlayerData;
+              updateBlock(block.id, { ...audio, status: "generating" });
+              try { const result = await onGenerateAudio(block.id, audio.text, audio.voiceId); updateBlock(block.id, { ...audio, status: "ready", assetId: result.assetId }); }
+              catch { updateBlock(block.id, { ...audio, status: "failed" }); throw new Error("AUDIO_GENERATION_FAILED"); }
+            } : undefined}
           />
         </React.Fragment>
       ))}

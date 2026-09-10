@@ -1,13 +1,15 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { getAuth } from "firebase/auth";
 import EbookAIAssistant from "./EbookAIAssistant";
+import { KaraokePlayer } from "./KaraokePlayer";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 interface Block {
   id: string;
   type: string;
-  content: string;
+  content?: string;
+  data?: Record<string, any>;
   meta?: Record<string, unknown>;
 }
 
@@ -299,7 +301,8 @@ function QuizBlock({ content, blockId }: { content: string; blockId: string }) {
   );
 }
 
-function AudioPlayerBlock({ content }: { content: string }) {
+function AudioPlayerBlock({ content, assetId }: { content: string; assetId?: string }) {
+  if (assetId) return <KaraokePlayer assetId={assetId} />;
   const lines = content.split("\n").filter(Boolean);
   const title = lines[0] ?? "Áudio";
   const url = lines[1] ?? "";
@@ -316,15 +319,17 @@ function AudioPlayerBlock({ content }: { content: string }) {
 }
 
 function ReadOnlyBlock({ block }: { block: Block }) {
+  const data = block.data || {};
+  const content = block.content ?? (block.type === "paragraph" ? data.text : block.type === "dialogue" ? `${data.speaker || ""}: ${data.text || ""}` : block.type === "vocab-card" ? `${data.word || ""} — ${data.definition || ""}\n${data.example || ""}` : block.type === "accordion" ? `${data.title || ""}\n${data.content || ""}` : block.type === "quiz" ? `${data.question || ""}\n${(data.options || []).map((option: string, index: number) => `${index === data.correctIndex ? "*" : ""}${option}`).join("\n")}` : block.type === "audio-player" ? data.text || "" : "");
   switch (block.type) {
-    case "paragraph": return <ParagraphBlock content={block.content} />;
-    case "dialogue": return <DialogueBlock content={block.content} />;
-    case "vocab-card": return <VocabCard content={block.content} />;
-    case "grammar-table": return <GrammarTable content={block.content} />;
-    case "accordion": return <AccordionBlock content={block.content} blockId={block.id} />;
-    case "quiz": return <QuizBlock content={block.content} blockId={block.id} />;
-    case "audio-player": return <AudioPlayerBlock content={block.content} />;
-    default: return <ParagraphBlock content={block.content} />;
+    case "paragraph": return <ParagraphBlock content={content} />;
+    case "dialogue": return <DialogueBlock content={content} />;
+    case "vocab-card": return <VocabCard content={content} />;
+    case "grammar-table": return <GrammarTable content={content} />;
+    case "accordion": return <AccordionBlock content={content} blockId={block.id} />;
+    case "quiz": return <QuizBlock content={content} blockId={block.id} />;
+    case "audio-player": return <AudioPlayerBlock content={content} assetId={data.assetId || block.meta?.audioAssetId as string | undefined} />;
+    default: return <ParagraphBlock content={content} />;
   }
 }
 
@@ -505,13 +510,14 @@ export function StudentReader({ ebookId, enrollment, onBack, backLabel }: Studen
 
   return (
     <div style={{ display: "flex", height: "100vh", flexDirection: "column", background: "var(--bg)", color: "var(--text-primary)" }}>
+      <a href="#ebook-reader-content" style={{ position: "absolute", left: -9999 }} onFocus={event => { event.currentTarget.style.left = "16px"; event.currentTarget.style.top = "8px"; }} onBlur={event => { event.currentTarget.style.left = "-9999px"; }}>Saltar para a leitura</a>
       {/* ─── Top bar ─── */}
       <header style={{ display: "flex", alignItems: "center", gap: 12, padding: "0 20px", height: 52, borderBottom: "1px solid var(--border)", background: "var(--card-bg)", flexShrink: 0 }}>
         <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, padding: "0 4px" }}>
           <span style={{ fontSize: 22, lineHeight: 1 }}>←</span>
           {backLabel && <span style={{ fontSize: 13 }}>{backLabel}</span>}
         </button>
-        <button onClick={() => setSidebarOpen(o => !o)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: 18 }}>☰</button>
+        <button aria-label="Alternar índice" aria-expanded={sidebarOpen} onClick={() => setSidebarOpen(o => !o)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: 18 }}>☰</button>
         <div style={{ flex: 1, fontWeight: 700, fontSize: 16, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--text-primary)" }}>
           {ebook?.title ?? "A carregar..."}
           {selectedChapter && <span style={{ fontWeight: 400, color: "var(--text-secondary)", marginLeft: 8, fontSize: 14 }}>— {selectedChapter.title}</span>}
@@ -525,6 +531,7 @@ export function StudentReader({ ebookId, enrollment, onBack, backLabel }: Studen
               key={lvl}
               onClick={() => handleCefrChange(lvl)}
               title={CEFR_LABELS[lvl]}
+              aria-pressed={cefrLevel === lvl}
               style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid", fontSize: 12, fontWeight: cefrLevel === lvl ? 700 : 400, cursor: "pointer", background: cefrLevel === lvl ? CEFR_COLORS[lvl] : "transparent", color: cefrLevel === lvl ? "#fff" : CEFR_COLORS[lvl], borderColor: CEFR_COLORS[lvl], transition: "all 0.15s" }}
             >
               {lvl}
@@ -545,14 +552,14 @@ export function StudentReader({ ebookId, enrollment, onBack, backLabel }: Studen
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
         {/* ─── Sidebar ─── */}
         {sidebarOpen && (
-          <aside style={{ width: 260, borderRight: "1px solid var(--border)", background: "var(--card-bg)", overflowY: "auto", flexShrink: 0 }}>
+          <aside aria-label="Índice do e-book" style={{ width: 260, borderRight: "1px solid var(--border)", background: "var(--card-bg)", overflowY: "auto", flexShrink: 0 }}>
             <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--border)", fontWeight: 700, fontSize: 13, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: 1 }}>
               Índice
             </div>
             {ebook?.chapters.map((ch, i) => {
               const read = isChapterRead(ch.id);
               const active = selectedChapter?.id === ch.id;
-              const chWords = ch.blocks?.reduce((n, b) => n + b.content.split(/\s+/).length, 0)
+              const chWords = ch.blocks?.reduce((n, b) => n + (b.content || String(b.data?.text || b.data?.content || "")).split(/\s+/).filter(Boolean).length, 0)
                 ?? ch.content?.trim().split(/\s+/).filter(Boolean).length ?? 0;
               const chMins = Math.max(1, Math.ceil(chWords / 200));
               return (
@@ -576,7 +583,7 @@ export function StudentReader({ ebookId, enrollment, onBack, backLabel }: Studen
         )}
 
         {/* ─── Content ─── */}
-        <main ref={contentRef} style={{ flex: 1, overflowY: "auto", padding: "32px 0" }}>
+        <main id="ebook-reader-content" tabIndex={-1} ref={contentRef} style={{ flex: 1, overflowY: "auto", padding: "32px 0" }}>
           {adapting && (
             <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--text-secondary)" }}>
               <div style={{ fontSize: 32, marginBottom: 12 }}>🔄</div>
@@ -599,7 +606,7 @@ export function StudentReader({ ebookId, enrollment, onBack, backLabel }: Studen
                     {cefrLevel} — {CEFR_LABELS[cefrLevel]}
                   </span>
                   {adaptedBlocks.length > 0 && (() => {
-                    const words = adaptedBlocks.reduce((n, b) => n + b.content.split(/\s+/).length, 0);
+                    const words = adaptedBlocks.reduce((n, b) => n + (b.content || String(b.data?.text || b.data?.content || "")).split(/\s+/).filter(Boolean).length, 0);
                     const mins = Math.max(1, Math.ceil(words / 200));
                     return (
                       <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
@@ -672,7 +679,7 @@ export function StudentReader({ ebookId, enrollment, onBack, backLabel }: Studen
           chapterContent={
             adaptedBlocks
               .filter(b => b.type === "paragraph" || b.type === "dialogue")
-              .map(b => b.content)
+              .map(b => b.content || String(b.data?.text || ""))
               .join("\n\n")
           }
           ebookLanguage={ebook.language}

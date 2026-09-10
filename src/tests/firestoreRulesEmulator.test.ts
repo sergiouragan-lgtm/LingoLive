@@ -666,6 +666,70 @@ describe('Firestore Security Rules Real Emulator Test Suite', () => {
     });
   });
 
+  describe('Learning loop: backend-only writes and student isolation', () => {
+    const eventData = {
+      schemaVersion: '1.0', eventType: 'ATTEMPT_EVALUATED', tenantId: 'tenant-1',
+      studentId: 'student-owner', languageCode: 'en', cefrLevel: 'B1',
+      activity: { id: 'activity-1', type: 'cloze_test' }, response: { actual: 'has' },
+      target: { type: 'grammar', key: 'present-perfect', label: 'Present perfect' },
+      result: { outcome: 'incorrect', score: 0, confirmed: true }, severity: 'medium',
+      occurredAt: new Date(), receivedAt: new Date(), idempotencyKey: 'attempt-1:item-1',
+    };
+
+    beforeEach(async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await setDoc(doc(context.firestore(), 'learning_events', 'event-1'), eventData);
+        await setDoc(doc(context.firestore(), 'student_learning_gaps', 'gap-1'), { ...eventData, status: 'active', weaknessScore: 0.2 });
+      });
+    });
+
+    it('allows the student to read own canonical evidence and gap', async () => {
+      const owner = testEnv.authenticatedContext('student-owner');
+      await assertSucceeds(getDoc(doc(owner.firestore(), 'learning_events', 'event-1')));
+      await assertSucceeds(getDoc(doc(owner.firestore(), 'student_learning_gaps', 'gap-1')));
+    });
+
+    it('blocks cross-student reads and all direct client writes', async () => {
+      const attacker = testEnv.authenticatedContext('student-other', { email_verified: true });
+      await assertFails(getDoc(doc(attacker.firestore(), 'learning_events', 'event-1')));
+      await assertFails(setDoc(doc(attacker.firestore(), 'learning_events', 'forged'), { ...eventData, studentId: 'student-other' }));
+      await assertFails(updateDoc(doc(attacker.firestore(), 'student_learning_gaps', 'gap-1'), { weaknessScore: 0 }));
+    });
+
+    it('keeps authoritative activity definitions invisible and immutable to clients', async () => {
+      const student = testEnv.authenticatedContext('student-owner', { email_verified: true });
+      const definitionRef = doc(student.firestore(), 'learning_activity_definitions', 'definition-1');
+      await assertFails(getDoc(definitionRef));
+      await assertFails(setDoc(definitionRef, { expectedAnswers: ['forged answer'], errorSeverity: 'none' }));
+    });
+
+    it('allows owner reads but blocks client writes for adaptive materials and completions', async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await setDoc(doc(context.firestore(), 'adaptive_generated_materials', 'material-1'), { studentId: 'student-owner', tenantId: 'tenant-1', status: 'ready' });
+        await setDoc(doc(context.firestore(), 'adaptive_material_completions', 'completion-1'), { studentId: 'student-owner', tenantId: 'tenant-1', score: 100 });
+      });
+      const owner = testEnv.authenticatedContext('student-owner');
+      const attacker = testEnv.authenticatedContext('student-other');
+      await assertSucceeds(getDoc(doc(owner.firestore(), 'adaptive_generated_materials', 'material-1')));
+      await assertSucceeds(getDoc(doc(owner.firestore(), 'adaptive_material_completions', 'completion-1')));
+      await assertFails(getDoc(doc(attacker.firestore(), 'adaptive_generated_materials', 'material-1')));
+      await assertFails(setDoc(doc(owner.firestore(), 'adaptive_generated_materials', 'forged'), { studentId: 'student-owner' }));
+    });
+
+    it('keeps authoritative ebook audio assets server-only', async () => {
+      const author = testEnv.authenticatedContext('author-audio');
+      const assetRef = doc(author.firestore(), 'ebook_audio_assets', 'asset-1');
+      await assertFails(getDoc(assetRef));
+      await assertFails(setDoc(assetRef, { authorId: 'author-audio', audioPath: 'forged.mp3', words: [] }));
+    });
+
+    it('prevents clients from bypassing versioned ebook persistence', async () => {
+      const author = testEnv.authenticatedContext('ebook-author');
+      await assertFails(setDoc(doc(author.firestore(), 'ebooks', 'ebook-1'), { authorId: 'ebook-author', title: 'Bypass', contentVersion: 99 }));
+      await assertFails(getDoc(doc(author.firestore(), 'ebooks', 'ebook-1', 'versions', '1')));
+    });
+  });
+
   // GRUPO 7: REGRESSÃO E COERÊNCIA GLOBAL (Cenários 68 a 76)
   describe('GRUPO 7: Regressão e Coerência Global da Aplicação', () => {
     it('68. Criação inicial continua funcional', async () => {
