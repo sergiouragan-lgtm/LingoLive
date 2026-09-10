@@ -27,7 +27,7 @@ Status is evidence-based. A visual prototype, static data, documentation, or an 
 - Automated suite: `[V]` 939 of 939 application tests and 124 of 124 Firestore rule checks passed
 - Dependency gate: `[V]` zero high or critical advisories in the production graph; 9 moderate advisories remain documented by npm
 - Workflow audit: `[V]` zero findings after permissions, SHA pinning and governance hardening
-- Mobile application build: `[ ]` not available; the repository contains three standalone Dart files but no complete Flutter project
+- Mobile application build: `[V]` Flutter workspace, Android/iOS targets, static analysis, unit tests and Android APK build available
 - Full browser and device validation: `[ ]` pending
 
 ## Master status board
@@ -38,7 +38,7 @@ Status is evidence-based. A visual prototype, static data, documentation, or an 
 | 01 | Database and Authentication | `[V]` | Firebase Auth, Firestore, role-aware entry flow, protected server middleware and security rules exist. This approval applies to the Firebase architecture, not the proposed PostgreSQL schema. | Run emulator and deployed-project security validation |
 | 02 | AI and Adaptive Learning Engine | `[~]` | Gemini and OpenAI integrations, CEFR context, adaptive profiles, recommendations, paths, pronunciation and tests exist. A persisted error-to-gap-to-remediation loop is not complete. | Implement real learning-gap aggregation and remove simulated fallbacks |
 | 03 | Ebook Studio Web | `[*]` | Authenticated API, AI structure and chapter generation, improvement, title suggestions, exercises, tone analysis, Firestore save/list/delete, editor UI and PDF export exist. EPUB3, WebReader, block-based WYSIWYG and dedicated tests were not found. | Add persisted schema validation, tests and multi-format export |
-| 04 | Flutter Student App | `[~]` | Profile, navigation and conversation wizard prototypes exist as standalone Dart files. Clean Architecture, dependency manifest, buildable app, reader, karaoke engine, exercises, offline sync and DRM are absent. | Create a real Flutter application and pass a device build |
+| 04 | Flutter Student App | `[*]` | Feature-first Flutter workspace now compiles with Firebase Auth/Firestore, AppShell, intelligent-profile dashboard, native reader, audio/karaoke, exercises and idempotent offline queue. Production Firebase files, real-device validation and DRM remain gated. | Inject environment credentials and pass Android/iOS real-device validation |
 | 05 | LingoLive Adaptive Synchronization Loop | `[~]` | Web learning profiles, attempts, adaptive paths and Firestore repositories exist. The new `student_learning_gaps` trigger and personalized fascicle generator are proposals only and target a different database. | Approve the canonical data architecture and implement the loop transactionally |
 | 06 | Monetization and DRM | `[~]` | Stripe checkout/webhooks, PayPal routes, Multicaixa flows and a payment engine exist. Marketplace split payments, ebook entitlements, social watermarking and mobile reader DRM are not complete. | Prove sandbox transactions and define entitlement/author settlement rules |
 | 07 | Deployment and Hardening | `[*]` | The required Web quality gate, workflow hardening, CODEOWNERS, Dependabot and security policy are implemented. Remote branch-protection enforcement, Flutter release, load evidence and launch validation remain. | Enable the required check in a GitHub ruleset, then add load and release evidence |
@@ -203,7 +203,7 @@ Corrections required in the supplied TypeScript proposal:
 
 ### 04.1 Application foundation
 
-`[~]` Three standalone Dart prototypes exist for profile, navigation and conversation setup.
+`[x]` Buildable Android/iOS workspace with `lib/app`, `lib/core`, feature-first modules, Firebase bootstrap/authentication, Material 3 theme, tests and CI build target. Legacy standalone prototypes remain excluded and documented rather than silently deleted.
 
 **Required implementation:** create a complete Flutter workspace with `pubspec.yaml`, `lib/app`, `lib/core`, feature-first modules, environment configuration, Firebase integration, tests and Android/iOS build targets.
 
@@ -211,23 +211,23 @@ Corrections required in the supplied TypeScript proposal:
 
 ### 04.2 Ebook reader
 
-`[ ]` Implement chapter navigation, semantic reading order, scalable typography, themes, bookmarks and offline availability.
+`[~]` Controlled native reader foundation uses semantic selectable responsive text. Chapter navigation, themes and bookmarks remain for product validation against real catalog documents.
 
 **Decision required:** compare an EPUB renderer with a controlled native chapter renderer. Do not select a PDF-only reader if karaoke, semantic accessibility and responsive text are core requirements.
 
 ### 04.3 Karaoke engine
 
-`[ ]` Implement `just_audio`, a validated word-timestamp model, efficient index lookup, seeking, speed changes and synchronization recovery.
+`[x]` `just_audio`, validated word timestamps, binary-search highlighting, seeking, pause/resume, speed controls and disposable player lifecycle are implemented.
 
 **Engineering annotation:** the supplied linear scan over every timestamp on every position event is acceptable for a prototype but should be replaced by indexed progression or binary search for long chapters. Stream subscriptions must be stored and cancelled on reload/dispose.
 
 ### 04.4 Interactive exercises
 
-`[ ]` Implement multiple choice, cloze, matching, listening and pronunciation activities with local persistence and server-confirmed scoring.
+`[~]` Multiple-choice interaction is implemented. Cloze, matching, listening, pronunciation and server-confirmed scoring remain incremental activity types.
 
 ### 04.5 Offline synchronization
 
-`[ ]` Implement an offline operation queue, conflict policy, retries, idempotency keys and visible sync state. Because Firestore is currently canonical, Supabase synchronization is not approved without the Phase 01 architecture decision.
+`[x]` Firestore offline persistence and an ordered local operation queue with duplicate-key suppression, stop-on-failure retry semantics and idempotent Firestore document IDs are implemented. Firestore remains canonical.
 
 ### 04.6 Mobile DRM
 
