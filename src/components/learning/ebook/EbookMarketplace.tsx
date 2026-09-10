@@ -84,7 +84,10 @@ function cefrColor(level: string): string {
 
 function wordReadingTime(words: number): string {
   const mins = Math.ceil(words / 200);
-  return mins > 60 ? `${Math.floor(mins / 60)}h ${mins % 60}min` : `${mins}min`;
+  if (mins < 60) return `${mins}min`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m === 0 ? `${h}h` : `${h}h ${m}min`;
 }
 
 function MarketplaceCard({
@@ -148,7 +151,13 @@ function MarketplaceCard({
         )}
 
         <div className="flex items-center justify-between pt-1 mt-auto">
-          <span className="text-lg font-black text-white">${ebook.priceUsd.toFixed(2)}</span>
+          <span className="text-lg font-black text-white">
+            {ebook.priceUsd === 0 ? (
+              <span className="text-emerald-400">Grátis</span>
+            ) : (
+              `$${ebook.priceUsd.toFixed(2)}`
+            )}
+          </span>
 
           {owned ? (
             <button
@@ -232,6 +241,7 @@ export function EbookMarketplace({
   const [searchQuery, setSearchQuery] = useState("");
   const [filterLevel, setFilterLevel] = useState<string>("all");
   const [filterLanguage, setFilterLanguage] = useState<string>("all");
+  const [librarySort, setLibrarySort] = useState<"enrolled" | "progress">("enrolled");
 
   const loadMarketplace = useCallback(async () => {
     setLoading(true);
@@ -349,7 +359,7 @@ export function EbookMarketplace({
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
               <input
                 type="text"
-                placeholder="Pesquisar e-books..."
+                placeholder="Pesquisar por título ou descrição…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-9 pr-4 py-2 bg-slate-800 border border-slate-700/50 rounded-xl text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500/60"
@@ -426,13 +436,37 @@ export function EbookMarketplace({
                 </button>
               </div>
             ) : (
-              <div className="space-y-3 max-w-2xl">
-                {library.map((item) => (
-                  <React.Fragment key={item.ebookId}>
-                    <LibraryCard item={item} onRead={handleRead} />
-                  </React.Fragment>
-                ))}
-              </div>
+              <>
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="text-xs text-slate-500">Ordenar:</span>
+                  {(["enrolled", "progress"] as const).map((opt) => (
+                    <button
+                      key={opt}
+                      onClick={() => setLibrarySort(opt)}
+                      className={`text-xs px-3 py-1 rounded-lg font-medium transition-colors ${
+                        librarySort === opt
+                          ? "bg-indigo-600 text-white"
+                          : "bg-slate-800 text-slate-400 hover:text-white border border-slate-700/50"
+                      }`}
+                    >
+                      {opt === "enrolled" ? "Mais recentes" : "Mais progresso"}
+                    </button>
+                  ))}
+                </div>
+                <div className="space-y-3 max-w-2xl">
+                  {[...library]
+                    .sort((a, b) =>
+                      librarySort === "enrolled"
+                        ? b.enrolledAt - a.enrolledAt
+                        : b.completionPercent - a.completionPercent
+                    )
+                    .map((item) => (
+                      <React.Fragment key={item.ebookId}>
+                        <LibraryCard item={item} onRead={handleRead} />
+                      </React.Fragment>
+                    ))}
+                </div>
+              </>
             )}
           </>
         )}

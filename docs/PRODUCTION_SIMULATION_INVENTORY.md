@@ -1,6 +1,6 @@
 # Inventário de simulações alcançáveis em runtime
 
-Auditoria de 2026-09-04 sobre `src/`, `server/`, `firebase/`, `apps/` e
+Auditoria atualizada em 2026-09-06 sobre `src/`, `server/`, `firebase/`, `apps/` e
 `packages/`, excluindo testes. “Produção” significa código incluído ou
 alcançável no artefacto/runtime, não prova de que a respetiva tela está
 publicamente habilitada.
@@ -15,6 +15,7 @@ publicamente habilitada.
 | `src/components/learning/KidsInteractiveHub.tsx:186-228` | Falha/bloqueio do reconhecimento de voz executa `simulateSuccess()`. | Pode atribuir sucesso pedagógico sem evidência. Fallback deve ser “não avaliado”. |
 | `src/components/learning/LearningPath.tsx:116-129` | Erros gramaticais simulados alimentam atividade quando faltam dados reais. | Identificar visualmente conteúdo de demonstração e impedir métricas reais. |
 | `server/middleware/requireAuth.ts:12-32` | Sandbox opcional cria `sandbox-demo-user` com `super_admin`. | Está protegido por duas flags; CI/deploy deve manter `NODE_ENV=production` e nunca ativar a flag com dados reais. |
+| `server/services/ebook/EbookSalesService.ts:70-95` | Sem Stripe, o checkout fictício pode criar venda, matrícula e licença apenas no sandbox explícito. | Corrigido em 2026-09-06: falha de forma fechada por padrão e em produção; o fallback exige `NODE_ENV != production` e `ENABLE_SANDBOX_FALLBACK=true`. Teste impede gravação quando bloqueado. |
 
 ## P1 — dashboards podem apresentar dados fictícios como reais
 
@@ -32,6 +33,7 @@ publicamente habilitada.
 | `src/components/learning/LearningAnalyticsPlatform.tsx:164-434` | Insight e agregação têm fallback/simulação de alta fidelidade. |
 | `src/components/learning/RankingModule.tsx:55` | Recompensa usa simulação direta do serviço. |
 | `src/components/core/AdminQRScanner.tsx:19-164` | Inclui chaves demo e scanner simulado. |
+| `server.ts:155-216` | O scheduler usa utilizadores da memória local quando a consulta Firestore falha e apenas regista em log lembretes destinados a tokens `simulated_*`. | 
 
 ## P2 — demonstração explícita ou conteúdo de apresentação
 

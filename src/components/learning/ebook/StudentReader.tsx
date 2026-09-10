@@ -342,24 +342,32 @@ const adaptedCache: Record<string, string> = {};
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
+const EMPTY_ENROLLMENT: Enrollment = {
+  ebookId: "",
+  studentUid: "",
+  enrolledAt: new Date().toISOString(),
+};
+
 interface StudentReaderProps {
   ebookId: string;
-  enrollment: Enrollment;
+  enrollment?: Enrollment;
   onBack: () => void;
+  backLabel?: string;
 }
 
-export function StudentReader({ ebookId, enrollment, onBack }: StudentReaderProps) {
+export function StudentReader({ ebookId, enrollment, onBack, backLabel }: StudentReaderProps) {
   const [ebook, setEbook] = useState<EbookData | null>(null);
-  const [progress, setProgress] = useState<Enrollment>(enrollment);
+  const [progress, setProgress] = useState<Enrollment>(enrollment ?? EMPTY_ENROLLMENT);
   const [completionPercent, setCompletionPercent] = useState(0);
   const [selectedChapter, setSelectedChapter] = useState<Chapter | null>(null);
-  const [cefrLevel, setCefrLevel] = useState<CefrLevel>((enrollment.currentCefr as CefrLevel) ?? "B1");
+  const [cefrLevel, setCefrLevel] = useState<CefrLevel>((enrollment?.currentCefr as CefrLevel) ?? "B1");
   const [adaptedBlocks, setAdaptedBlocks] = useState<Block[]>([]);
   const [adapting, setAdapting] = useState(false);
   const [markingRead, setMarkingRead] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [certificate, setCertificate] = useState<{ verificationCode: string; examTitle: string; issueDate: string } | null>(null);
   const [showCertModal, setShowCertModal] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
   // Load ebook data
@@ -436,26 +444,30 @@ export function StudentReader({ ebookId, enrollment, onBack }: StudentReaderProp
     [ebook, ebookId]
   );
 
-  const handleSelectChapter = (chapter: Chapter) => {
+  const handleSelectChapter = useCallback((chapter: Chapter) => {
     setSelectedChapter(chapter);
     contentRef.current?.scrollTo({ top: 0, behavior: "smooth" });
-  };
+  }, []);
 
   const handleMarkRead = async () => {
-    if (!selectedChapter) return;
+    if (!selectedChapter || !ebook) return;
     setMarkingRead(true);
     await markChapterReadApi(ebookId, selectedChapter.id);
     const data = await fetchProgress(ebookId);
     if (data) {
       setProgress(data.enrollment);
       setCompletionPercent(data.completionPercent);
-      // If ebook is now 100% complete, issue the certificate
       if (data.completionPercent >= 100) {
         const certData = await issueCertificateApi(ebookId);
         if (certData?.certificate) {
           setCertificate(certData.certificate);
           setShowCertModal(true);
         }
+      } else {
+        // Auto-advance to next chapter after a short delay
+        const idx = ebook.chapters.findIndex(c => c.id === selectedChapter.id);
+        const next = ebook.chapters[idx + 1];
+        if (next) setTimeout(() => handleSelectChapter(next), 600);
       }
     }
     setMarkingRead(false);
@@ -469,12 +481,23 @@ export function StudentReader({ ebookId, enrollment, onBack }: StudentReaderProp
   const isChapterRead = (chapterId: string) =>
     progress.chapterProgress?.some(cp => cp.chapterId === chapterId && cp.read) ?? false;
 
-  const navigateChapter = (dir: -1 | 1) => {
+  const navigateChapter = useCallback((dir: -1 | 1) => {
     if (!ebook || !selectedChapter) return;
     const idx = ebook.chapters.findIndex(c => c.id === selectedChapter.id);
     const next = ebook.chapters[idx + dir];
     if (next) handleSelectChapter(next);
-  };
+  }, [ebook, selectedChapter, handleSelectChapter]);
+
+  // Keyboard navigation: left/right arrows move between chapters
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === "ArrowRight") navigateChapter(1);
+      if (e.key === "ArrowLeft") navigateChapter(-1);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [navigateChapter]);
 
   const chapterIdx = ebook && selectedChapter
     ? ebook.chapters.findIndex(c => c.id === selectedChapter.id)
@@ -484,7 +507,10 @@ export function StudentReader({ ebookId, enrollment, onBack }: StudentReaderProp
     <div style={{ display: "flex", height: "100vh", flexDirection: "column", background: "var(--bg)", color: "var(--text-primary)" }}>
       {/* ─── Top bar ─── */}
       <header style={{ display: "flex", alignItems: "center", gap: 12, padding: "0 20px", height: 52, borderBottom: "1px solid var(--border)", background: "var(--card-bg)", flexShrink: 0 }}>
-        <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: 22, lineHeight: 1, padding: "0 4px" }}>←</button>
+        <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, padding: "0 4px" }}>
+          <span style={{ fontSize: 22, lineHeight: 1 }}>←</span>
+          {backLabel && <span style={{ fontSize: 13 }}>{backLabel}</span>}
+        </button>
         <button onClick={() => setSidebarOpen(o => !o)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: 18 }}>☰</button>
         <div style={{ flex: 1, fontWeight: 700, fontSize: 16, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--text-primary)" }}>
           {ebook?.title ?? "A carregar..."}
@@ -526,15 +552,23 @@ export function StudentReader({ ebookId, enrollment, onBack }: StudentReaderProp
             {ebook?.chapters.map((ch, i) => {
               const read = isChapterRead(ch.id);
               const active = selectedChapter?.id === ch.id;
+              const chWords = ch.blocks?.reduce((n, b) => n + b.content.split(/\s+/).length, 0)
+                ?? ch.content?.trim().split(/\s+/).filter(Boolean).length ?? 0;
+              const chMins = Math.max(1, Math.ceil(chWords / 200));
               return (
                 <button
                   key={ch.id}
                   onClick={() => handleSelectChapter(ch)}
-                  style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 16px", border: "none", background: active ? "var(--accent)10" : "transparent", borderLeft: active ? "3px solid var(--accent)" : "3px solid transparent", cursor: "pointer", textAlign: "left", color: active ? "var(--accent)" : "var(--text-primary)", fontWeight: active ? 600 : 400, fontSize: 14, lineHeight: 1.4 }}
+                  style={{ display: "flex", alignItems: "flex-start", gap: 10, width: "100%", padding: "10px 16px", border: "none", background: active ? "var(--accent)10" : "transparent", borderLeft: active ? "3px solid var(--accent)" : "3px solid transparent", cursor: "pointer", textAlign: "left", color: active ? "var(--accent)" : "var(--text-primary)", fontWeight: active ? 600 : 400, fontSize: 14, lineHeight: 1.4 }}
                 >
-                  <span style={{ fontSize: 14, opacity: 0.6, minWidth: 20 }}>{i + 1}.</span>
-                  <span style={{ flex: 1 }}>{ch.title}</span>
-                  {read && <span style={{ fontSize: 14, color: "#22c55e" }}>✓</span>}
+                  <span style={{ fontSize: 14, opacity: 0.6, minWidth: 20, paddingTop: 1 }}>{i + 1}.</span>
+                  <span style={{ flex: 1 }}>
+                    <span style={{ display: "block" }}>{ch.title}</span>
+                    {chWords > 0 && (
+                      <span style={{ fontSize: 11, color: "var(--text-secondary)", fontWeight: 400 }}>≈ {chMins} min</span>
+                    )}
+                  </span>
+                  {read && <span style={{ fontSize: 14, color: "#22c55e", paddingTop: 1 }}>✓</span>}
                 </button>
               );
             })}
@@ -560,10 +594,19 @@ export function StudentReader({ ebookId, enrollment, onBack }: StudentReaderProp
                 <h1 style={{ fontSize: 28, fontWeight: 800, lineHeight: 1.2, color: "var(--text-primary)", marginBottom: 8 }}>
                   {selectedChapter.title}
                 </h1>
-                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                   <span style={{ fontSize: 12, padding: "2px 8px", borderRadius: 12, background: CEFR_COLORS[cefrLevel] + "20", color: CEFR_COLORS[cefrLevel], fontWeight: 700 }}>
                     {cefrLevel} — {CEFR_LABELS[cefrLevel]}
                   </span>
+                  {adaptedBlocks.length > 0 && (() => {
+                    const words = adaptedBlocks.reduce((n, b) => n + b.content.split(/\s+/).length, 0);
+                    const mins = Math.max(1, Math.ceil(words / 200));
+                    return (
+                      <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                        ≈ {mins} min de leitura
+                      </span>
+                    );
+                  })()}
                   {isChapterRead(selectedChapter.id) && (
                     <span style={{ fontSize: 12, padding: "2px 8px", borderRadius: 12, background: "#22c55e20", color: "#16a34a", fontWeight: 700 }}>✓ Lido</span>
                   )}
@@ -651,8 +694,21 @@ export function StudentReader({ ebookId, enrollment, onBack }: StudentReaderProp
             </p>
             <div style={{ background: "var(--bg)", borderRadius: 12, padding: "16px 20px", marginBottom: 24, border: "2px dashed var(--border)" }}>
               <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>Código de verificação</div>
-              <div style={{ fontFamily: "monospace", fontSize: 18, fontWeight: 700, color: "var(--accent)", letterSpacing: 2 }}>
-                {certificate.verificationCode}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+                <div style={{ fontFamily: "monospace", fontSize: 18, fontWeight: 700, color: "var(--accent)", letterSpacing: 2 }}>
+                  {certificate.verificationCode}
+                </div>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(certificate.verificationCode).then(() => {
+                      setCodeCopied(true);
+                      setTimeout(() => setCodeCopied(false), 2000);
+                    });
+                  }}
+                  style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--text-secondary)", fontSize: 12, cursor: "pointer", fontWeight: 600 }}
+                >
+                  {codeCopied ? "✓ Copiado" : "Copiar"}
+                </button>
               </div>
               <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 6 }}>
                 Emitido em {new Date(certificate.issueDate).toLocaleDateString("pt-PT")}

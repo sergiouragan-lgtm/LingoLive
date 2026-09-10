@@ -10,6 +10,7 @@ import {
   computeCompletionPercent,
 } from "../services/ebook/AdaptiveLearningService";
 import { safeAddDoc, safeGetDoc, safeQueryDocs } from "../services/firestoreSafe.service";
+import { recordChapterRead } from "../services/ebook/EbookGamificationService";
 import crypto from "crypto";
 
 const router = Router();
@@ -76,7 +77,17 @@ router.post("/progress/:ebookId", requireAuth, async (req: any, res) => {
       completed: exercisesCompleted ?? 0,
       total: exercisesTotal ?? 0,
     });
-    return res.json({ success: true });
+
+    // Award XP, update streak and badges via gamification service
+    const updatedEnrollment = await getEnrollment(ebookId, userId);
+    const ebookDoc = await safeGetDoc("ebooks", ebookId);
+    const totalChapters = ebookDoc.exists ? ((ebookDoc.data() as any)?.chapters?.length ?? 0) : 0;
+    const completionPercent = updatedEnrollment
+      ? computeCompletionPercent(updatedEnrollment, totalChapters)
+      : 0;
+    const gamification = await recordChapterRead(userId, ebookId, completionPercent);
+
+    return res.json({ success: true, gamification });
   } catch (err: any) {
     console.error("[ebook-student] mark-read error:", err.message);
     return res.status(500).json({ error: "Falha ao registar progresso" });

@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { getStripeClient } from "../../config/stripe";
-import { appBaseUrl } from "../../config/env";
+import { appBaseUrl, ENABLE_SANDBOX_FALLBACK } from "../../config/env";
 import { safeAddDoc, safeSetDoc, safeGetDoc, safeQueryDocs } from "../firestoreSafe.service";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -69,7 +69,12 @@ export async function createEbookCheckoutSession(
 ): Promise<{ url: string; sessionId: string }> {
   const stripe = getStripeClient();
   if (!stripe) {
-    // Sandbox fallback for demo/dev environments without Stripe keys
+    if (!ENABLE_SANDBOX_FALLBACK) {
+      throw new Error("Stripe checkout is unavailable: payment sandbox fallback is disabled");
+    }
+
+    // Explicit sandbox-only fallback. ENABLE_SANDBOX_FALLBACK is always false
+    // in production, even when the environment variable is accidentally set.
     const fakeSessionId = `cs_sandbox_${crypto.randomUUID()}`;
     const licenseKey = generateLicenseKey(ebookId, buyerEmail);
     await recordSale({

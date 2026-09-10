@@ -36,6 +36,7 @@ export default function EbookReviews({ ebookId, authorId }: Props) {
   const [formComment, setFormComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitMsg, setSubmitMsg] = useState("");
+  const [sortBy, setSortBy] = useState<"recent" | "helpful">("recent");
 
   async function fetchReviews() {
     try {
@@ -138,6 +139,11 @@ export default function EbookReviews({ ebookId, authorId }: Props) {
   }
 
   const isAuthor = authorId && user?.uid === authorId;
+
+  const sortedReviews = [...reviews].sort((a, b) => {
+    if (sortBy === "helpful") return b.helpful - a.helpful;
+    return b.createdAt - a.createdAt;
+  });
 
 
   return (
@@ -305,6 +311,11 @@ export default function EbookReviews({ ebookId, authorId }: Props) {
             onChange={(e) => setFormComment(e.target.value)}
             maxLength={2000}
           />
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 4 }}>
+            <span style={{ fontSize: 11, color: formComment.length > 1800 ? "#ef4444" : "var(--muted, #9ca3af)" }}>
+              {formComment.length}/2000
+            </span>
+          </div>
           {submitMsg && (
             <p style={{ fontSize: 13, color: submitMsg.includes("sucesso") ? "#22c55e" : "#ef4444", margin: "8px 0 0" }}>
               {submitMsg}
@@ -326,32 +337,72 @@ export default function EbookReviews({ ebookId, authorId }: Props) {
           Ainda não há avaliações. Seja o primeiro!
         </p>
       ) : (
-        reviews.map((review) => (
-          <div key={review.id} className="review-card">
-            <div className="review-card-header">
-              <div>
-                <div className="review-author">{review.userDisplayName}</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}>
-                  {renderStars(review.rating)}
-                  {review.cefrLevel && (
-                    <span style={{ fontSize: 11, background: "#e9d5ff", color: "#7c3aed", padding: "1px 6px", borderRadius: 99 }}>
-                      {review.cefrLevel}
-                    </span>
+        <>
+          {/* Sort controls */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <span style={{ fontSize: 12, color: "var(--muted, #9ca3af)" }}>Ordenar por:</span>
+            {(["recent", "helpful"] as const).map((opt) => (
+              <button
+                key={opt}
+                onClick={() => setSortBy(opt)}
+                style={{
+                  fontSize: 12,
+                  padding: "3px 10px",
+                  borderRadius: 99,
+                  border: `1px solid ${sortBy === opt ? "var(--accent, #7c3aed)" : "var(--border, #e5e7eb)"}`,
+                  background: sortBy === opt ? "var(--accent, #7c3aed)" : "transparent",
+                  color: sortBy === opt ? "#fff" : "var(--muted, #6b7280)",
+                  cursor: "pointer",
+                  fontWeight: sortBy === opt ? 600 : 400,
+                }}
+              >
+                {opt === "recent" ? "Mais recentes" : "Mais úteis"}
+              </button>
+            ))}
+          </div>
+          {sortedReviews.map((review) => {
+            const isOwnReview = review.userId === user?.uid;
+            return (
+              <div
+                key={review.id}
+                className="review-card"
+                style={isOwnReview ? { border: "1.5px solid var(--accent, #7c3aed)" } : undefined}
+              >
+                <div className="review-card-header">
+                  <div>
+                    <div className="review-author" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      {review.userDisplayName}
+                      {isOwnReview && (
+                        <span style={{ fontSize: 10, background: "var(--accent, #7c3aed)", color: "#fff", padding: "1px 6px", borderRadius: 99, fontWeight: 600 }}>
+                          A sua avaliação
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}>
+                      {renderStars(review.rating)}
+                      {review.cefrLevel && (
+                        <span style={{ fontSize: 11, background: "#e9d5ff", color: "#7c3aed", padding: "1px 6px", borderRadius: 99 }}>
+                          {review.cefrLevel}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="review-date">
+                    {new Date(review.createdAt).toLocaleDateString("pt-PT")}
+                  </div>
+                </div>
+                <p className="review-comment">{review.comment}</p>
+                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                  {!isOwnReview && (
+                    <button className="review-helpful-btn" onClick={() => markHelpful(review.id)}>
+                      👍 Útil ({review.helpful})
+                    </button>
                   )}
                 </div>
               </div>
-              <div className="review-date">
-                {new Date(review.createdAt).toLocaleDateString("pt-PT")}
-              </div>
-            </div>
-            <p className="review-comment">{review.comment}</p>
-            <div style={{ display: "flex", justifyContent: "flex-end" }}>
-              <button className="review-helpful-btn" onClick={() => markHelpful(review.id)}>
-                👍 Útil ({review.helpful})
-              </button>
-            </div>
-          </div>
-        ))
+            );
+          })}
+        </>
       )}
     </div>
   );
