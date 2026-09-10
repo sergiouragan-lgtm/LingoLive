@@ -1,0 +1,62 @@
+name: lingolive_mobile
+description: "LingoLive AI - Mobile App. Interactive language learning with AI assistance."
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Firebase & Auth
+  firebase_core: ^2.24.0
+  firebase_auth: ^4.14.0
+  cloud_firestore: ^4.14.0
+  firebase_storage: ^11.6.0
+
+  # UI & State Management
+  provider: ^6.1.0
+  cupertino_icons: ^1.0.2
+  google_fonts: ^6.1.0
+  flutter_localizations:
+    sdk: flutter
+
+  # HTTP & API
+  http: ^1.1.0
+  dio: ^5.3.0
+
+  # Utils
+  intl: ^0.19.0
+  shared_preferences: ^2.2.0
+  uuid: ^4.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^3.0.0
+  build_runner: ^2.4.0
+  freezed_annotation: ^2.4.0
+  json_serializable: ^6.7.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/icons/
+    - assets/fonts/
+
+  fonts:
+    - family: GoogleSans
+      fonts:
+        - asset: assets/fonts/GoogleSans-Regular.ttf
+        - asset: assets/fonts/GoogleSans-Bold.ttf
+          weight: 700
+
+  # Localization
+  generate: true
