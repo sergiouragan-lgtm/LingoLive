@@ -48,7 +48,7 @@ const ACTIVITIES: Activity[] = [
 const REWARDS = ['⭐', '🏆', '🎖️', '💎', '🦁', '🌟'];
 
 // ── Parent PIN Lock ────────────────────────────────────────────────────────
-const ParentPinModal: React.FC<{ onClose: () => void; onSuccess: () => void }> = ({ onClose, onSuccess }) => {
+const ParentPinModal: React.FC<{ onClose: () => void; onSuccess: () => void; onNavigate?: (v: string) => void }> = ({ onClose, onSuccess, onNavigate }) => {
   const [pin, setPin] = useState('');
   const [mode, setMode] = useState<'enter' | 'create' | 'confirm' | 'success'>(() =>
     localStorage.getItem('kids_parent_pin') ? 'enter' : 'create'
@@ -134,7 +134,7 @@ const ParentPinModal: React.FC<{ onClose: () => void; onSuccess: () => void }> =
                 className="h-12 rounded-2xl bg-slate-100 text-slate-500 font-bold text-lg hover:bg-red-50 transition-colors">⌫</motion.button>
             </div>
 
-            <button onClick={() => setView?.('area-pais')} className="text-xs text-purple-500 underline mt-1 cursor-pointer">
+            <button onClick={() => onNavigate?.('area-pais')} className="text-xs text-purple-500 underline mt-1 cursor-pointer">
               Ir para Portal dos Pais
             </button>
           </>
@@ -260,6 +260,7 @@ const KidsDashboard: React.FC<KidsDashboardProps> = ({
           <ParentPinModal
             onClose={() => setShowPinModal(false)}
             onSuccess={() => { setShowPinModal(false); setView?.('area-pais'); }}
+            onNavigate={setView}
           />
         )}
       </AnimatePresence>
