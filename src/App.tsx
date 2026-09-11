@@ -104,6 +104,8 @@ import { GlobalSearch } from "./components/core/GlobalSearch";
 import { LearningProfileScreen } from "./components/growth/LearningProfileScreen";
 import { useDeviceOrientation } from "./hooks/useDeviceOrientation";
 import { AdminQRScanner } from "./components/core/AdminQRScanner";
+import KidsDashboard from "./components/core/kids/KidsDashboard";
+import TeenDashboard from "./components/core/teens/TeenDashboard";
 import { COUNTRY_DETAILS } from "./data/localizationData";
 import { recordLanguageExplored, recordQuizCompleted, recordSavedWordsCount, backupSavedWordsToFirestore, recordStreakProgress } from "./lib/AchievementsManager";
 import { getWordsFromDB, saveAllWordsToDB, getProgressFromDB, saveProgressToDB, savePendingSync, triggerManualSync, registerBackgroundSync } from "./utils/indexedDB";
@@ -1859,7 +1861,27 @@ function AppContent() {
           <TeacherProfessionalPlatform activeView="dashboard" setView={setView} />
         )}
 
-        {view === "dashboard" && role !== "TEACHER" && role !== "NATIVE_TEACHER" && (
+        {view === "dashboard" && role !== "TEACHER" && role !== "NATIVE_TEACHER" && selectedAgeGroup === "Kids" && (
+          <KidsDashboard
+            studentName={user?.displayName || "Explorador"}
+            setView={setView}
+            streakDays={streakData?.currentStreak ?? 5}
+            xpTotal={streakData?.totalXP ?? 1250}
+            stars={achievements?.length ?? 10}
+          />
+        )}
+
+        {view === "dashboard" && role !== "TEACHER" && role !== "NATIVE_TEACHER" && selectedAgeGroup === "PreTeens" && (
+          <TeenDashboard
+            studentName={user?.displayName || "Estudante"}
+            setView={setView}
+            streakDays={streakData?.currentStreak ?? 7}
+            xpTotal={streakData?.totalXP ?? 1250}
+            stars={achievements?.length ?? 20}
+          />
+        )}
+
+        {view === "dashboard" && role !== "TEACHER" && role !== "NATIVE_TEACHER" && (selectedAgeGroup !== "Kids" && selectedAgeGroup !== "PreTeens") && (
           <Dashboard
             selectedLanguage={selectedLanguage}
             setSelectedLanguage={setSelectedLanguage}
