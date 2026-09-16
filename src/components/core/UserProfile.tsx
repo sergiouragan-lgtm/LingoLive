@@ -379,7 +379,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
   }, [addToast]);
 
   // Determine if the current logged-in user is the general administrator
-  const isAdmin = userEmail?.toLowerCase() === 'sergio.uragan@gmail.com';
+  const isAdmin = false;
 
   // Metrics logic
   const totalHours = Math.max(8.5, streakData.history.length * 0.5); // At least 8.5 hours

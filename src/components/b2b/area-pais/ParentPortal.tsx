@@ -118,10 +118,7 @@ export const ParentPortal: React.FC<{ setView?: (v: string) => void }> = ({ setV
   const [replyText, setReplyText] = useState<string>("");
 
   // School General Announcements
-  const schoolMessages: SchoolMessage[] = [
-    { id: "sch-1", title: "Webinar Exclusivo para Encarregados de Educação", content: "Amanhã teremos nosso encontro pedagógico trimestral sobre o impacto das línguas nacionais no neurodesenvolvimento infantil. Link de acesso enviado ao e-mail cadastrado.", date: "Hoje, 09:00", isCritical: true },
-    { id: "sch-2", title: "Manutenção Preventiva de Infraestrutura", content: "Nosso laboratório Whisper AI passará por otimização técnica no domingo, das 02h às 04h. A experiência do aluno não sofrerá interrupções críticas.", date: "10 de Julho", isCritical: false }
-  ];
+  const [schoolMessages] = useState<SchoolMessage[]>([]);
 
   // Subscription Billing and Family Plans
   const [billingPlan, setBillingPlan] = useState<string>("Plano Familiar LingoLIVE Premium");

@@ -165,7 +165,7 @@ export const EducationalCMS: React.FC = () => {
 
   // Determine if current user can write content
   const isTeacher = role === "TEACHER" || role === "teacher" || role === "Educator";
-  const isAdminUser = role === "SUPER_ADMIN" || role === "PLATFORM_ADMIN" || role === "SCHOOL_ADMIN" || role === "school_admin" || role === "Admin" || user?.email === "sergio.uragan@gmail.com";
+  const isAdminUser = role === "SUPER_ADMIN" || role === "PLATFORM_ADMIN" || role === "SCHOOL_ADMIN" || role === "school_admin" || role === "Admin";
 
   // Load content from persistent collections. Empty collections remain empty.
   useEffect(() => {
@@ -823,7 +823,7 @@ export const EducationalCMS: React.FC = () => {
           <div>
             <div className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Identidade de Trabalho</div>
             <div className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              {user?.displayName || "Sérgio Uragan"} 
+              {user?.displayName || ""}
               <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-emerald-100 text-emerald-800 uppercase">
                 {role || "Educator"}
               </span>
@@ -1529,7 +1529,7 @@ export const EducationalCMS: React.FC = () => {
                   Fluxo de Trabalho de Aprovação Pedagógica
                 </h3>
                 <p className="text-slate-500 text-xs mb-6">
-                  Fila centralizada de revisão. Apenas coordenadores autorizados ou administradores seniores como Sérgio Uragan podem aprovar e publicar as lições globais para as escolas.
+                  Fila centralizada de revisão. Apenas coordenadores autorizados e administradores da plataforma podem aprovar e publicar as lições globais para as escolas.
                 </p>
 
                 {approvalRequests.length === 0 ? (

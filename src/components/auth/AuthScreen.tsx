@@ -55,8 +55,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ setView }) => {
 
   // Apple Login popup states
   const [showAppleModal, setShowAppleModal] = useState(false);
-  const [appleEmail, setAppleEmail] = useState('Sergio.uragan@gmail.com');
-  const [appleName, setAppleName] = useState('Sérgio Silva');
+  const [appleEmail, setAppleEmail] = useState('');
+  const [appleName, setAppleName] = useState('');
 
   // Load remembered user from localStorage
   const [rememberedUser, setRememberedUser] = useState<any>(() => {
@@ -117,7 +117,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ setView }) => {
   // Helper to save user locally
   const saveRememberedUser = (userObj: any, method: string) => {
     const photoURL = userObj.photoURL || "";
-    const dispName = userObj.displayName || name || "Sérgio Silva";
+    const dispName = userObj.displayName || name || "";
     const userEmail = userObj.email;
     const uid = userObj.uid;
     const lastLogin = new Date().toISOString();
@@ -329,8 +329,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ setView }) => {
       });
 
       const userEmail = userCredential.user.email || "";
-      const isSystemAdmin = userEmail.toLowerCase().includes('sergio.uragan@gmail.com');
-      let userRole = isSystemAdmin ? 'Admin' : 'Student';
+      let userRole = 'Student';
 
       try {
         await setDoc(doc(db, 'users', userCredential.user.uid), {
@@ -417,8 +416,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ setView }) => {
       const userCredential = await signInWithPopup(auth, provider);
       
       const userEmail = userCredential.user.email || "";
-      const isSystemAdmin = userEmail.toLowerCase().includes('sergio.uragan@gmail.com');
-      let userRole = isSystemAdmin ? 'Admin' : 'Student';
+      let userRole = 'Student';
 
       try {
         const permSnap = await getDoc(doc(db, 'email_permissions', userEmail.toLowerCase().trim()));
@@ -468,7 +466,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ setView }) => {
 
       handleAuthSuccessRedirect({
         uid: userCredential.user.uid,
-        displayName: userCredential.user.displayName || "Sérgio Silva",
+        displayName: userCredential.user.displayName || "",
         email: userCredential.user.email,
         photoURL: userCredential.user.photoURL || ""
       }, 'google');
@@ -495,8 +493,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ setView }) => {
       const userCredential = await signInWithPopup(auth, provider);
       
       const userEmail = userCredential.user.email || "";
-      const isSystemAdmin = userEmail.toLowerCase().includes('sergio.uragan@gmail.com');
-      let userRole = isSystemAdmin ? 'Admin' : 'Student';
+      let userRole = 'Student';
 
       try {
         await setDoc(doc(db, 'users', userCredential.user.uid), {
@@ -514,7 +511,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ setView }) => {
 
       handleAuthSuccessRedirect({
         uid: userCredential.user.uid,
-        displayName: userCredential.user.displayName || "Sérgio Silva",
+        displayName: userCredential.user.displayName || "",
         email: userCredential.user.email,
         photoURL: userCredential.user.photoURL || ""
       }, 'facebook');
@@ -548,7 +545,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ setView }) => {
     // We create/use a secure credential under the hood tied to their Apple Email
     const securePass = "apple_secure_pass_9988_" + appleEmail.trim().replace(/[^a-zA-Z0-9]/g, "");
     const emailToUse = appleEmail.trim();
-    const displayNameToUse = appleName.trim() || "Sérgio Silva";
+    const displayNameToUse = appleName.trim() || "";
     
     try {
       await applyPersistence();
@@ -568,8 +565,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ setView }) => {
         }
       }
       
-      const isSystemAdmin = emailToUse.toLowerCase().includes('sergio.uragan@gmail.com');
-      let userRole = isSystemAdmin ? 'Admin' : 'Student';
+      let userRole = 'Student';
       
       // Save profile completed as false for new, or read from existing
       let profileCompleted = false;

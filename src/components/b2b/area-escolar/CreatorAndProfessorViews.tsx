@@ -30,15 +30,7 @@ export const AlunosView: React.FC<ViewProps> = ({ triggerToast }) => {
   const [aiFeedback, setAiFeedback] = useState('');
   const [sendingMsg, setSendingMsg] = useState(false);
 
-  const students = [
-    { id: 's1', name: 'Marta Rebelo', avatar: '👩‍💼', fluencyScore: 84, attendance: 96, streak: 12, lastActive: 'Hoje', confidence: 'Alta', email: 'marta.r@company.com', class: 'Turma Alfa', activeMinutes: 240, audioCount: 42, commonErrors: 'Uso de preposições (agree in vs. agree on)' },
-    { id: 's2', name: 'Ricardo Dias', avatar: '👨‍💼', fluencyScore: 78, attendance: 92, streak: 9, lastActive: 'Ontem', confidence: 'Média', email: 'ricardo.d@tech.pt', class: 'Turma Alfa', activeMinutes: 180, audioCount: 28, commonErrors: 'Pronúncia de consoantes oclusivas' },
-    { id: 's3', name: 'Ana Filipa', avatar: '👩‍💻', fluencyScore: 88, attendance: 98, streak: 15, lastActive: 'Há 2 dias', confidence: 'Alta', email: 'ana.f@dev.io', class: 'Turma Alfa', activeMinutes: 310, audioCount: 56, commonErrors: 'Nenhum erro recorrente' },
-    { id: 's4', name: 'Tiago Santos', avatar: '👨‍🎨', fluencyScore: 68, attendance: 85, streak: 4, lastActive: 'Ontem', confidence: 'Média', email: 'tiago.s@design.pt', class: 'Turma Beta', activeMinutes: 120, audioCount: 14, commonErrors: 'Falta de vocabulário acadêmico' },
-    { id: 's5', name: 'Sara Costa', avatar: '👩‍🔬', fluencyScore: 92, attendance: 100, streak: 22, lastActive: 'Hoje', confidence: 'Alta', email: 'sara.c@health.org', class: 'Turma Alfa', activeMinutes: 420, audioCount: 88, commonErrors: 'Ritmo rápido de fala' },
-    { id: 's6', name: 'Carlos Cruz', avatar: '👨‍💻', fluencyScore: 74, attendance: 90, streak: 8, lastActive: 'Ontem', confidence: 'Média', email: 'carlos.c@corp.com', class: 'Turma Beta', activeMinutes: 145, audioCount: 21, commonErrors: 'Gerúndio após preposições' },
-    { id: 's7', name: 'Beatriz Lima', avatar: '👩‍⚕️', fluencyScore: 80, attendance: 94, streak: 11, lastActive: 'Hoje', confidence: 'Alta', email: 'beatriz.l@hospital.pt', class: 'Turma Beta', activeMinutes: 210, audioCount: 33, commonErrors: 'Entonação de perguntas' },
-  ];
+  const students: Array<{ id: string; name: string; avatar: string; fluencyScore: number; attendance: number; streak: number; lastActive: string; confidence: string; email: string; class: string; activeMinutes: number; audioCount: number; commonErrors: string }> = [];
 
   const filtered = students.filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
@@ -206,12 +198,7 @@ export const AulasView: React.FC<ViewProps> = ({ triggerToast }) => {
   const [selectedTopic, setSelectedTopic] = useState('');
   const [creatingLesson, setCreatingLesson] = useState(false);
 
-  const lessons = [
-    { id: 'l1', title: 'Pitching Commercial Achievements', class: 'Turma Alfa', duration: '50 min', date: 'Hoje, 19:00', type: 'Conversação', status: 'Agendada' },
-    { id: 'l2', title: 'Salary Review and Negotiation Tactics', class: 'Turma Alfa', duration: '50 min', date: 'Amanhã, 18:30', type: 'Roleplay', status: 'Agendada' },
-    { id: 'l3', title: 'IELTS Speaking Section 2 Boot Camp', class: 'Turma Beta', duration: '60 min', date: '18 Jul, 14:00', type: 'Prática Intensiva', status: 'Agendada' },
-    { id: 'l4', title: 'Customer Support Empathy Vocabulary', class: 'Turma Gama', duration: '45 min', date: '20 Jul, 11:00', type: 'Vocabulário', status: 'Agendada' },
-  ];
+  const lessons: Array<{ id: string; title: string; class: string; duration: string; date: string; type: string; status: string }> = [];
 
   const handleScheduleLesson = (e: React.FormEvent) => {
     e.preventDefault();

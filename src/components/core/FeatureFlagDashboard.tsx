@@ -121,7 +121,7 @@ export function FeatureFlagDashboard() {
       label: 'Vocab Deck de Palavras Inteligente',
       enabled: true,
       rolloutPercentage: 50,
-      betaEmails: ['sergio.uragan@gmail.com'],
+      betaEmails: [],
       targetCountries: ['ALL'],
       subscriptionTiers: ['school_basic', 'school_pro'],
       canaryEnabled: false,
