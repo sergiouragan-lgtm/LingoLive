@@ -84,3 +84,36 @@
   background-color: #475569;
 }
 
+/* ── Kids Profile animations (from Figma Make) ─────────────────────── */
+@keyframes kids-float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-12px); }
+}
+@keyframes kids-float-slow {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-8px) rotate(5deg); }
+}
+@keyframes kids-cloud-drift {
+  0% { transform: translateX(-10px); }
+  100% { transform: translateX(10px); }
+}
+@keyframes kids-star-twinkle {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.7); }
+}
+@keyframes kids-wiggle {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(3deg); }
+}
+@keyframes kids-pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,200,50,0.5); }
+  50% { box-shadow: 0 0 0 16px rgba(255,200,50,0); }
+}
+
+.animate-kids-float { animation: kids-float 3s ease-in-out infinite; }
+.animate-kids-float-slow { animation: kids-float-slow 4s ease-in-out infinite; }
+.animate-kids-cloud { animation: kids-cloud-drift 6s ease-in-out infinite alternate; }
+.animate-kids-star { animation: kids-star-twinkle 2s ease-in-out infinite; }
+.animate-kids-wiggle { animation: kids-wiggle 2s ease-in-out infinite; }
+.animate-kids-pulse-glow { animation: kids-pulse-glow 2s ease-in-out infinite; }
+

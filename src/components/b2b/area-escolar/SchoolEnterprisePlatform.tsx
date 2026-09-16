@@ -14,7 +14,7 @@ import {
 
 type SEPSection = 'dashboard' | 'command-center' | 'students' | 'teachers' | 'classes' | 'financial' | 'analytics' | 'security';
 
-export const SchoolEnterprisePlatform: React.FC<{ activeView?: string; setView?: (v: any) => void }> = ({ activeView = "dashboard", setView }) => {
+export const SchoolEnterprisePlatform: React.FC<{ activeView?: string; setView?: (v: string) => void }> = ({ activeView = "dashboard", setView }) => {
   const [activeSection, setActiveSection] = useState<SEPSection>('dashboard');
 
   useEffect(() => {

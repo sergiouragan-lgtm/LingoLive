@@ -8,7 +8,7 @@ interface ActivateAccountProps {
   user: User | null;
 }
 
-const ActivateAccount = ({ user }: ActivateAccountProps) => {
+export const ActivateAccount = ({ user }: ActivateAccountProps) => {
   const { setStep } = useOnboardingFlow();
 
   const handleActivate = async () => {
@@ -37,4 +37,3 @@ const ActivateAccount = ({ user }: ActivateAccountProps) => {
   );
 };
 
-export default ActivateAccount;

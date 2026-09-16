@@ -29,7 +29,7 @@ interface FeedbackReportCardProps {
   onViewSavedVocab: () => void;
 }
 
-export default function FeedbackReportCard({
+export function FeedbackReportCard({
   language,
   proficiency,
   scenario,

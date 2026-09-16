@@ -42,7 +42,7 @@ interface SecurityLog {
   details: string;
 }
 
-export default function SecurityDashboard() {
+export function SecurityDashboard() {
   const [activeTab, setActiveTab] = useState<'overview' | 'rbac' | 'secrets' | 'threats' | 'compliance'>('overview');
   const [securityLogs, setSecurityLogs] = useState<SecurityLog[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(false);

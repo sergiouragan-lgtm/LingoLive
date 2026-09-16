@@ -6,7 +6,7 @@ import { signOut } from 'firebase/auth';
 import { auth } from '../../firebase';
 import { useLocalization } from '../../context/LocalizationContext';
 
-export default function LiveChatAluno() {
+export function LiveChatAluno() {
   const { localization } = useLocalization();
   const [mensagem, setMensagem] = useState('');
   const [messages, setMessages] = useState<{ id: string, text: string, audioBase64?: string }[]>([]);

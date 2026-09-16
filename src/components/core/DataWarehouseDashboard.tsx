@@ -33,7 +33,7 @@ interface WarehouseTable {
   clusterFields: string[];
 }
 
-export default function DataWarehouseDashboard() {
+export function DataWarehouseDashboard() {
   const [activeTab, setActiveTab] = useState<'lineage' | 'schemas' | 'pipelines' | 'gdpr' | 'ai-train'>('lineage');
   const [searchQuery, setSearchQuery] = useState('');
   const [syncRunning, setSyncRunning] = useState(false);

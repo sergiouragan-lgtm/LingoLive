@@ -7,7 +7,7 @@ interface CadastrarProfessorProps {
   onTeacherAdded: () => void;
 }
 
-export default function CadastrarProfessor({ onTeacherAdded }: CadastrarProfessorProps) {
+export function CadastrarProfessor({ onTeacherAdded }: CadastrarProfessorProps) {
   const [formData, setFormData] = useState({
     nome: '',
     email: '',

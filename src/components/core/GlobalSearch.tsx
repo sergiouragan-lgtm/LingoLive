@@ -19,7 +19,7 @@ interface GlobalSearchProps {
   savedWords?: SavedWord[];
   streakHistory?: string[];
   selectedLanguage?: Language;
-  setView: (view: any) => void;
+  setView: (view: string) => void;
   variant?: "topbar" | "sidebar";
 }
 

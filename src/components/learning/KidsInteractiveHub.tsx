@@ -90,7 +90,7 @@ interface KidsInteractiveHubProps {
   language: Language;
 }
 
-export default function KidsInteractiveHub({ language }: KidsInteractiveHubProps) {
+export function KidsInteractiveHub({ language }: KidsInteractiveHubProps) {
   const [selectedWordId, setSelectedWordId] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [micFeedback, setMicFeedback] = useState<string | null>(null);

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ClassReport, StudentPerformance, TranscriptItem } from '../../../types';
 import { BarChart3, AlertCircle, BookOpen, Users, Clock, Languages, CreditCard, TrendingUp } from 'lucide-react';
-import AnalyticsList from '../../growth/AnalyticsList';
-import SubscriptionModal from '../../growth/SubscriptionModal';
+import { AnalyticsList } from '../../growth/AnalyticsList';
+import { SubscriptionModal } from '../../growth/SubscriptionModal';
 import { TranscriptModal } from '../../ai-tutor/TranscriptModal';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -11,7 +11,7 @@ interface EducatorDashboardProps {
   setView: (v: string) => void;
 }
 
-export default function EducatorDashboard({ report, setView }: EducatorDashboardProps) {
+export function EducatorDashboard({ report, setView }: EducatorDashboardProps) {
   const [langOfTheWeek, setLangOfTheWeek] = useState(() => localStorage.getItem('class_lang_of_week') || "Francês");
   const [filterLanguage, setFilterLanguage] = useState<string>("Todos");
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);

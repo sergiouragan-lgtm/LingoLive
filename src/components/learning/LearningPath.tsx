@@ -31,7 +31,7 @@ interface LearningPathProps {
   savedWords: SavedWord[];
   onStartPractice: () => void;
   setSelectedScenario: (s: Scenario) => void;
-  setView: (view: any) => void;
+  setView: (view: string) => void;
 }
 
 export const LearningPath: React.FC<LearningPathProps> = ({

@@ -23,12 +23,14 @@ interface Props {
   authorId?: string;
 }
 
-export default function EbookReviews({ ebookId, authorId }: Props) {
+export function EbookReviews({ ebookId, authorId }: Props) {
   const user = getAuth().currentUser;
   const [reviews, setReviews] = useState<Review[]>([]);
   const [aggregate, setAggregate] = useState<RatingAggregate | null>(null);
   const [myReview, setMyReview] = useState<Review | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [helpfulError, setHelpfulError] = useState<string | null>(null);
 
   // Form state
   const [formRating, setFormRating] = useState(0);
@@ -39,6 +41,7 @@ export default function EbookReviews({ ebookId, authorId }: Props) {
   const [sortBy, setSortBy] = useState<"recent" | "helpful">("recent");
 
   async function fetchReviews() {
+    setFetchError(null);
     try {
       const token = await user?.getIdToken();
       const [listRes, mineRes] = await Promise.all([
@@ -59,7 +62,7 @@ export default function EbookReviews({ ebookId, authorId }: Props) {
         setFormComment(mineData.review.comment);
       }
     } catch {
-      /* silent */
+      setFetchError("Não foi possível carregar as avaliações. Tente novamente.");
     } finally {
       setLoading(false);
     }
@@ -97,6 +100,7 @@ export default function EbookReviews({ ebookId, authorId }: Props) {
   }
 
   async function markHelpful(reviewId: string) {
+    setHelpfulError(null);
     try {
       const token = await user?.getIdToken();
       await fetch(`/api/ebook/reviews/${ebookId}/${reviewId}/helpful`, {
@@ -107,7 +111,7 @@ export default function EbookReviews({ ebookId, authorId }: Props) {
         prev.map((r) => (r.id === reviewId ? { ...r, helpful: r.helpful + 1 } : r))
       );
     } catch {
-      /* silent */
+      setHelpfulError("Não foi possível registar o voto. Tente novamente.");
     }
   }
 
@@ -136,6 +140,14 @@ export default function EbookReviews({ ebookId, authorId }: Props) {
 
   if (loading) {
     return <p style={{ textAlign: "center", color: "var(--muted)", padding: 24 }}>A carregar avaliações…</p>;
+  }
+
+  if (fetchError) {
+    return (
+      <p style={{ textAlign: "center", color: "#ef4444", padding: 24, fontSize: 14 }}>
+        {fetchError}
+      </p>
+    );
   }
 
   const isAuthor = authorId && user?.uid === authorId;
@@ -329,6 +341,11 @@ export default function EbookReviews({ ebookId, authorId }: Props) {
             {submitting ? "A guardar…" : myReview ? "Actualizar avaliação" : "Publicar avaliação"}
           </button>
         </div>
+      )}
+
+      {/* Helpful error */}
+      {helpfulError && (
+        <p style={{ fontSize: 13, color: "#ef4444", margin: "0 0 8px" }}>{helpfulError}</p>
       )}
 
       {/* Reviews list */}

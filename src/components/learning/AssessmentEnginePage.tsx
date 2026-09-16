@@ -3,7 +3,7 @@ import { AssessmentEngine } from './AssessmentEngine';
 import { ArrowLeft } from 'lucide-react';
 
 interface AssessmentEnginePageProps {
-  setView?: (view: any) => void;
+  setView?: (view: string) => void;
 }
 
 export const AssessmentEnginePage: React.FC<AssessmentEnginePageProps> = ({ setView }) => {

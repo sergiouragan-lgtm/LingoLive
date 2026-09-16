@@ -22,7 +22,7 @@ const nodePositions = [
   { top: '50%', left: '90%' },
 ];
 
-const MissionMap: React.FC<MissionMapProps> = ({ nodes }) => {
+export const MissionMap: React.FC<MissionMapProps> = ({ nodes }) => {
   const activeMissionIndex = nodes.findIndex(m => m.status === 'current');
   const activePos = nodePositions[activeMissionIndex === -1 ? 0 : activeMissionIndex];
   const [hoveredNode, setHoveredNode] = React.useState<number | null>(null);
@@ -81,4 +81,3 @@ const MissionMap: React.FC<MissionMapProps> = ({ nodes }) => {
   );
 };
 
-export default MissionMap;

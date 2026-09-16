@@ -26,7 +26,7 @@ interface Props {
 
 type Tab = "chat" | "vocab" | "grammar";
 
-export default function EbookAIAssistant({
+export function EbookAIAssistant({
   ebookId,
   chapterTitle,
   chapterContent,

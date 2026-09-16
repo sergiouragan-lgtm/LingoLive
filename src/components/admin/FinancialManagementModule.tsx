@@ -680,4 +680,3 @@ export const FinancialManagementModule: React.FC<FinancialManagementModuleProps>
   );
 };
 
-export default FinancialManagementModule;

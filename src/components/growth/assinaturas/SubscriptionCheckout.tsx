@@ -13,7 +13,7 @@ interface Plan {
   isBestOffer?: boolean;
 }
 
-export default function SubscriptionCheckout({ setView, user }: { setView: (v: string) => void, user?: any }) {
+export function SubscriptionCheckout({ setView, user }: { setView: (v: string) => void, user?: any }) {
   const [loading, setLoading] = useState<string | null>(null);
   const { ot } = useLocalization();
 

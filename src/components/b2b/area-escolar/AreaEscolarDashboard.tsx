@@ -2,7 +2,7 @@ import React from 'react';
 import { School, Users, BookOpen, Calendar, BookCheck, ClipboardList, Award, DollarSign, FileText, Settings, Sparkles } from 'lucide-react';
 
 interface AreaEscolarDashboardProps {
-  setView: (view: any) => void;
+  setView: (view: string) => void;
 }
 
 export const AreaEscolarDashboard: React.FC<AreaEscolarDashboardProps> = ({ setView }) => {

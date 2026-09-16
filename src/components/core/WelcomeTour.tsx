@@ -19,7 +19,7 @@ interface WelcomeTourProps {
   isOpen: boolean;
   onClose: () => void;
   userId?: string;
-  setView: (view: any) => void;
+  setView: (view: string) => void;
 }
 
 interface TourStep {

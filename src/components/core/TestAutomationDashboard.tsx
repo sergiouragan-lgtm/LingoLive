@@ -43,7 +43,7 @@ interface CoverageItem {
   lines: number;
 }
 
-export default function TestAutomationDashboard() {
+export function TestAutomationDashboard() {
   const [activeTab, setActiveTab] = useState<'suites' | 'pipelines' | 'coverage' | 'load-test' | 'auditor'>('suites');
   const [filterCategory, setFilterCategory] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');

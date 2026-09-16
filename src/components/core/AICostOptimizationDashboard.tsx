@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import AICostTrackerDashboard from './AICostTrackerDashboard';
+import { AICostTrackerDashboard } from './AICostTrackerDashboard';
 import { 
   Cpu, 
   Brain, 
@@ -48,7 +48,7 @@ interface SchoolLimit {
   alertThresholdPercent: number;
 }
 
-export default function AICostOptimizationDashboard() {
+export function AICostOptimizationDashboard() {
   const [activeTab, setActiveTab] = useState<'monitor' | 'router' | 'cache' | 'limits' | 'docs' | 'tracker'>('monitor');
   const [loading, setLoading] = useState(false);
   const [selectedScenario, setSelectedScenario] = useState<'chat' | 'grading' | 'translation'>('chat');

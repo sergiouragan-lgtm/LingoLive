@@ -40,7 +40,7 @@ interface FlagRule {
   };
 }
 
-export default function FeatureFlagDashboard() {
+export function FeatureFlagDashboard() {
   const [activeTab, setActiveTab] = useState<'flags' | 'experiments' | 'auditor' | 'simulator'>('flags');
   const [flags, setFlags] = useState<FlagRule[]>([]);
   const [loading, setLoading] = useState(false);
@@ -121,7 +121,7 @@ export default function FeatureFlagDashboard() {
       label: 'Vocab Deck de Palavras Inteligente',
       enabled: true,
       rolloutPercentage: 50,
-      betaEmails: ['sergio.uragan@gmail.com'],
+      betaEmails: [],
       targetCountries: ['ALL'],
       subscriptionTiers: ['school_basic', 'school_pro'],
       canaryEnabled: false,

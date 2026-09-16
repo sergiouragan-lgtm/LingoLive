@@ -140,7 +140,7 @@ export function sortItemsByPriority<T extends { category?: string; maturityLevel
   });
 }
 
-export default function SavedVocabDeck({
+export function SavedVocabDeck({
   savedWords,
   onDeleteWord,
   onBack,

@@ -11,7 +11,7 @@ interface TokenUsage {
   timestamp: any;
 }
 
-export default function AICostTrackerDashboard() {
+export function AICostTrackerDashboard() {
   const [data, setData] = useState<TokenUsage[]>([]);
 
   useEffect(() => {

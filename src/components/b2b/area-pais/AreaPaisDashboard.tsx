@@ -2,7 +2,7 @@ import React from 'react';
 import { ParentPortal } from './ParentPortal';
 
 interface AreaPaisDashboardProps {
-  setView: (view: any) => void;
+  setView: (view: string) => void;
 }
 
 export const AreaPaisDashboard: React.FC<AreaPaisDashboardProps> = ({ setView }) => {

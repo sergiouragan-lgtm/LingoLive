@@ -3,32 +3,35 @@ import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, User, sendPass
 import { Scanner } from '@yudiel/react-qr-scanner';
 import { auth, db, handleFirestoreError, OperationType } from './firebase';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
-import AdminDashboard from "./components/core/AdminDashboard";
+import { AdminDashboard } from "./components/core/AdminDashboard";
 import { MarketplacePlatform } from "./components/marketplace/MarketplacePlatform";
 import { AreaEscolarDashboard } from "./components/b2b/area-escolar/AreaEscolarDashboard";
 import { AreaProfessorDashboard } from "./components/b2b/area-escolar/AreaProfessorDashboard";
 import { AreaAlunoDashboard } from "./components/b2b/area-aluno/AreaAlunoDashboard";
 import { AreaPaisDashboard } from "./components/b2b/area-pais/AreaPaisDashboard";
-import EducatorDashboard from "./components/b2b/area-escolar/EducatorDashboard";
-import Dashboard from "./components/core/Dashboard";
+import { KidsDashboard } from "./components/core/kids/KidsDashboard";
+import { KidsHub } from "./components/core/kids/KidsHub";
+import { TeenDashboard } from "./components/core/kids/TeenDashboard";
+import { EducatorDashboard } from "./components/b2b/area-escolar/EducatorDashboard";
+import { Dashboard } from "./components/core/Dashboard";
 import { UserProfile } from "./components/core/UserProfile";
 import { LanguagesView } from "./components/learning/aprender/LanguagesView";
 import { AuthScreen } from "./components/auth/AuthScreen";
 import { WaitingVerificationScreen } from "./components/auth/WaitingVerificationScreen";
 import { SuspendedScreen } from "./components/auth/SuspendedScreen";
-import PracticeRoom from "./components/ai-tutor/conversacao/PracticeRoom";
+import { PracticeRoom } from "./components/ai-tutor/conversacao/PracticeRoom";
 import { AssessmentView } from "./components/learning/AssessmentView";
-import FeedbackReportCard from "./components/growth/FeedbackReportCard";
+import { FeedbackReportCard } from "./components/growth/FeedbackReportCard";
 import { PaymentsView } from "./components/growth/PaymentsView";
 import { WelcomeScreen } from "./components/growth/WelcomeScreen";
 import { PaymentOnboardingScreen } from "./components/growth/PaymentOnboardingScreen";
 import { PaymentSuccessScreen } from "./components/growth/PaymentSuccessScreen";
 import { MarketingView } from "./components/growth/MarketingView";
-import SavedVocabDeck from "./components/learning/biblioteca/SavedVocabDeck";
-import LanguageQuiz from "./components/learning/quiz/LanguageQuiz";
-import LiveChatAluno from "./components/ai-tutor/LiveChatAluno";
+import { SavedVocabDeck } from "./components/learning/biblioteca/SavedVocabDeck";
+import { LanguageQuiz } from "./components/learning/quiz/LanguageQuiz";
+import { LiveChatAluno } from "./components/ai-tutor/LiveChatAluno";
 import { LiveSessionsView } from "./components/learning/LiveSessionsView";
-import SubscriptionCheckout from "./components/growth/assinaturas/SubscriptionCheckout";
+import { SubscriptionCheckout } from "./components/growth/assinaturas/SubscriptionCheckout";
 import { LearningPath } from "./components/learning/LearningPath";
 import { AdaptiveEngineDashboard } from "./components/learning/AdaptiveEngineDashboard";
 import { PronunciationModule } from "./components/learning/PronunciationModule";
@@ -82,12 +85,12 @@ import { notificationService } from "./services/notification.service";
 import { Landing } from "./components/core/Landing";
 import { Onboarding } from "./components/core/Onboarding";
 import { Activation } from "./components/core/Activation";
-import IntelligentProfile from './components/core/onboarding/IntelligentProfile';
-import SaveToFirestore from './components/core/onboarding/SaveToFirestore';
-import ConfirmCreation from './components/core/onboarding/ConfirmCreation';
-import Payment from './components/core/onboarding/Payment';
-import ActivateAccount from './components/core/onboarding/ActivateAccount';
-import CreateDashboard from './components/core/onboarding/CreateDashboard';
+import { IntelligentProfile } from './components/core/onboarding/IntelligentProfile';
+import { SaveToFirestore } from './components/core/onboarding/SaveToFirestore';
+import { ConfirmCreation } from './components/core/onboarding/ConfirmCreation';
+import { Payment } from './components/core/onboarding/Payment';
+import { ActivateAccount } from './components/core/onboarding/ActivateAccount';
+import { CreateDashboard } from './components/core/onboarding/CreateDashboard';
 import { auditEvent } from './analytics/middleware/AuditMiddleware';
 import { EVENT_NAMES } from './analytics/events/catalog';
 import { smartProfileEngine } from './services/SmartProfileEngine';
@@ -244,6 +247,10 @@ function AppContent() {
       const isRestrictedView = ["landing", "onboarding", "waiting-verification", "suspended", "pagamentos", "welcome"].includes(currentView);
       if (isRestrictedView) {
         if (profile.role === 'school_admin' && !profile.schoolCreated) return "school-registration";
+        const kidsAgeGroups = ['CHILD', 'Kids', 'PreTeens', 'Infancy'];
+        const teenAgeGroups = ['TEEN', 'Teens'];
+        if (kidsAgeGroups.includes(profile.ageGroup)) return "kids-dashboard";
+        if (teenAgeGroups.includes(profile.ageGroup)) return "teen-dashboard";
         return "dashboard";
       }
       return currentView;
@@ -635,7 +642,15 @@ function AppContent() {
         if (entryResolution.status === 'ENTRY_AUTHORIZED') {
           syncProfileToStates(entryResolution.profile);
           if (entryResolution.access.role) {
-            setRole(entryResolution.access.role);
+            let effectiveRole = entryResolution.access.role;
+            const profileAgeGroup = entryResolution.profile?.ageGroup;
+            if ((effectiveRole === 'STUDENT' || effectiveRole === 'student' || effectiveRole === 'LEARNER') && profileAgeGroup) {
+              const kidsAgeGroups = ['CHILD', 'Kids', 'PreTeens', 'Infancy'];
+              const teenAgeGroups = ['TEEN', 'Teens'];
+              if (kidsAgeGroups.includes(profileAgeGroup)) effectiveRole = 'student_junior';
+              else if (teenAgeGroups.includes(profileAgeGroup)) effectiveRole = 'student_teen';
+            }
+            setRole(effectiveRole);
           }
           handleNavigationRouting(entryResolution.profile);
           localStorage.setItem(`lingolive_user_sub_${targetUser.uid}`, JSON.stringify(entryResolution.profile));
@@ -1728,8 +1743,8 @@ function AppContent() {
   // If authenticated, show the app content (Sidebar + Main)
   return (
     <div className={`min-h-screen flex font-sans transition-all duration-300 ${
-      theme === 'kiditorial' 
-        ? 'theme-kiditorial bg-slate-50 text-slate-800' 
+      theme === 'kiditorial' || view === 'kids-dashboard' || view === 'kids-hub'
+        ? 'theme-kiditorial bg-sky-50 text-slate-800'
         : 'theme-corporate bg-slate-50 text-slate-800'
     }`} id="lingolive-root-app">
       {view !== 'subscription' && view !== 'onboarding' && view !== 'welcome' && view !== 'pagamentos' && view !== 'waiting-verification' && view !== 'suspended' && view !== 'privacy-policy' && (
@@ -1957,6 +1972,18 @@ function AppContent() {
 
         {view === "area-pais" && (
           <AreaPaisDashboard setView={setView} />
+        )}
+
+        {view === "kids-dashboard" && (
+          <KidsDashboard setView={setView} userId={user?.uid} />
+        )}
+
+        {view === "kids-hub" && (
+          <KidsHub setView={setView} />
+        )}
+
+        {view === "teen-dashboard" && (
+          <TeenDashboard setView={setView} userId={user?.uid} />
         )}
 
         {view === "subscription-plans" && <SubscriptionPlans />}

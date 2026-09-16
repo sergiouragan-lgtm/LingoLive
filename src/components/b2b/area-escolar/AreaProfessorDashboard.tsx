@@ -25,7 +25,7 @@ import {
 } from './CreatorAndProfessorViews';
 
 interface AreaProfessorDashboardProps {
-  setView: (view: any) => void;
+  setView: (view: string) => void;
 }
 
 // Type declarations

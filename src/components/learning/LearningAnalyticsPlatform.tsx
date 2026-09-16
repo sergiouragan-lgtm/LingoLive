@@ -139,7 +139,7 @@ export const LearningAnalyticsPlatform: React.FC = () => {
   };
 
   useEffect(() => {
-    if (role === "SUPER_ADMIN" || role === "PLATFORM_ADMIN" || user?.email === "sergio.uragan@gmail.com") {
+    if (role === "SUPER_ADMIN" || role === "PLATFORM_ADMIN") {
       setSelectedDashboard("admin");
     } else if (role === "SCHOOL_ADMIN" || role === "school_admin") {
       setSelectedDashboard("school");

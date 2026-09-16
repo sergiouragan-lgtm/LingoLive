@@ -41,7 +41,7 @@ interface SchoolBIItem {
   retentionRate: number;
 }
 
-export default function BusinessIntelligenceDashboard() {
+export function BusinessIntelligenceDashboard() {
   const [activeSubTab, setActiveSubTab] = useState<'exec' | 'financial' | 'learning' | 'ai' | 'retention'>('exec');
   const [timeframe, setTimeframe] = useState<'30d' | '90d' | '12m'>('30d');
   const [loading, setLoading] = useState(false);

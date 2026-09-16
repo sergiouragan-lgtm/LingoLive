@@ -673,10 +673,12 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
-    // 38. Learning Statistics
+    // 38. Learning Statistics — owned by a specific user; block cross-user writes
     match /learningStatistics/{statId} {
-      allow read, list: if isSignedIn();
-      allow create, update: if isSignedIn();
+      allow get: if isSignedIn() && (isOwner(resource.data.userId) || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isEmailVerified() && isOwner(incoming().userId);
+      allow update: if isEmailVerified() && (isOwner(existing().userId) || isAdmin());
       allow delete: if isAdmin();
     }
 
@@ -686,22 +688,34 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
-    // 40. Rankings / Leaderboard Collections
+    // 40. Rankings / Leaderboard Collections — backend-computed; no direct client writes
     match /rankings/{rankingId} {
       allow read, list: if isSignedIn();
-      allow create, update: if isSignedIn();
-      allow delete: if isAdmin();
+      allow create, update, delete: if false;
     }
 
-    // 41. Schedules & Classes
+    // 41. Schedules & Classes — scoped to owner (teacher or student userId/teacherId)
     match /schedules/{scheduleId} {
-      allow read, list: if isSignedIn();
-      allow create, update: if isSignedIn();
+      allow get: if isSignedIn() && (
+        isOwner(resource.data.userId) || isOwner(resource.data.teacherId) || isAdmin()
+      );
+      allow list: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.teacherId == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isEmailVerified() && (
+        isOwner(incoming().userId) || isOwner(incoming().teacherId) || isAdmin()
+      );
+      allow update: if isEmailVerified() && (
+        isOwner(existing().userId) || isOwner(existing().teacherId) || isAdmin()
+      );
       allow delete: if isAdmin();
     }
     match /classes/{classId} {
       allow read, list: if isSignedIn();
-      allow create, update: if isSignedIn();
+      allow create: if isEmailVerified() && (isOwner(incoming().teacherId) || isAdmin());
+      allow update: if isEmailVerified() && (isOwner(existing().teacherId) || isAdmin());
       allow delete: if isAdmin();
     }
 

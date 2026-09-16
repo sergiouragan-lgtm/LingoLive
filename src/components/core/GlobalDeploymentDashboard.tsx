@@ -32,7 +32,7 @@ interface CloudRegion {
   loadPercent: number;
 }
 
-export default function GlobalDeploymentDashboard() {
+export function GlobalDeploymentDashboard() {
   const [activeTab, setActiveTab] = useState<'regions' | 'anycast' | 'tf' | 'dns'>('regions');
   const [regions, setRegions] = useState<CloudRegion[]>([]);
   const [loading, setLoading] = useState(false);
