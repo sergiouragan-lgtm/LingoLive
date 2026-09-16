@@ -1,0 +1,183 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ==========================================
+    // GLOBAL HELPERS
+    // ==========================================
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.admin == true ||
+        (request.auth.token.role != null && request.auth.token.role in ['SUPER_ADMIN', 'PLATFORM_ADMIN'])
+      );
+    }
+
+    // True when the authenticated user is acting within the named tenant.
+    // Users whose tenantId claim matches OR who are platform admins are allowed.
+    function belongsToTenant(tenantId) {
+      return isSignedIn() && (
+        request.auth.uid == tenantId ||
+        (request.auth.token.tenantId != null && request.auth.token.tenantId == tenantId) ||
+        isAdmin()
+      );
+    }
+
+    function maxSize(bytes) {
+      return request.resource.size <= bytes;
+    }
+
+    function isContentType(types) {
+      return request.resource.contentType in types;
+    }
+
+    // ==========================================
+    // TENANT-SCOPED BUCKET RULES
+    // Path: tenants/{tenantId}/{bucket}/{path=**}
+    // ==========================================
+
+    // --- avatars: jpeg / png / webp, max 2 MB ---
+    match /tenants/{tenantId}/avatars/{path=**} {
+      allow read: if isSignedIn();
+      allow write: if isEmailVerified()
+                   && belongsToTenant(tenantId)
+                   && maxSize(2 * 1024 * 1024)
+                   && isContentType(['image/jpeg', 'image/png', 'image/webp']);
+      allow delete: if isEmailVerified() && belongsToTenant(tenantId);
+    }
+
+    // --- certificates: pdf / png, max 5 MB — issued by Admin SDK only ---
+    match /tenants/{tenantId}/certificates/{path=**} {
+      allow read: if isSignedIn() && belongsToTenant(tenantId);
+      allow write: if false;
+      allow delete: if isAdmin();
+    }
+
+    // --- course-assets: images / pdf / audio, max 25 MB — admin write ---
+    match /tenants/{tenantId}/course-assets/{path=**} {
+      allow read: if isSignedIn();
+      allow write: if isEmailVerified()
+                   && isAdmin()
+                   && maxSize(25 * 1024 * 1024)
+                   && isContentType(['image/jpeg', 'image/png', 'application/pdf', 'audio/mpeg', 'audio/wav']);
+      allow delete: if isAdmin();
+    }
+
+    // --- teacher-assets: pdf / images, max 15 MB — tenant write ---
+    match /tenants/{tenantId}/teacher-assets/{path=**} {
+      allow read: if isSignedIn() && belongsToTenant(tenantId);
+      allow write: if isEmailVerified()
+                   && belongsToTenant(tenantId)
+                   && maxSize(15 * 1024 * 1024)
+                   && isContentType(['application/pdf', 'image/png', 'image/jpeg']);
+      allow delete: if isEmailVerified() && belongsToTenant(tenantId);
+    }
+
+    // --- student-files: pdf / images / text, max 10 MB — tenant write ---
+    match /tenants/{tenantId}/student-files/{path=**} {
+      allow read: if isSignedIn() && belongsToTenant(tenantId);
+      allow write: if isEmailVerified()
+                   && belongsToTenant(tenantId)
+                   && maxSize(10 * 1024 * 1024)
+                   && isContentType(['application/pdf', 'image/png', 'image/jpeg', 'text/plain']);
+      allow delete: if isEmailVerified() && belongsToTenant(tenantId);
+    }
+
+    // --- audio: mpeg / wav / ogg / webm, max 10 MB --- tenant write ---
+    match /tenants/{tenantId}/audio/{path=**} {
+      allow read: if isSignedIn() && belongsToTenant(tenantId);
+      allow write: if isEmailVerified()
+                   && belongsToTenant(tenantId)
+                   && maxSize(10 * 1024 * 1024)
+                   && isContentType(['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/webm']);
+      allow delete: if isEmailVerified() && belongsToTenant(tenantId);
+    }
+
+    // --- video: mp4 / webm / quicktime, max 100 MB — tenant write ---
+    match /tenants/{tenantId}/video/{path=**} {
+      allow read: if isSignedIn() && belongsToTenant(tenantId);
+      allow write: if isEmailVerified()
+                   && belongsToTenant(tenantId)
+                   && maxSize(100 * 1024 * 1024)
+                   && isContentType(['video/mp4', 'video/webm', 'video/quicktime']);
+      allow delete: if isEmailVerified() && belongsToTenant(tenantId);
+    }
+
+    // --- assessment-media: images / audio/mpeg, max 8 MB — tenant write ---
+    match /tenants/{tenantId}/assessment-media/{path=**} {
+      allow read: if isSignedIn() && belongsToTenant(tenantId);
+      allow write: if isEmailVerified()
+                   && belongsToTenant(tenantId)
+                   && maxSize(8 * 1024 * 1024)
+                   && isContentType(['image/jpeg', 'image/png', 'audio/mpeg']);
+      allow delete: if isEmailVerified() && belongsToTenant(tenantId);
+    }
+
+    // --- marketplace: images / binary, max 20 MB — admin write only ---
+    match /tenants/{tenantId}/marketplace/{path=**} {
+      allow read: if isSignedIn();
+      allow write: if isEmailVerified()
+                   && isAdmin()
+                   && maxSize(20 * 1024 * 1024)
+                   && isContentType(['image/jpeg', 'image/png', 'image/webp', 'application/octet-stream']);
+      allow delete: if isAdmin();
+    }
+
+    // --- reports: pdf / xlsx, max 5 MB — written by Admin SDK; tenant read ---
+    match /tenants/{tenantId}/reports/{path=**} {
+      allow read: if isSignedIn() && belongsToTenant(tenantId);
+      allow write: if false;
+      allow delete: if isAdmin();
+    }
+
+    // --- exports: zip / csv / json, max 50 MB — written by Admin SDK; tenant read ---
+    match /tenants/{tenantId}/exports/{path=**} {
+      allow read: if isSignedIn() && belongsToTenant(tenantId);
+      allow write: if false;
+      allow delete: if isAdmin();
+    }
+
+    // --- imports: csv / json / xlsx, max 15 MB — tenant upload; Admin SDK processes ---
+    match /tenants/{tenantId}/imports/{path=**} {
+      allow read: if isSignedIn() && belongsToTenant(tenantId);
+      allow write: if isEmailVerified()
+                   && belongsToTenant(tenantId)
+                   && maxSize(15 * 1024 * 1024)
+                   && isContentType(['text/csv', 'application/json',
+                       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
+      allow delete: if isAdmin();
+    }
+
+    // --- temporary: any MIME, max 5 MB — tenant write; Cloud Function handles expiry ---
+    match /tenants/{tenantId}/temporary/{path=**} {
+      allow read: if isSignedIn() && belongsToTenant(tenantId);
+      allow write: if isEmailVerified()
+                   && belongsToTenant(tenantId)
+                   && maxSize(5 * 1024 * 1024);
+      allow delete: if isEmailVerified() && belongsToTenant(tenantId);
+    }
+
+    // --- logs: text / json, max 10 MB — Admin SDK writes only; admin read ---
+    match /tenants/{tenantId}/logs/{path=**} {
+      allow read: if isAdmin();
+      allow write: if false;
+      allow delete: if isAdmin();
+    }
+
+    // ==========================================
+    // GLOBAL DENY-ALL CATCH-ALL
+    // Rejects any path not matched above.
+    // ==========================================
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
