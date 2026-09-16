@@ -15,8 +15,7 @@ import {
   BookMarked, 
   ChevronRight, 
   Sparkles, 
-  Timer, 
-  RotateCcw, 
+  RotateCcw,
   Play,
   Compass,
   Clock,
@@ -1677,12 +1676,11 @@ export function Dashboard(props: DashboardProps) {
 
         {/* Quick Actions */}
         <div className={`grid ${
-          orientation === 'landscape' ? 'grid-cols-3 gap-3' : 'grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6'
+          orientation === 'landscape' ? 'grid-cols-2 gap-3' : 'grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-6'
         }`}>
           {[
             { label: "Resume Previous Session", icon: RotateCcw, action: props.onStartPractice },
             { label: "Quick Vocabulary Review", icon: BookMarked, action: props.onViewSavedVocab },
-            { label: "Start 5-Minute Drill", icon: Timer, action: () => addToast("Em breve!", "info") },
           ].map((action, i) => (
             <button 
               key={i} 

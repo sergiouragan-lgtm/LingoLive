@@ -97,13 +97,13 @@ export const StudentPortal: React.FC<{ setView?: (v: string) => void }> = ({ set
           // Initialize in Firestore safely
           await setDoc(docRef, {
             userId: user.uid,
-            xp: 3450,
-            level: 8,
-            coins: 120,
-            streak: 14,
+            xp: 0,
+            level: 1,
+            coins: 0,
+            streak: 0,
             lastActiveDate: new Date().toISOString().split("T")[0],
-            badges: ["Iniciante Kimbundu", "Streak de 7 dias", "Pronúncia de Ouro"],
-            league: "Ouro"
+            badges: [],
+            league: "Bronze"
           });
         }
       } catch (err) {
@@ -143,7 +143,7 @@ export const StudentPortal: React.FC<{ setView?: (v: string) => void }> = ({ set
     { rank: 1, name: "António Miguel", avatar: "AM", xp: 4890, level: 11 },
     { rank: 2, name: "Lúcia Bento", avatar: "LB", xp: 4120, level: 10 },
     { rank: 3, name: user?.displayName || "Você", avatar: "VC", xp: xp, level: level, isCurrentUser: true },
-    { rank: 4, name: "Sérgio Uragan", avatar: "SU", xp: 3200, level: 8 },
+    { rank: 4, name: "Aluno Destaque", avatar: "AD", xp: 3200, level: 8 },
     { rank: 5, name: "Maria Inês", avatar: "MI", xp: 2950, level: 7 }
   ];
 
