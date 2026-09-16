@@ -1,12 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Star, Lock, Zap, Flame, ShieldCheck } from 'lucide-react';
 import { SceneBackground } from './SceneBackground';
 import { KidsParentGate } from './KidsParentGate';
 import { KidsParentArea } from './KidsParentArea';
+import { auth, db } from '../../../firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 interface KidsDashboardProps {
   setView: (v: string) => void;
+  userId?: string;
+}
+
+interface KidsStats {
+  xp: number;
+  level: number;
+  streak: number;
+  displayName: string;
 }
 
 const mapNodes = [
@@ -17,10 +27,31 @@ const mapNodes = [
   { id: 5, emoji: "🏰", label: "Castelo", xp: 200, status: "locked", x: 88, y: 55 },
 ];
 
-export const KidsDashboard: React.FC<KidsDashboardProps> = ({ setView }) => {
+export const KidsDashboard: React.FC<KidsDashboardProps> = ({ setView, userId }) => {
   const [hoveredNode, setHoveredNode] = useState<number | null>(null);
   const [showParentGate, setShowParentGate] = useState(false);
   const [showParentArea, setShowParentArea] = useState(false);
+  const [stats, setStats] = useState<KidsStats>({ xp: 0, level: 1, streak: 0, displayName: '' });
+
+  useEffect(() => {
+    const uid = userId || auth.currentUser?.uid;
+    if (!uid) return;
+    const name = auth.currentUser?.displayName || '';
+    setStats(prev => ({ ...prev, displayName: name.split(' ')[0] || '' }));
+    getDoc(doc(db, 'user_gamification', uid))
+      .then(snap => {
+        if (snap.exists()) {
+          const d = snap.data();
+          setStats(prev => ({
+            ...prev,
+            xp: d.xp ?? 0,
+            level: d.level ?? 1,
+            streak: d.streak ?? 0,
+          }));
+        }
+      })
+      .catch(() => {});
+  }, [userId]);
 
   return (
     <div className="relative min-h-screen overflow-y-auto">
@@ -74,7 +105,7 @@ export const KidsDashboard: React.FC<KidsDashboardProps> = ({ setView }) => {
             className="font-display font-extrabold text-white text-3xl lg:text-4xl leading-tight"
             style={{ textShadow: "0 3px 12px rgba(0,0,0,0.3), 0 1px 3px rgba(0,0,0,0.4)" }}
           >
-            Olá, Explorador! 👋
+            {stats.displayName ? `Olá, ${stats.displayName}! 👋` : 'Olá, Explorador! 👋'}
           </h1>
           <p className="text-white/90 font-display font-semibold mt-1 text-sm" style={{ textShadow: "0 1px 6px rgba(0,0,0,0.3)" }}>
             O Leo está à tua espera na aventura!
@@ -90,15 +121,15 @@ export const KidsDashboard: React.FC<KidsDashboardProps> = ({ setView }) => {
         >
           <div className="flex items-center gap-2 bg-yellow-400 rounded-full px-5 py-2.5 shadow-lg animate-kids-pulse-glow">
             <Star className="w-5 h-5 text-yellow-900 fill-yellow-900" />
-            <span className="font-display font-extrabold text-yellow-900 text-lg">1250 XP</span>
+            <span className="font-display font-extrabold text-yellow-900 text-lg">{stats.xp} XP</span>
           </div>
           <div className="flex items-center gap-2 bg-orange-500 rounded-full px-5 py-2.5 shadow-lg">
             <Flame className="w-5 h-5 text-white fill-white" />
-            <span className="font-display font-extrabold text-white text-lg">7 dias</span>
+            <span className="font-display font-extrabold text-white text-lg">{stats.streak} dias</span>
           </div>
           <div className="flex items-center gap-2 bg-indigo-600 rounded-full px-5 py-2.5 shadow-lg">
             <Zap className="w-5 h-5 text-yellow-300 fill-yellow-300" />
-            <span className="font-display font-extrabold text-white text-lg">Nível 5</span>
+            <span className="font-display font-extrabold text-white text-lg">Nível {stats.level}</span>
           </div>
         </motion.div>
 

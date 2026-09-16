@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, ChevronRight, Clock, Globe, BarChart2, Plus, Settings, Star, Flame, Zap, Shield, User } from 'lucide-react';
+import { X, ChevronRight, Clock, Globe, BarChart2, Plus, Star, Flame, Zap, Shield, User, Bell, BellOff, Check, Loader2 } from 'lucide-react';
+import { auth, db } from '../../../firebase';
+import { doc, setDoc, collection, addDoc } from 'firebase/firestore';
 
 interface KidsParentAreaProps {
   onClose: () => void;
@@ -25,9 +27,9 @@ const defaultChild: ChildProfile = {
   name: 'O Teu Explorador',
   age: 8,
   emoji: '🦁',
-  level: 5,
-  xp: 1250,
-  streak: 7,
+  level: 1,
+  xp: 0,
+  streak: 0,
   language: 'English',
   dailyLimit: 30,
 };
@@ -65,7 +67,23 @@ export const KidsParentArea: React.FC<KidsParentAreaProps> = ({ onClose }) => {
   const [activeTab, setActiveTab] = useState<ParentTab>('overview');
   const [child] = useState<ChildProfile>(defaultChild);
   const [dailyLimit, setDailyLimit] = useState(child.dailyLimit);
+  const [selectedLanguage, setSelectedLanguage] = useState(child.language);
   const [showAddChild, setShowAddChild] = useState(false);
+
+  // Controlled inputs for Add Child modal
+  const [newChildName, setNewChildName] = useState('');
+  const [newChildAge, setNewChildAge] = useState('');
+  const [addingChild, setAddingChild] = useState(false);
+
+  // Inline settings states
+  const [editingName, setEditingName] = useState(false);
+  const [newName, setNewName] = useState(child.name);
+  const [editingPin, setEditingPin] = useState(false);
+  const [newPin, setNewPin] = useState('');
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+
+  const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   const weekData = [
     { day: 'S', pct: 80 },
@@ -76,6 +94,69 @@ export const KidsParentArea: React.FC<KidsParentAreaProps> = ({ onClose }) => {
     { day: 'S', pct: 50 },
     { day: 'D', pct: 30 },
   ];
+
+  const handleSaveSettings = async () => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) { onClose(); return; }
+    setSaving(true);
+    try {
+      await setDoc(
+        doc(db, 'kids_settings', uid),
+        { dailyLimit, language: selectedLanguage, notifications: notificationsEnabled, updatedAt: new Date().toISOString() },
+        { merge: true }
+      );
+      setSaveSuccess(true);
+      setTimeout(() => { setSaveSuccess(false); onClose(); }, 1000);
+    } catch {
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAddChild = async () => {
+    const trimmedName = newChildName.trim();
+    const parsedAge = parseInt(newChildAge, 10);
+    if (!trimmedName || isNaN(parsedAge) || parsedAge < 3 || parsedAge > 17) return;
+    const uid = auth.currentUser?.uid;
+    if (!uid) { setShowAddChild(false); return; }
+    setAddingChild(true);
+    try {
+      await addDoc(collection(db, 'kids_profiles', uid, 'children'), {
+        name: trimmedName,
+        age: parsedAge,
+        createdAt: new Date().toISOString(),
+        language: selectedLanguage,
+        dailyLimit,
+      });
+      setNewChildName('');
+      setNewChildAge('');
+      setShowAddChild(false);
+    } catch {
+      setShowAddChild(false);
+    } finally {
+      setAddingChild(false);
+    }
+  };
+
+  const handleSaveName = async () => {
+    const uid = auth.currentUser?.uid;
+    if (!uid || !newName.trim()) { setEditingName(false); return; }
+    try {
+      await setDoc(doc(db, 'kids_settings', uid), { childDisplayName: newName.trim() }, { merge: true });
+    } catch { /* silently fail — local update still shows */ }
+    setEditingName(false);
+  };
+
+  const handleSavePin = async () => {
+    const uid = auth.currentUser?.uid;
+    if (!uid || newPin.length !== 4) return;
+    try {
+      await setDoc(doc(db, 'kids_settings', uid), { parentPin: newPin }, { merge: true });
+    } catch { /* silently fail */ }
+    setNewPin('');
+    setEditingPin(false);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm">
@@ -170,20 +251,14 @@ export const KidsParentArea: React.FC<KidsParentAreaProps> = ({ onClose }) => {
                   </p>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-gray-500 text-xs">Tempo de estudo</span>
-                    <span className="font-display font-bold text-slate-700 text-sm">18 min / {dailyLimit} min</span>
+                    <span className="font-display font-bold text-slate-700 text-sm">0 min / {dailyLimit} min</span>
                   </div>
                   <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${Math.min(100, (18 / dailyLimit) * 100)}%` }}
-                      transition={{ delay: 0.4, duration: 0.7 }}
-                      className="h-full rounded-full"
-                      style={{ background: 'linear-gradient(90deg, #6366F1, #8B5CF6)' }}
-                    />
+                    <div className="h-full w-0 rounded-full" style={{ background: 'linear-gradient(90deg, #6366F1, #8B5CF6)' }} />
                   </div>
                   <div className="flex justify-between mt-3 text-xs text-gray-400">
-                    <span>3 exercícios completos</span>
-                    <span>+150 XP ganhos</span>
+                    <span>0 exercícios completos</span>
+                    <span>0 XP ganhos hoje</span>
                   </div>
                 </div>
 
@@ -212,7 +287,6 @@ export const KidsParentArea: React.FC<KidsParentAreaProps> = ({ onClose }) => {
                 exit={{ opacity: 0, x: -20 }}
                 className="p-4 space-y-4"
               >
-                {/* Weekly activity chart */}
                 <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                   <p className="font-display font-bold text-slate-700 text-sm mb-4">Atividade semanal</p>
                   <div className="flex items-end gap-2" style={{ height: 80 }}>
@@ -223,7 +297,6 @@ export const KidsParentArea: React.FC<KidsParentAreaProps> = ({ onClose }) => {
                   <p className="text-center text-xs text-gray-400 mt-3">Minutos estudados por dia</p>
                 </div>
 
-                {/* Achievements */}
                 <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                   <p className="font-display font-bold text-slate-700 text-sm mb-3">Conquistas recentes</p>
                   {[
@@ -240,24 +313,6 @@ export const KidsParentArea: React.FC<KidsParentAreaProps> = ({ onClose }) => {
                       <span className="text-gray-300 text-xs">{a.date}</span>
                     </div>
                   ))}
-                </div>
-
-                {/* Words learned */}
-                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="font-display font-bold text-slate-700 text-sm">Palavras aprendidas</p>
-                    <span className="font-display font-extrabold text-indigo-600 text-lg">87</span>
-                  </div>
-                  <p className="text-gray-400 text-xs">Objectivo semanal: 100 palavras</p>
-                  <div className="mt-2 h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: '87%' }}
-                      transition={{ delay: 0.3, duration: 0.7 }}
-                      className="h-full rounded-full"
-                      style={{ background: 'linear-gradient(90deg, #10B981, #34D399)' }}
-                    />
-                  </div>
                 </div>
               </motion.div>
             )}
@@ -302,45 +357,141 @@ export const KidsParentArea: React.FC<KidsParentAreaProps> = ({ onClose }) => {
                     <p className="font-display font-bold text-slate-700 text-sm">Língua a aprender</p>
                   </div>
                   {['English', 'Español', 'Français', 'Deutsch'].map((lang) => (
-                    <div
+                    <button
                       key={lang}
-                      className="flex items-center justify-between py-2.5 border-b border-gray-50 last:border-0"
+                      onClick={() => setSelectedLanguage(lang)}
+                      className="w-full flex items-center justify-between py-2.5 border-b border-gray-50 last:border-0"
                     >
                       <span className="text-slate-600 text-sm">{lang}</span>
-                      {lang === child.language && (
+                      {lang === selectedLanguage && (
                         <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">Activo</span>
                       )}
-                    </div>
+                    </button>
                   ))}
                 </div>
 
-                {/* Account */}
+                {/* Account settings */}
                 <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                   <div className="flex items-center gap-2 mb-3">
                     <User className="w-4 h-4 text-indigo-500" />
                     <p className="font-display font-bold text-slate-700 text-sm">Conta</p>
                   </div>
-                  {[
-                    { label: 'Alterar nome da criança', icon: <ChevronRight className="w-4 h-4 text-gray-300" /> },
-                    { label: 'Alterar PIN parental', icon: <ChevronRight className="w-4 h-4 text-gray-300" /> },
-                    { label: 'Notificações de progresso', icon: <ChevronRight className="w-4 h-4 text-gray-300" /> },
-                  ].map((row) => (
-                    <div
-                      key={row.label}
-                      className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0 cursor-pointer"
+
+                  {/* Alterar nome da criança */}
+                  <div className="border-b border-gray-50">
+                    <button
+                      onClick={() => setEditingName(v => !v)}
+                      className="w-full flex items-center justify-between py-3"
                     >
-                      <span className="text-slate-600 text-sm">{row.label}</span>
-                      {row.icon}
+                      <span className="text-slate-600 text-sm">Alterar nome da criança</span>
+                      <ChevronRight className={`w-4 h-4 text-gray-300 transition-transform ${editingName ? 'rotate-90' : ''}`} />
+                    </button>
+                    <AnimatePresence>
+                      {editingName && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="overflow-hidden pb-3"
+                        >
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={newName}
+                              onChange={(e) => setNewName(e.target.value)}
+                              placeholder="Nome da criança"
+                              className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                            />
+                            <button
+                              onClick={handleSaveName}
+                              className="px-3 py-2 rounded-xl text-white text-sm font-bold"
+                              style={{ background: 'linear-gradient(135deg, #6366F1, #7C3AED)' }}
+                            >
+                              <Check className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Alterar PIN parental */}
+                  <div className="border-b border-gray-50">
+                    <button
+                      onClick={() => setEditingPin(v => !v)}
+                      className="w-full flex items-center justify-between py-3"
+                    >
+                      <span className="text-slate-600 text-sm">Alterar PIN parental</span>
+                      <ChevronRight className={`w-4 h-4 text-gray-300 transition-transform ${editingPin ? 'rotate-90' : ''}`} />
+                    </button>
+                    <AnimatePresence>
+                      {editingPin && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="overflow-hidden pb-3"
+                        >
+                          <div className="flex gap-2">
+                            <input
+                              type="password"
+                              maxLength={4}
+                              value={newPin}
+                              onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                              placeholder="4 dígitos"
+                              className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 tracking-widest"
+                            />
+                            <button
+                              onClick={handleSavePin}
+                              disabled={newPin.length !== 4}
+                              className="px-3 py-2 rounded-xl text-white text-sm font-bold disabled:opacity-40"
+                              style={{ background: 'linear-gradient(135deg, #6366F1, #7C3AED)' }}
+                            >
+                              <Check className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Notificações de progresso */}
+                  <button
+                    onClick={() => setNotificationsEnabled(v => !v)}
+                    className="w-full flex items-center justify-between py-3"
+                  >
+                    <span className="text-slate-600 text-sm">Notificações de progresso</span>
+                    <div className="flex items-center gap-2">
+                      {notificationsEnabled
+                        ? <Bell className="w-4 h-4 text-indigo-500" />
+                        : <BellOff className="w-4 h-4 text-gray-300" />
+                      }
+                      <div
+                        className="w-10 h-5 rounded-full transition-colors relative"
+                        style={{ background: notificationsEnabled ? '#6366F1' : '#E5E7EB' }}
+                      >
+                        <motion.div
+                          animate={{ x: notificationsEnabled ? 20 : 2 }}
+                          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                          className="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow"
+                        />
+                      </div>
                     </div>
-                  ))}
+                  </button>
                 </div>
 
                 <button
-                  onClick={onClose}
-                  className="w-full py-4 rounded-2xl font-display font-extrabold text-white text-base"
-                  style={{ background: 'linear-gradient(135deg, #6366F1, #7C3AED)', boxShadow: '0 4px 0 #4F46E5' }}
+                  onClick={handleSaveSettings}
+                  disabled={saving}
+                  className="w-full py-4 rounded-2xl font-display font-extrabold text-white text-base flex items-center justify-center gap-2"
+                  style={{ background: saveSuccess ? 'linear-gradient(135deg, #10B981, #059669)' : 'linear-gradient(135deg, #6366F1, #7C3AED)', boxShadow: '0 4px 0 #4F46E5' }}
                 >
-                  Guardar Definições
+                  {saving
+                    ? <><Loader2 className="w-4 h-4 animate-spin" /> A guardar…</>
+                    : saveSuccess
+                    ? <><Check className="w-4 h-4" /> Guardado!</>
+                    : 'Guardar Definições'
+                  }
                 </button>
               </motion.div>
             )}
@@ -375,13 +526,17 @@ export const KidsParentArea: React.FC<KidsParentAreaProps> = ({ onClose }) => {
                 <input
                   type="text"
                   placeholder="Nome da criança"
+                  value={newChildName}
+                  onChange={(e) => setNewChildName(e.target.value)}
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-sans text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
                 />
                 <input
                   type="number"
-                  placeholder="Idade"
+                  placeholder="Idade (3–17)"
                   min={3}
                   max={17}
+                  value={newChildAge}
+                  onChange={(e) => setNewChildAge(e.target.value)}
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-sans text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
                 />
               </div>
@@ -393,11 +548,12 @@ export const KidsParentArea: React.FC<KidsParentAreaProps> = ({ onClose }) => {
                   Cancelar
                 </button>
                 <button
-                  onClick={() => setShowAddChild(false)}
-                  className="flex-1 py-3 rounded-xl font-display font-bold text-white text-sm"
+                  onClick={handleAddChild}
+                  disabled={addingChild || !newChildName.trim() || !newChildAge}
+                  className="flex-1 py-3 rounded-xl font-display font-bold text-white text-sm flex items-center justify-center gap-2 disabled:opacity-50"
                   style={{ background: 'linear-gradient(135deg, #6366F1, #7C3AED)' }}
                 >
-                  Adicionar
+                  {addingChild ? <><Loader2 className="w-4 h-4 animate-spin" /> A adicionar…</> : 'Adicionar'}
                 </button>
               </div>
             </motion.div>

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Volume2, CheckCircle } from 'lucide-react';
 import { SceneBackground } from './SceneBackground';
+import { auth } from '../../../firebase';
 
 const categories = [
   { label: "Animais", emoji: "🐾" },
@@ -60,11 +61,30 @@ interface KidsHubProps {
   setView: (v: string) => void;
 }
 
+const STORAGE_KEY_PREFIX = 'kids_hub_learned_';
+
 export const KidsHub: React.FC<KidsHubProps> = ({ setView: _setView }) => {
   const [activeCategory, setActiveCategory] = useState("Animais");
-  const [learned, setLearned] = useState<Set<string>>(new Set(["Dog", "Cat", "Fish"]));
+  const [learned, setLearned] = useState<Set<string>>(() => {
+    try {
+      const uid = auth.currentUser?.uid || 'guest';
+      const raw = localStorage.getItem(STORAGE_KEY_PREFIX + uid);
+      return raw ? new Set<string>(JSON.parse(raw)) : new Set<string>();
+    } catch {
+      return new Set<string>();
+    }
+  });
   const [playing, setPlaying] = useState<string | null>(null);
   const [lastLearned, setLastLearned] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const uid = auth.currentUser?.uid || 'guest';
+      localStorage.setItem(STORAGE_KEY_PREFIX + uid, JSON.stringify([...learned]));
+    } catch {
+      // localStorage unavailable (private mode)
+    }
+  }, [learned]);
 
   const words = vocabData[activeCategory] || [];
   const total = Object.values(vocabData).flat().length;

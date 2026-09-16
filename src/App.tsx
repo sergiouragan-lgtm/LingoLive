@@ -11,6 +11,7 @@ import { AreaAlunoDashboard } from "./components/b2b/area-aluno/AreaAlunoDashboa
 import { AreaPaisDashboard } from "./components/b2b/area-pais/AreaPaisDashboard";
 import { KidsDashboard } from "./components/core/kids/KidsDashboard";
 import { KidsHub } from "./components/core/kids/KidsHub";
+import { TeenDashboard } from "./components/core/kids/TeenDashboard";
 import { EducatorDashboard } from "./components/b2b/area-escolar/EducatorDashboard";
 import { Dashboard } from "./components/core/Dashboard";
 import { UserProfile } from "./components/core/UserProfile";
@@ -246,6 +247,10 @@ function AppContent() {
       const isRestrictedView = ["landing", "onboarding", "waiting-verification", "suspended", "pagamentos", "welcome"].includes(currentView);
       if (isRestrictedView) {
         if (profile.role === 'school_admin' && !profile.schoolCreated) return "school-registration";
+        const kidsAgeGroups = ['CHILD', 'Kids', 'PreTeens', 'Infancy'];
+        const teenAgeGroups = ['TEEN', 'Teens'];
+        if (kidsAgeGroups.includes(profile.ageGroup)) return "kids-dashboard";
+        if (teenAgeGroups.includes(profile.ageGroup)) return "teen-dashboard";
         return "dashboard";
       }
       return currentView;
@@ -637,7 +642,15 @@ function AppContent() {
         if (entryResolution.status === 'ENTRY_AUTHORIZED') {
           syncProfileToStates(entryResolution.profile);
           if (entryResolution.access.role) {
-            setRole(entryResolution.access.role);
+            let effectiveRole = entryResolution.access.role;
+            const profileAgeGroup = entryResolution.profile?.ageGroup;
+            if ((effectiveRole === 'STUDENT' || effectiveRole === 'student' || effectiveRole === 'LEARNER') && profileAgeGroup) {
+              const kidsAgeGroups = ['CHILD', 'Kids', 'PreTeens', 'Infancy'];
+              const teenAgeGroups = ['TEEN', 'Teens'];
+              if (kidsAgeGroups.includes(profileAgeGroup)) effectiveRole = 'student_junior';
+              else if (teenAgeGroups.includes(profileAgeGroup)) effectiveRole = 'student_teen';
+            }
+            setRole(effectiveRole);
           }
           handleNavigationRouting(entryResolution.profile);
           localStorage.setItem(`lingolive_user_sub_${targetUser.uid}`, JSON.stringify(entryResolution.profile));
@@ -1730,7 +1743,7 @@ function AppContent() {
   // If authenticated, show the app content (Sidebar + Main)
   return (
     <div className={`min-h-screen flex font-sans transition-all duration-300 ${
-      theme === 'kiditorial' || view === 'kids-dashboard'
+      theme === 'kiditorial' || view === 'kids-dashboard' || view === 'kids-hub'
         ? 'theme-kiditorial bg-sky-50 text-slate-800'
         : 'theme-corporate bg-slate-50 text-slate-800'
     }`} id="lingolive-root-app">
@@ -1962,11 +1975,15 @@ function AppContent() {
         )}
 
         {view === "kids-dashboard" && (
-          <KidsDashboard setView={setView} />
+          <KidsDashboard setView={setView} userId={user?.uid} />
         )}
 
         {view === "kids-hub" && (
           <KidsHub setView={setView} />
+        )}
+
+        {view === "teen-dashboard" && (
+          <TeenDashboard setView={setView} userId={user?.uid} />
         )}
 
         {view === "subscription-plans" && <SubscriptionPlans />}

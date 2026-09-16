@@ -212,6 +212,18 @@ export const sidebarConfig = {
     { id: 'ebook-achievements', label: '⭐ Conquistas', icon: Trophy },
     { id: 'live-classes', label: '📹 Aulas ao Vivo', icon: Video },
   ],
+  student_teen: [
+    { id: 'teen-dashboard', label: '🏠 Início', icon: LayoutDashboard },
+    { id: 'practice', label: '🎤 Praticar com IA', icon: Mic },
+    { id: 'ebook-student-dashboard', label: '📚 Os Meus Livros', icon: BookMarked },
+    { id: 'ebook-flashcards', label: '🃏 Flashcards', icon: Layers },
+    { id: 'jogos', label: '🎮 Jogos', icon: Gamepad2 },
+    { id: 'ranking', label: '🏆 Ranking', icon: Trophy },
+    { id: 'ebook-achievements', label: '⭐ Conquistas', icon: Trophy },
+    { id: 'live-classes', label: '📹 Aulas ao Vivo', icon: Video },
+    { id: 'learning-path', label: '🗺️ Caminho de Aprendizagem', icon: Compass },
+    { id: 'perfil', label: 'Perfil', icon: User },
+  ],
   parent: [
     { id: "marketplace", label: "Marketplace Global", icon: Store },
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },

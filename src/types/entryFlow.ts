@@ -26,6 +26,8 @@ export type OfficialUserRole =
   | 'COMPANY_MANAGER'
   | 'BUSINESS_EMPLOYEE'
   // Roles antigos mantidos temporariamente por compatibilidade durante a migração da Etapa 4
+  | 'STUDENT_JUNIOR'
+  | 'STUDENT_TEEN'
   | 'ORG_ADMIN'
   | 'MANAGER'
   | 'LEARNER'
