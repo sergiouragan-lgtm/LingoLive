@@ -97,6 +97,8 @@ import { smartProfileEngine } from './services/SmartProfileEngine';
 import { SmartProfile } from './profile/types';
 import { CentralEntryController } from './entryFlow/CentralEntryController';
 import { ThemeManager } from './application/branding/ThemeManager';
+import { useCoppaCompliance } from './hooks/useCoppaCompliance';
+import { CoppaConsentFlow } from './components/compliance/CoppaConsentFlow';
 import { PrivacyPolicy } from "./components/compliance/PrivacyPolicy";
 import { InstallBanner } from "./components/core/InstallBanner";
 import { DailyGoalOverlay } from "./components/DailyGoalOverlay";
@@ -125,6 +127,7 @@ function AppContent() {
   const { role, setRole } = useUserRole();
   const [userProfile, setUserProfile] = useState<SmartProfile | null>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
+  const { canProceed: coppaCanProceed, isMinor, hasConsent } = useCoppaCompliance(user?.uid);
   // Navigation Router state
   const [view, setView] = useState<AppView>("landing");
   const [readerEbookId, setReaderEbookId] = useState<string | null>(null);
@@ -134,6 +137,22 @@ function AppContent() {
   const [showLogoTooltip, setShowLogoTooltip] = useState(false);
 
   useEffect(() => {
+    // COPPA Enforcement: Redireciona menores sem consentimento para fluxo de consentimento
+    if (
+      view === "dashboard" &&
+      authLoaded &&
+      user &&
+      isMinor &&
+      !hasConsent
+    ) {
+      setView("coppa-consent");
+      addToast(
+        "Consentimento parental obrigatório para menores de 13 anos",
+        "warning"
+      );
+      return;
+    }
+
     if (view === "dashboard" && authLoaded && user) {
         const completed = localStorage.getItem(`lingolive_tour_completed_${user.uid}`);
         if (!completed) {
@@ -144,7 +163,7 @@ function AppContent() {
     if (window.location.pathname.startsWith("/billing/success")) {
       setView("pagamentos-sucesso");
     }
-  }, [view, authLoaded, user?.uid]);
+  }, [view, authLoaded, user?.uid, isMinor, hasConsent, addToast]);
 
   useEffect(() => {
     ThemeManager.applyThemeByAgeGroup(selectedAgeGroup);
@@ -1853,12 +1872,30 @@ function AppContent() {
         )}
 
         {view === "suspended" && user && (
-          <SuspendedScreen 
+          <SuspendedScreen
             user={user}
             userProfile={userProfile}
             onUnlocked={(updatedProfile) => {
               setUserProfile(updatedProfile);
               setView(getRequiredView(updatedProfile, "suspended"));
+            }}
+          />
+        )}
+
+        {view === "coppa-consent" && user && userProfile && (
+          <CoppaConsentFlow
+            studentName={user.displayName || "Estudante"}
+            studentAge={userProfile.personalData?.age || 0}
+            studentId={user.uid}
+            parentEmail={user.email || ""}
+            parentName={user.displayName || "Responsável"}
+            onConsentConfirmed={() => {
+              setView("dashboard");
+              addToast("Consentimento COPPA confirmado com sucesso!", "success");
+            }}
+            onCancel={() => {
+              setView("landing");
+              addToast("Consentimento COPPA necessário para continuar", "info");
             }}
           />
         )}
