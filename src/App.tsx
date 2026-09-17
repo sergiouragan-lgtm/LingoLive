@@ -96,6 +96,7 @@ import { EVENT_NAMES } from './analytics/events/catalog';
 import { smartProfileEngine } from './services/SmartProfileEngine';
 import { SmartProfile } from './profile/types';
 import { CentralEntryController } from './entryFlow/CentralEntryController';
+import { ThemeManager } from './application/branding/ThemeManager';
 import { PrivacyPolicy } from "./components/compliance/PrivacyPolicy";
 import { InstallBanner } from "./components/core/InstallBanner";
 import { DailyGoalOverlay } from "./components/DailyGoalOverlay";
@@ -139,11 +140,15 @@ function AppContent() {
             setShowWelcomeTour(true);
         }
     }
-    
+
     if (window.location.pathname.startsWith("/billing/success")) {
       setView("pagamentos-sucesso");
     }
   }, [view, authLoaded, user?.uid]);
+
+  useEffect(() => {
+    ThemeManager.applyThemeByAgeGroup(selectedAgeGroup);
+  }, [selectedAgeGroup]);
 
   // Browser Notification handler for inactivity > 24h
   useEffect(() => {
