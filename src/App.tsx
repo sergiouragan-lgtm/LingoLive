@@ -11,6 +11,8 @@ import { AreaAlunoDashboard } from "./components/b2b/area-aluno/AreaAlunoDashboa
 import { AreaPaisDashboard } from "./components/b2b/area-pais/AreaPaisDashboard";
 import EducatorDashboard from "./components/b2b/area-escolar/EducatorDashboard";
 import Dashboard from "./components/core/Dashboard";
+import { KidsDashboard } from "./components/core/kids/KidsDashboard";
+import { TeensDashboard } from "./components/core/teens/TeensDashboard";
 import { UserProfile } from "./components/core/UserProfile";
 import { LanguagesView } from "./components/learning/aprender/LanguagesView";
 import { AuthScreen } from "./components/auth/AuthScreen";
@@ -73,6 +75,7 @@ import { SchoolRegistration } from "./components/core/SchoolRegistration";
 import { B2BPayment } from "./components/core/B2BPayment";
 import { SchoolEnterprisePlatform } from "./components/b2b/area-escolar/SchoolEnterprisePlatform";
 import { CorporateEnterprisePlatform } from "./components/b2b/area-empresarial/CorporateEnterprisePlatform";
+import { BusinessDashboard } from "./components/b2b/business/BusinessDashboard";
 import { FinancialManagementModule } from "./components/admin/FinancialManagementModule";
 import { LiveClassesPlatform } from "./components/live/LiveClassesPlatform";
 import { Sidebar } from "./components/core/Sidebar";
@@ -1860,42 +1863,60 @@ function AppContent() {
         )}
 
         {view === "dashboard" && role !== "TEACHER" && role !== "NATIVE_TEACHER" && (
-          <Dashboard
-            selectedLanguage={selectedLanguage}
-            setSelectedLanguage={setSelectedLanguage}
-            selectedProficiency={selectedProficiency}
-            setSelectedProficiency={setSelectedProficiency}
-            selectedAgeGroup={selectedAgeGroup}
-            setSelectedAgeGroup={setSelectedAgeGroup}
-            selectedScenario={selectedScenario}
-            setSelectedScenario={setSelectedScenario}
-            selectedVoice={selectedVoice}
-            setSelectedVoice={setSelectedVoice}
-            onStartPractice={handleStartPractice}
-            onViewSavedVocab={() => setView("vocab")}
-            onStartQuiz={() => setView("quiz")}
-            savedCount={savedWords.length}
-            streakData={streakData}
-            achievements={achievements}
-            onSimulatePastPractice={handleSimulatePastPractice}
-            features={features}
-            sessionTranscript={sessionTranscript}
-            savedWords={savedWords}
-            studentName={user?.displayName || "Estudante"}
-            feedback={undefined} // Or pass actual feedback report if available
-            onViewLearningPath={() => setView("learning-path")}
-            userId={user?.uid}
-            userEmail={user?.email || undefined}
-            onStartWizardSession={handleStartSessionFromWizard}
-            localization={localization}
-            userProfile={userProfile}
-            syncState={syncState}
-            onForceSync={handleForceSync}
-            onBuyStreakFreeze={handleBuyStreakFreeze}
-            onProtectStreakWithPoints={handleProtectStreakWithPoints}
-            toggleGoalOverlay={() => setIsGoalOverlayOpen(true)}
-            onNavigate={(v) => setView(v as AppView)}
-          />
+          <>
+            {(selectedAgeGroup === "CHILD" || selectedAgeGroup === "Kids" || selectedAgeGroup === "Infancy") && (
+              <KidsDashboard
+                selectedAgeGroup={selectedAgeGroup}
+                onNavigate={(v) => setView(v as AppView)}
+                onStartActivity={handleStartPractice}
+              />
+            )}
+            {(selectedAgeGroup === "TEEN" || selectedAgeGroup === "Teens" || selectedAgeGroup === "PreTeens") && (
+              <TeensDashboard
+                selectedAgeGroup={selectedAgeGroup}
+                onNavigate={(v) => setView(v as AppView)}
+                onStartActivity={handleStartPractice}
+              />
+            )}
+            {(selectedAgeGroup === "ADULT" || selectedAgeGroup === "Adults" || selectedAgeGroup === "Adultos") && (
+              <Dashboard
+                selectedLanguage={selectedLanguage}
+                setSelectedLanguage={setSelectedLanguage}
+                selectedProficiency={selectedProficiency}
+                setSelectedProficiency={setSelectedProficiency}
+                selectedAgeGroup={selectedAgeGroup}
+                setSelectedAgeGroup={setSelectedAgeGroup}
+                selectedScenario={selectedScenario}
+                setSelectedScenario={setSelectedScenario}
+                selectedVoice={selectedVoice}
+                setSelectedVoice={setSelectedVoice}
+                onStartPractice={handleStartPractice}
+                onViewSavedVocab={() => setView("vocab")}
+                onStartQuiz={() => setView("quiz")}
+                savedCount={savedWords.length}
+                streakData={streakData}
+                achievements={achievements}
+                onSimulatePastPractice={handleSimulatePastPractice}
+                features={features}
+                sessionTranscript={sessionTranscript}
+                savedWords={savedWords}
+                studentName={user?.displayName || "Estudante"}
+                feedback={undefined} // Or pass actual feedback report if available
+                onViewLearningPath={() => setView("learning-path")}
+                userId={user?.uid}
+                userEmail={user?.email || undefined}
+                onStartWizardSession={handleStartSessionFromWizard}
+                localization={localization}
+                userProfile={userProfile}
+                syncState={syncState}
+                onForceSync={handleForceSync}
+                onBuyStreakFreeze={handleBuyStreakFreeze}
+                onProtectStreakWithPoints={handleProtectStreakWithPoints}
+                toggleGoalOverlay={() => setIsGoalOverlayOpen(true)}
+                onNavigate={(v) => setView(v as AppView)}
+              />
+            )}
+          </>
         )}
 
         {view === "languages" && (
@@ -2239,7 +2260,11 @@ function AppContent() {
           <MarketplacePlatform activeView={view} setView={setView} />
         )}
 
-        {(["area-empresarial", "colaboradores", "equipas", "academias", "programas", "competencias", "compliance", "certificacoes", "analytics-corp", "financeiro-corp", "command-center-corp"].includes(view)) && (
+        {view === "command-center-corp" && (
+          <BusinessDashboard onNavigate={(v) => setView(v as AppView)} />
+        )}
+
+        {(["area-empresarial", "colaboradores", "equipas", "academias", "programas", "competencias", "compliance", "certificacoes", "analytics-corp", "financeiro-corp"].includes(view)) && (
           <CorporateEnterprisePlatform activeView={view} setView={setView} />
         )}
 
