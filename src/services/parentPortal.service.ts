@@ -148,18 +148,21 @@ export async function loadTeacherMessages(
     }
 
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((doc) => ({
-      id: doc.id,
-      teacherId: doc.data().teacherId,
-      teacherName: doc.data().teacherName,
-      studentId: doc.data().studentId,
-      studentName: doc.data().studentName,
-      subject: doc.data().subject,
-      content: doc.data().content,
-      timestamp: doc.data().timestamp?.toDate?.().toISOString() || "",
-      isRead: doc.data().isRead || false,
-      replies: doc.data().replies || [],
-    }));
+    return snapshot.docs.map((doc) => {
+      const data = doc.data() as Record<string, any>;
+      return {
+        id: doc.id,
+        teacherId: data.teacherId || "",
+        teacherName: data.teacherName || "",
+        studentId: data.studentId || "",
+        studentName: data.studentName || "",
+        subject: data.subject || "",
+        content: data.content || "",
+        timestamp: data.timestamp?.toDate?.().toISOString() || "",
+        isRead: data.isRead || false,
+        replies: data.replies || [],
+      };
+    });
   } catch (error) {
     console.error("Erro ao carregar mensagens de professores:", error);
     return [];

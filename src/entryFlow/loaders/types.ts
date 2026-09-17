@@ -12,7 +12,9 @@ export type LoaderErrorCode =
   | 'FIRESTORE_READ_FAILED'
   | 'MALFORMED_DOCUMENT'
   | 'NETWORK_ERROR'
-  | 'UNKNOWN_ERROR';
+  | 'UNKNOWN_ERROR'
+  | 'INVALID_UID'
+  | 'COPPA_CHECK_FAILED';
 
 /**
  * Envelope padrão e seguro para resultados dos carregadores (LoaderResult).

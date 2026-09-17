@@ -165,10 +165,6 @@ function AppContent() {
     }
   }, [view, authLoaded, user?.uid, isMinor, hasConsent, addToast]);
 
-  useEffect(() => {
-    ThemeManager.applyThemeByAgeGroup(selectedAgeGroup);
-  }, [selectedAgeGroup]);
-
   // Browser Notification handler for inactivity > 24h
   useEffect(() => {
     if (userProfile && userProfile.account?.lastLogin?.value) {
@@ -903,6 +899,10 @@ function AppContent() {
   const [selectedAgeGroup, setSelectedAgeGroup] = useState<AgeGroup>("Kids");
   const [selectedScenario, setSelectedScenario] = useState<Scenario>(SCENARIOS[0]);
   const [selectedVoice, setSelectedVoice] = useState<Voice>(VOICES[0]);
+
+  useEffect(() => {
+    ThemeManager.applyThemeByAgeGroup(selectedAgeGroup);
+  }, [selectedAgeGroup]);
 
   // Session history transcript
   const [sessionTranscript, setSessionTranscript] = useState<TranscriptItem[]>([]);
