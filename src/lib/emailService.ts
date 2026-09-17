@@ -1,4 +1,4 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
 function escapeHtml(value: string) {
   return value
@@ -34,52 +34,19 @@ export function assertCertificateDocumentUrl(value: string) {
 }
 
 export async function sendCertificateEmail(to: string, nomeAluno: string, urlCertificadoPdf: string) {
-  const user = process.env.EMAIL_USER;
-  const pass = process.env.EMAIL_PASS;
-  const from = process.env.EMAIL_FROM || user || 'suporte@lingolive.ai';
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.EMAIL_FROM || 'suporte@lingolive.ai';
 
-  if (!user || !pass) {
+  if (!apiKey) {
     throw new Error('EMAIL_PROVIDER_NOT_CONFIGURED');
   }
 
   const verifiedDocumentUrl = assertCertificateDocumentUrl(urlCertificadoPdf);
   const safeStudentName = escapeHtml(nomeAluno);
 
-  // Auto-detect service or configure general SMTP settings
-  let transportConfig: any = {};
-  
-  if (user.includes('gmail.com')) {
-    transportConfig = {
-      service: 'gmail',
-      auth: { user, pass }
-    };
-  } else if (user.includes('outlook.com') || user.includes('hotmail.com') || user.includes('live.com')) {
-    transportConfig = {
-      service: 'hotmail',
-      auth: { user, pass }
-    };
-  } else if (user.includes('yahoo.com')) {
-    transportConfig = {
-      service: 'yahoo',
-      auth: { user, pass }
-    };
-  } else {
-    // Standard SMTP fallback configuration (e.g. host-based on domain or custom config)
-    const domain = user.split('@')[1] || 'smtp.gmail.com';
-    transportConfig = {
-      host: process.env.EMAIL_HOST || `smtp.${domain}`,
-      port: parseInt(process.env.EMAIL_PORT || '587'),
-      secure: process.env.EMAIL_SECURE === 'true', // true for port 465, false for other ports
-      auth: { user, pass },
-      tls: {
-        rejectUnauthorized: true
-      }
-    };
-  }
+  const resend = new Resend(apiKey);
 
-  const transporter = nodemailer.createTransport(transportConfig);
-
-  await transporter.sendMail({
+  const { error } = await resend.emails.send({
     from: `LingoLive AI <${from}>`,
     to,
     subject: `Parabéns! Certificado de Proficiência LingoLive IA`,
@@ -91,4 +58,8 @@ export async function sendCertificateEmail(to: string, nomeAluno: string, urlCer
       <p>Estamos juntos,<br><strong>Equipa LingoLive AI</strong></p>
     `
   });
+
+  if (error) {
+    throw new Error(`EMAIL_SEND_FAILED: ${error.message}`);
+  }
 }

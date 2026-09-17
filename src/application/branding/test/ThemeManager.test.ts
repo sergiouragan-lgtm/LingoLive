@@ -4,6 +4,14 @@ import { BrandConfig } from '../../../domain/branding/BrandConfig';
 
 describe('ThemeManager', () => {
   it('should apply theme', () => {
+    const root = document.documentElement;
+    vi.spyOn(root.style, 'setProperty');
+
+    ThemeManager.applyTheme('corporate');
+    expect(root.style.setProperty).toHaveBeenCalledWith('--theme-primaryColor', '#2563EB');
+  });
+
+  it('should apply brand config', () => {
     const mockConfig: BrandConfig = {
       primaryColor: 'red',
       secondaryColor: 'blue',
@@ -27,7 +35,7 @@ describe('ThemeManager', () => {
     const root = document.documentElement;
     vi.spyOn(root.style, 'setProperty');
 
-    ThemeManager.applyTheme(mockConfig);
+    ThemeManager.applyBrandConfig(mockConfig);
     expect(root.style.setProperty).toHaveBeenCalledWith('--primary-color', 'red');
   });
 });

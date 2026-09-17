@@ -1,12 +1,14 @@
 /**
  * LingoLIVE IA - CentralEntryController
- * 
+ *
  * Controlador Central de Entrada (Entry Flow) do ecossistema LingoLIVE IA.
  * Responsável por receber por injeção de dependências e futuramente orquestrar os
  * cinco carregadores seguros de dados (SessionLoader, AccountLoader,
  * IntelligentProfileLoader, AccessAssignmentLoader, SubscriptionLoader).
- * 
+ *
  * MANTÉM-SE ISOLADO DA CAMADA DE UI E DE REACT.
+ *
+ * COPPA ENFORCEMENT: Valida consentimento parental para menores de 13 anos.
  */
 
 import {
@@ -19,6 +21,7 @@ import {
 import { LoaderResult, SessionData, AccountData, AccessAssignmentData, SubscriptionData, LoaderErrorCode } from './loaders/types';
 import { SmartProfile } from '../profile/types';
 import { User as FirebaseAuthUser } from 'firebase/auth';
+import { checkCoppaCompliance, CoppaCheckResult } from '../services/coppaEnforcement.service';
 
 export interface CentralEntryControllerDependencies {
   sessionLoader?: SessionLoader;
@@ -132,7 +135,27 @@ export type SubscriptionEntryResolution =
       rawStatus: string;
     };
 
-export type CentralEntryGate = 'SESSION' | 'ACCOUNT' | 'PROFILE' | 'ACCESS' | 'SUBSCRIPTION';
+export type CoppaEntryResolution =
+  | {
+      status: 'COPPA_NOT_REQUIRED';
+    }
+  | {
+      status: 'COPPA_COMPLIANT';
+      coppaCheck: CoppaCheckResult;
+    }
+  | {
+      status: 'COPPA_CONSENT_REQUIRED';
+      coppaCheck: CoppaCheckResult;
+    }
+  | {
+      status: 'COPPA_ERROR';
+      error: {
+        code: LoaderErrorCode;
+        message: string;
+      };
+    };
+
+export type CentralEntryGate = 'SESSION' | 'ACCOUNT' | 'PROFILE' | 'ACCESS' | 'SUBSCRIPTION' | 'COPPA';
 
 export type CentralEntryResolution =
   | {
@@ -786,6 +809,52 @@ export class CentralEntryController {
       access: accessRes.access,
       subscription: subscriptionRes.subscription
     };
+  }
+
+  /**
+   * Portão COPPA: Verifica conformidade com consentimento parental para menores de 13 anos.
+   * Executa apenas após o carregamento bem-sucedido do perfil (onde a idade está disponível).
+   */
+  async checkCoppaCompliance(userId: string | null | undefined): Promise<CoppaEntryResolution> {
+    if (!userId) {
+      return {
+        status: 'COPPA_ERROR',
+        error: {
+          code: 'INVALID_UID',
+          message: 'Identificador do utilizador inválido.'
+        }
+      };
+    }
+
+    try {
+      const coppaCheck = await checkCoppaCompliance(userId);
+
+      if (!coppaCheck.isMinor) {
+        return {
+          status: 'COPPA_NOT_REQUIRED'
+        };
+      }
+
+      if (coppaCheck.hasConsent) {
+        return {
+          status: 'COPPA_COMPLIANT',
+          coppaCheck
+        };
+      }
+
+      return {
+        status: 'COPPA_CONSENT_REQUIRED',
+        coppaCheck
+      };
+    } catch (error: any) {
+      return {
+        status: 'COPPA_ERROR',
+        error: {
+          code: 'COPPA_CHECK_FAILED',
+          message: error?.message || 'Falha ao verificar conformidade COPPA.'
+        }
+      };
+    }
   }
 
   /**
