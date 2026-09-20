@@ -241,7 +241,7 @@ class AnomalyDetectionService {
 
   public async getAlertRules(enabled?: boolean): Promise<AlertRule[]> {
     try {
-      let query = this.db.collection('alert_rules');
+      let query: any = this.db.collection('alert_rules');
 
       if (enabled !== undefined) {
         query = query.where('enabled', '==', enabled);

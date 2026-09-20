@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
 import { biIntegrationService } from '../services/bi-integration.service';
-import { requireAuth } from '../middleware/auth.middleware';
+import { requireAuth } from '../middleware/requireAuth';
 
 const router = express.Router();
 

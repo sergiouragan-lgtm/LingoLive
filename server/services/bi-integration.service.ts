@@ -169,7 +169,7 @@ class BIIntegrationService {
 
   public async getScheduledReports(enabled?: boolean): Promise<ScheduledReport[]> {
     try {
-      let query = this.db.collection('scheduled_reports');
+      let query: any = this.db.collection('scheduled_reports');
 
       if (enabled !== undefined) {
         query = query.where('enabled', '==', enabled);

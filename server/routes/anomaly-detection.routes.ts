@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
 import { anomalyDetectionService } from '../services/anomaly-detection.service';
-import { requireAuth } from '../middleware/auth.middleware';
+import { requireAuth } from '../middleware/requireAuth';
 
 const router = express.Router();
 

@@ -295,7 +295,7 @@ class RecommendationsService {
 
   public async getABTests(status?: string): Promise<ABTest[]> {
     try {
-      let query = this.db.collection('ab_tests');
+      let query: any = this.db.collection('ab_tests');
 
       if (status) {
         query = query.where('status', '==', status);
