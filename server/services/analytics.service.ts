@@ -1,4 +1,5 @@
 import { getFirestore } from 'firebase-admin/firestore';
+import type { Firestore } from 'firebase-admin/firestore';
 import { logSecurityEvent } from './security.event.logger';
 
 export type EventType =
@@ -39,7 +40,7 @@ export interface EventStats {
 }
 
 class AnalyticsService {
-  private db: FirebaseFirestore.Firestore;
+  private db: Firestore;
   private eventBuffer: UserEvent[] = [];
   private bufferSize = 100;
 

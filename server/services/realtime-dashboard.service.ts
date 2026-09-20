@@ -1,4 +1,5 @@
 import { getFirestore } from 'firebase-admin/firestore';
+import type { Firestore } from 'firebase-admin/firestore';
 
 export interface RealtimeDashboardData {
   timestamp: Date;
@@ -22,7 +23,7 @@ export interface StreamUpdate {
 }
 
 class RealtimeDashboardService {
-  private db: FirebaseFirestore.Firestore;
+  private db: Firestore;
   private subscribers: Map<string, Set<Function>> = new Map();
   private lastUpdate: Map<string, Date> = new Map();
 

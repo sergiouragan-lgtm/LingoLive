@@ -1,4 +1,5 @@
 import { getFirestore } from 'firebase-admin/firestore';
+import type { Firestore } from 'firebase-admin/firestore';
 import { logSecurityEvent } from './security.event.logger';
 
 export interface HealthMetric {
@@ -40,7 +41,7 @@ export interface ErrorLog {
 }
 
 class SystemHealthService {
-  private db: FirebaseFirestore.Firestore;
+  private db: Firestore;
   private startTime: Date = new Date();
 
   constructor() {

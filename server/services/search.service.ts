@@ -1,4 +1,5 @@
 import { getFirestore } from 'firebase-admin/firestore';
+import type { Firestore } from 'firebase-admin/firestore';
 import { logSecurityEvent } from './security.event.logger';
 
 export enum SearchIndexType {
@@ -42,7 +43,7 @@ export interface SearchSuggestion {
 }
 
 class SearchService {
-  private db: FirebaseFirestore.Firestore;
+  private db: Firestore;
   private searchCache: Map<string, { results: SearchResult[]; timestamp: number }> = new Map();
   private cacheExpiry = 5 * 60 * 1000; // 5 minutes
 

@@ -1,4 +1,5 @@
 import { getFirestore } from 'firebase-admin/firestore';
+import type { Firestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 import { logSecurityEvent } from './security.event.logger';
 
@@ -32,7 +33,7 @@ export interface ComplianceReport {
 }
 
 class ComplianceService {
-  private db: FirebaseFirestore.Firestore;
+  private db: Firestore;
   private auth: ReturnType<typeof getAuth>;
 
   constructor() {

@@ -1,4 +1,5 @@
 import { getFirestore } from 'firebase-admin/firestore';
+import type { Firestore } from 'firebase-admin/firestore';
 import { logSecurityEvent } from './security.event.logger';
 
 export enum NotificationType {
@@ -44,7 +45,7 @@ export interface NotificationSubscription {
 }
 
 class NotificationsService {
-  private db: FirebaseFirestore.Firestore;
+  private db: Firestore;
   private subscribers: Map<string, Set<(notification: UserNotification) => void>> = new Map();
   private notificationQueue: UserNotification[] = [];
   private maxQueueSize = 10000;

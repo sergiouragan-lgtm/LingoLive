@@ -1,4 +1,5 @@
 import { getFirestore } from 'firebase-admin/firestore';
+import type { Firestore } from 'firebase-admin/firestore';
 import { logSecurityEvent } from './security.event.logger';
 
 export interface Anomaly {
@@ -37,7 +38,7 @@ export interface Alert {
 }
 
 class AnomalyDetectionService {
-  private db: FirebaseFirestore.Firestore;
+  private db: Firestore;
   private baselineWindow = 7 * 24 * 60 * 60 * 1000; // 7 days
 
   constructor() {

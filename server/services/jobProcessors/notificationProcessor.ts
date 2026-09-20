@@ -1,6 +1,7 @@
 import Queue from 'bull';
 import { BatchNotificationJobData, JobType } from '../queue.service';
 import { getFirestore } from 'firebase-admin/firestore';
+import type { Firestore } from 'firebase-admin/firestore';
 import { getMessaging } from 'firebase-admin/messaging';
 import { logSecurityEvent } from '../security.event.logger';
 
@@ -139,7 +140,7 @@ export async function processBatchNotificationJob(
 }
 
 async function removeInvalidToken(
-  db: FirebaseFirestore.Firestore,
+  db: Firestore,
   userId: string,
   token: string
 ): Promise<void> {

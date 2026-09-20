@@ -1,4 +1,5 @@
 import { getFirestore } from 'firebase-admin/firestore';
+import type { Firestore } from 'firebase-admin/firestore';
 import { logSecurityEvent } from './security.event.logger';
 
 export type SubscriptionTier = 'free' | 'pro' | 'premium';
@@ -26,7 +27,7 @@ export interface PricingPlan {
 }
 
 class PaymentService {
-  private db: FirebaseFirestore.Firestore;
+  private db: Firestore;
   private pricingPlans: Map<SubscriptionTier, PricingPlan> = new Map();
 
   constructor() {

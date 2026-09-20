@@ -1,6 +1,7 @@
 import Queue from 'bull';
 import { ReportJobData, JobType } from '../queue.service';
 import { getFirestore } from 'firebase-admin/firestore';
+import type { Firestore } from 'firebase-admin/firestore';
 import { logSecurityEvent } from '../security.event.logger';
 
 interface ReportData {
@@ -94,7 +95,7 @@ export async function processReportJob(job: Queue.Job<ReportJobData>): Promise<s
 }
 
 async function generateStudentProgressReport(
-  db: FirebaseFirestore.Firestore,
+  db: Firestore,
   userId: string,
   dateRange?: { start: string; end: string }
 ): Promise<ReportData> {
@@ -125,7 +126,7 @@ async function generateStudentProgressReport(
 }
 
 async function generateClassAnalyticsReport(
-  db: FirebaseFirestore.Firestore,
+  db: Firestore,
   userId: string,
   dateRange?: { start: string; end: string }
 ): Promise<ReportData> {
@@ -153,7 +154,7 @@ async function generateClassAnalyticsReport(
 }
 
 async function generateRevenueReport(
-  db: FirebaseFirestore.Firestore,
+  db: Firestore,
   userId: string,
   dateRange?: { start: string; end: string }
 ): Promise<ReportData> {
@@ -184,7 +185,7 @@ async function generateRevenueReport(
 }
 
 async function generateEngagementReport(
-  db: FirebaseFirestore.Firestore,
+  db: Firestore,
   userId: string,
   dateRange?: { start: string; end: string }
 ): Promise<ReportData> {

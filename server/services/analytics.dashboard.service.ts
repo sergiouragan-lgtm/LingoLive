@@ -1,4 +1,5 @@
 import { getFirestore } from 'firebase-admin/firestore';
+import type { Firestore } from 'firebase-admin/firestore';
 import { logSecurityEvent } from './security.event.logger';
 
 export interface DashboardMetrics {
@@ -33,7 +34,7 @@ export interface EventTimeseries {
 }
 
 class AnalyticsDashboardService {
-  private db: FirebaseFirestore.Firestore;
+  private db: Firestore;
   private metricsCache: Map<string, any> = new Map();
   private cacheTTL = 5 * 60 * 1000; // 5 minutes
 

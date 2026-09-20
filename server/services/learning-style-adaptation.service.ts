@@ -1,4 +1,5 @@
 import { getFirestore } from 'firebase-admin/firestore';
+import type { Firestore } from 'firebase-admin/firestore';
 import { logSecurityEvent } from './security.event.logger';
 
 export interface LearningStyleProfile {
@@ -72,7 +73,7 @@ export interface CognitiveLoadMetrics {
 }
 
 class LearningStyleAdaptationService {
-  private db: FirebaseFirestore.Firestore;
+  private db: Firestore;
 
   constructor() {
     this.db = getFirestore();

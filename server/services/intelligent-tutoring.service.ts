@@ -1,4 +1,5 @@
 import { getFirestore } from 'firebase-admin/firestore';
+import type { Firestore } from 'firebase-admin/firestore';
 import { logSecurityEvent } from './security.event.logger';
 
 export interface TutoringSession {
@@ -58,7 +59,7 @@ export interface GuidedPracticeSession {
 }
 
 class IntelligentTutoringService {
-  private db: FirebaseFirestore.Firestore;
+  private db: Firestore;
   private activeSessions: Map<string, any> = new Map();
 
   constructor() {

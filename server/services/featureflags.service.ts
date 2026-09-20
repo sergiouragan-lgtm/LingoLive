@@ -1,4 +1,5 @@
 import { getFirestore } from 'firebase-admin/firestore';
+import type { Firestore } from 'firebase-admin/firestore';
 import { logSecurityEvent } from './security.event.logger';
 import crypto from 'crypto';
 
@@ -45,7 +46,7 @@ export interface FlagEvaluationResult {
 }
 
 class FeatureFlagsService {
-  private db: FirebaseFirestore.Firestore;
+  private db: Firestore;
   private flagCache: Map<string, { flag: FeatureFlag; expiresAt: number }> = new Map();
   private cacheExpiration = 5 * 60 * 1000; // 5 minutes
 

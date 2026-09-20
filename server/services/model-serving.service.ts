@@ -1,4 +1,5 @@
 import { getFirestore } from 'firebase-admin/firestore';
+import type { Firestore } from 'firebase-admin/firestore';
 import { logSecurityEvent } from './security.event.logger';
 
 export interface ModelServer {
@@ -58,7 +59,7 @@ export interface InferenceCache {
 }
 
 class ModelServingService {
-  private db: FirebaseFirestore.Firestore;
+  private db: Firestore;
   private inferenceCache: Map<string, any> = new Map();
 
   constructor() {

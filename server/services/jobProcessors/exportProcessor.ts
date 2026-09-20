@@ -1,6 +1,7 @@
 import Queue from 'bull';
 import { ExportJobData, JobType } from '../queue.service';
 import { getFirestore } from 'firebase-admin/firestore';
+import type { Firestore } from 'firebase-admin/firestore';
 import { logSecurityEvent } from '../security.event.logger';
 
 export async function processExportJob(job: Queue.Job<ExportJobData>): Promise<string> {
@@ -85,7 +86,7 @@ export async function processExportJob(job: Queue.Job<ExportJobData>): Promise<s
   }
 }
 
-async function fetchEbookData(db: FirebaseFirestore.Firestore, userId: string): Promise<any[]> {
+async function fetchEbookData(db: Firestore, userId: string): Promise<any[]> {
   const docs = await db
     .collection('user_ebooks')
     .where('userId', '==', userId)
@@ -101,7 +102,7 @@ async function fetchEbookData(db: FirebaseFirestore.Firestore, userId: string): 
   }));
 }
 
-async function fetchNotesData(db: FirebaseFirestore.Firestore, userId: string): Promise<any[]> {
+async function fetchNotesData(db: Firestore, userId: string): Promise<any[]> {
   const docs = await db
     .collection('user_notes')
     .where('userId', '==', userId)
@@ -117,7 +118,7 @@ async function fetchNotesData(db: FirebaseFirestore.Firestore, userId: string): 
   }));
 }
 
-async function fetchProgressData(db: FirebaseFirestore.Firestore, userId: string): Promise<any[]> {
+async function fetchProgressData(db: Firestore, userId: string): Promise<any[]> {
   const docs = await db
     .collection('user_progress')
     .where('userId', '==', userId)
@@ -134,7 +135,7 @@ async function fetchProgressData(db: FirebaseFirestore.Firestore, userId: string
 }
 
 async function fetchCertificatesData(
-  db: FirebaseFirestore.Firestore,
+  db: Firestore,
   userId: string
 ): Promise<any[]> {
   const docs = await db

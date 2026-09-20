@@ -1,4 +1,5 @@
 import { getFirestore } from 'firebase-admin/firestore';
+import type { Firestore } from 'firebase-admin/firestore';
 import { logSecurityEvent } from './security.event.logger';
 
 export enum NotificationChannel {
@@ -72,7 +73,7 @@ export interface NotificationDeliveryLog {
 }
 
 class UserPreferencesService {
-  private db: FirebaseFirestore.Firestore;
+  private db: Firestore;
   private deliveryLogs: Map<string, NotificationDeliveryLog[]> = new Map();
   private maxLogSize = 5000;
 

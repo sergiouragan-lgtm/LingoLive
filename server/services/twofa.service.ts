@@ -1,4 +1,5 @@
 import { getFirestore } from 'firebase-admin/firestore';
+import type { Firestore } from 'firebase-admin/firestore';
 import { logSecurityEvent } from './security.event.logger';
 import * as speakeasy from 'speakeasy';
 import * as QRCode from 'qrcode';
@@ -22,7 +23,7 @@ export interface TwoFASession {
 }
 
 class TwoFAService {
-  private db: FirebaseFirestore.Firestore;
+  private db: Firestore;
   private sessions: Map<string, TwoFASession> = new Map();
 
   constructor() {

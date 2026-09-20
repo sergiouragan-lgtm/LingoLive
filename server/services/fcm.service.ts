@@ -1,5 +1,6 @@
 import { getMessaging } from 'firebase-admin/messaging';
 import { getFirestore } from 'firebase-admin/firestore';
+import type { Firestore } from 'firebase-admin/firestore';
 import { logSecurityEvent } from './security.event.logger';
 
 export interface FCMToken {
@@ -22,7 +23,7 @@ export interface PushNotification {
 
 class FCMService {
   private messaging: any;
-  private db: FirebaseFirestore.Firestore;
+  private db: Firestore;
 
   constructor() {
     this.messaging = getMessaging();

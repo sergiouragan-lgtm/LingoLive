@@ -1,4 +1,5 @@
 import { getFirestore } from 'firebase-admin/firestore';
+import type { Firestore } from 'firebase-admin/firestore';
 import { logSecurityEvent } from './security.event.logger';
 
 export interface CacheEntry {
@@ -19,7 +20,7 @@ export interface CacheStats {
 }
 
 class CacheService {
-  private db: FirebaseFirestore.Firestore;
+  private db: Firestore;
   private memoryCache: Map<string, { value: any; expiresAt: number }> = new Map();
   private stats = { hits: 0, misses: 0 };
   private tagMap: Map<string, Set<string>> = new Map(); // tag -> keys

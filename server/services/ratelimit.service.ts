@@ -1,4 +1,5 @@
 import { getFirestore } from 'firebase-admin/firestore';
+import type { Firestore } from 'firebase-admin/firestore';
 import { logSecurityEvent } from './security.event.logger';
 
 export interface RateLimitConfig {
@@ -32,7 +33,7 @@ const DEFAULT_LIMITS = {
 };
 
 class RateLimitService {
-  private db: FirebaseFirestore.Firestore;
+  private db: Firestore;
   private inMemoryCache: Map<string, { count: number; resetAt: number }> = new Map();
 
   constructor() {

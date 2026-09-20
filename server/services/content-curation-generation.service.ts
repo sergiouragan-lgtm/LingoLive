@@ -1,4 +1,5 @@
 import { getFirestore } from 'firebase-admin/firestore';
+import type { Firestore } from 'firebase-admin/firestore';
 import { logSecurityEvent } from './security.event.logger';
 
 export interface CuratedContent {
@@ -91,7 +92,7 @@ export interface ABTestVariant {
 }
 
 class ContentCurationGenerationService {
-  private db: FirebaseFirestore.Firestore;
+  private db: Firestore;
 
   constructor() {
     this.db = getFirestore();

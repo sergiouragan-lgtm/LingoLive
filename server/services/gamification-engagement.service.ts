@@ -1,4 +1,5 @@
 import { getFirestore } from 'firebase-admin/firestore';
+import type { Firestore } from 'firebase-admin/firestore';
 import { logSecurityEvent } from './security.event.logger';
 
 export interface Achievement {
@@ -67,7 +68,7 @@ export interface UserEngagementProfile {
 }
 
 class GamificationEngagementService {
-  private db: FirebaseFirestore.Firestore;
+  private db: Firestore;
   private leaderboardCache: Map<string, any> = new Map();
 
   constructor() {

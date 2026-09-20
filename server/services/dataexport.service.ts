@@ -1,4 +1,5 @@
 import { getFirestore } from 'firebase-admin/firestore';
+import type { Firestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { logSecurityEvent } from './security.event.logger';
 import crypto from 'crypto';
@@ -46,7 +47,7 @@ export interface ExportedData {
 }
 
 class DataExportService {
-  private db: FirebaseFirestore.Firestore;
+  private db: Firestore;
   private bucket: any;
 
   constructor() {
