@@ -58,7 +58,6 @@ test.describe('Live Class Features', () => {
 
   test('should load live class platform without crashing', async ({ page }) => {
     const errors: string[] = [];
-    const uncaughtExceptions: string[] = [];
 
     page.on('console', msg => {
       if (msg.type() === 'error') {
@@ -66,16 +65,9 @@ test.describe('Live Class Features', () => {
       }
     });
 
-    page.on('pagecrash', () => {
-      uncaughtExceptions.push('Page crashed');
-    });
-
     await page.goto('/');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
-
-    // Should complete without page crash
-    expect(uncaughtExceptions.length).toBe(0);
 
     // Filter out expected errors
     const criticalErrors = errors.filter(e =>

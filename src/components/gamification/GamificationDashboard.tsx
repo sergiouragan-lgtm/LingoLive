@@ -128,7 +128,7 @@ export const GamificationDashboard: React.FC<GamificationDashboardProps> = ({
   const [selectedAchievement, setSelectedAchievement] = useState<Achievement | null>(null);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
 
-  const { data: gamification, loading } = useRealtimeSync<UserGamification>(
+  const { data: gamification, isLoading } = useRealtimeSync<UserGamification>(
     `user_gamification/${userId}`,
     (data) =>
       data || {
@@ -177,7 +177,7 @@ export const GamificationDashboard: React.FC<GamificationDashboardProps> = ({
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-800 flex items-center justify-center">
         <p className="text-gray-500 dark:text-gray-400">Carregando seu progresso...</p>

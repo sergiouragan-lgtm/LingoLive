@@ -422,10 +422,12 @@ export const AdvancedParentDashboard: React.FC<{
 
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <RechartsPie data={xpDistribution} cx="50%" cy="50%" labelLine={false} label={({ name, value }) => `${name}: ${value}`} outerRadius={100}>
-                {xpDistribution.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index]} />
-                ))}
+              <RechartsPie data={xpDistribution}>
+                <Pie cx="50%" cy="50%" labelLine={false} label={({ name, value }) => `${name}: ${value}`} outerRadius={100} dataKey="value">
+                  {xpDistribution.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index]} />
+                  ))}
+                </Pie>
               </RechartsPie>
             </ResponsiveContainer>
           </div>

@@ -5,9 +5,9 @@ import {
   Circle, StopCircle, Hand, Monitor, MoreVertical
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { auth, db } from "@/src/firebase";
+import { auth, db } from "@/firebase";
 import { doc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
-import { useToast } from "@/src/context/ToastContext";
+import { useToast } from "@/context/ToastContext";
 
 interface LiveRoom {
   id: string;

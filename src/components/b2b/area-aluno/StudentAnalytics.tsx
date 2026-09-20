@@ -91,7 +91,7 @@ export const StudentAnalytics: React.FC<StudentAnalyticsProps> = ({
     null
   );
 
-  const { data: students, loading: studentsLoading } = useRealtimeSync<StudentProgress[]>(
+  const { data: students, isLoading: studentsLoading } = useRealtimeSync<StudentProgress[]>(
     `schools/${schoolId}/classes/${classId}/students`,
     (data) => data || []
   );

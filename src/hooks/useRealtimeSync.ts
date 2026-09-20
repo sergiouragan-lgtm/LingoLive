@@ -10,12 +10,24 @@ export interface UseSyncOptions {
 /**
  * Hook for real-time data synchronization
  * Subscribes to Firestore collection and handles offline queuing
+ *
+ * Overloads support both callback style (legacy) and constraint style (new)
  */
 export function useRealtimeSync<T>(
   collectionPath: string,
-  constraints: QueryConstraint[] = [],
+  constraintsOrCallback: QueryConstraint[] | ((data: T[]) => void) = [],
   options?: UseSyncOptions
 ) {
+  // Handle legacy callback-based API
+  let constraints: QueryConstraint[] = [];
+  let onDataCallback: ((data: T[]) => void) | undefined;
+
+  if (typeof constraintsOrCallback === 'function') {
+    onDataCallback = constraintsOrCallback;
+    constraints = [];
+  } else if (Array.isArray(constraintsOrCallback)) {
+    constraints = constraintsOrCallback;
+  }
   const [data, setData] = useState<T[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -34,10 +46,14 @@ export function useRealtimeSync<T>(
     const subscriptionId = realtimeService.subscribe(
       collectionPath,
       constraints,
-      (newData) => {
-        setData(newData);
+      (newData: T[]) => {
+        setData(newData as any);
         setIsLoading(false);
         setError(null);
+        // Call legacy callback if provided
+        if (onDataCallback) {
+          onDataCallback(newData);
+        }
       },
       (err) => {
         setError(err);

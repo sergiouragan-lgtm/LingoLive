@@ -88,12 +88,12 @@ export const SchoolParentPortal: React.FC<SchoolParentPortalProps> = ({
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>('');
   const [showNotificationDetails, setShowNotificationDetails] = useState<string | null>(null);
 
-  const { data: childrenProgress, loading: progressLoading } = useRealtimeSync<ChildProgress[]>(
+  const { data: childrenProgress, isLoading: progressLoading } = useRealtimeSync<ChildProgress[]>(
     `schools/${schoolId}/children-progress/${parentId}`,
     (data) => data || []
   );
 
-  const { data: messages, loading: messagesLoading } = useRealtimeSync<Message[]>(
+  const { data: messages, isLoading: messagesLoading } = useRealtimeSync<Message[]>(
     `schools/${schoolId}/messages/${parentId}`,
     (data) => data || []
   );

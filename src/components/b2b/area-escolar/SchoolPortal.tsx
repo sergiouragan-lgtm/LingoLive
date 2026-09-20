@@ -68,17 +68,17 @@ export const SchoolPortal: React.FC<SchoolPortalProps> = ({ schoolId, schoolName
   const [filterOpen, setFilterOpen] = useState(false);
   const [selectedLevel, setSelectedLevel] = useState<string>('');
 
-  const { data: teachers, loading: teachersLoading } = useRealtimeSync<Teacher[]>(
+  const { data: teachers, isLoading: teachersLoading } = useRealtimeSync<Teacher[]>(
     `schools/${schoolId}/teachers`,
     (data) => data || []
   );
 
-  const { data: classes, loading: classesLoading } = useRealtimeSync<ClassCohort[]>(
+  const { data: classes, isLoading: classesLoading } = useRealtimeSync<ClassCohort[]>(
     `schools/${schoolId}/classes`,
     (data) => data || []
   );
 
-  const { data: enrollments, loading: enrollmentsLoading } = useRealtimeSync<StudentEnrollment[]>(
+  const { data: enrollments, isLoading: enrollmentsLoading } = useRealtimeSync<StudentEnrollment[]>(
     `schools/${schoolId}/enrollments`,
     (data) => data || []
   );

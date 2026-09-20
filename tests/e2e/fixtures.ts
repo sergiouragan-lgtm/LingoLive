@@ -1,15 +1,18 @@
-import { test as base, expect } from '@playwright/test';
+import { test as base, expect, Page } from '@playwright/test';
 
 /**
  * Custom fixtures for E2E tests
  * Provides common utilities and setup/teardown
  */
 
-export const test = base.extend({
-  // Add common setup here if needed
+type CustomFixtures = {
+  authenticatedPage: Page;
+};
+
+export const test = base.extend<CustomFixtures>({
+  // Future: Add authentication flow
+  // This would set up a logged-in user session
   authenticatedPage: async ({ page }, use) => {
-    // Future: Add authentication flow
-    // This would set up a logged-in user session
     await use(page);
   },
 });

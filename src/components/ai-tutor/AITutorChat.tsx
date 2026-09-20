@@ -54,16 +54,22 @@ export const AITutorChat: React.FC<AITutorChatProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [session, setSession] = useState<TutorSession | null>(null);
 
-  useRealtimeSync<TutorSession>(
-    `ai_tutor_sessions/${sessionId || 'current'}`,
-    (data) => {
-      if (data) {
-        setSession(data);
-        setMessages(data.messages || []);
-      }
-    },
+  // Use the hook with collection path and handle the returned array
+  const { data: sessions } = useRealtimeSync<TutorSession>(
+    'ai_tutor_sessions',
+    [],
     { enabled: !!sessionId }
   );
+
+  useEffect(() => {
+    if (sessions && sessions.length > 0) {
+      const currentSession = sessions.find(s => s.id === sessionId);
+      if (currentSession) {
+        setSession(currentSession);
+        setMessages(currentSession.messages || []);
+      }
+    }
+  }, [sessions, sessionId]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
