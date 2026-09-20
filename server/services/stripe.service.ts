@@ -76,7 +76,7 @@ export class StripeService {
     }
 
     // In test mode, accept test signatures
-    if (isRunningUnderTests && signature === "test_signature" || signature === "test_sig") {
+    if (isRunningUnderTests && (signature === "test_signature" || signature === "test_sig")) {
       console.log("[Stripe Mock] Test webhook signature accepted");
       return true;
     }
