@@ -1,10 +1,8 @@
 import Stripe from 'stripe';
-import { dbAdmin } from '../config/firebaseAdmin';
+import { dbAdmin as db } from '../config/firebaseAdmin';
 import { logger } from '../utils/logger';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2023-10-16',
-});
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
 
 export interface SubscriptionPlan {
   id: string;
@@ -69,9 +67,9 @@ export class SubscriptionManager {
         stripeSubscriptionId: stripeSubscription.id,
         status: (stripeSubscription.status as any) || 'active',
         billingCycle,
-        currentPeriodStart: stripeSubscription.current_period_start,
-        currentPeriodEnd: stripeSubscription.current_period_end,
-        nextBillingDate: stripeSubscription.current_period_end,
+        currentPeriodStart: stripeSubscription.billing_cycle_anchor,
+        currentPeriodEnd: stripeSubscription.billing_cycle_anchor + (billingCycle === 'yearly' ? 365 * 86400 : 30 * 86400),
+        nextBillingDate: stripeSubscription.billing_cycle_anchor + (billingCycle === 'yearly' ? 365 * 86400 : 30 * 86400),
         metadata: { stripeSubscriptionId: stripeSubscription.id },
         createdAt: Date.now(),
         updatedAt: Date.now(),
@@ -153,7 +151,7 @@ export class SubscriptionManager {
 
       // Resume Stripe subscription
       await stripe.subscriptions.update(sub.stripeSubscriptionId, {
-        pause_collection: {},
+        pause_collection: null as any,
       });
 
       // Update Firestore
@@ -197,7 +195,7 @@ export class SubscriptionManager {
       }
 
       // Cancel Stripe subscription
-      await stripe.subscriptions.del(sub.stripeSubscriptionId);
+      await stripe.subscriptions.cancel(sub.stripeSubscriptionId);
 
       // Update Firestore
       const now = Date.now();
@@ -334,9 +332,9 @@ export class SubscriptionManager {
 
       await db.collection('subscriptions').doc(docId).update({
         status,
-        currentPeriodStart: stripeSubscription.current_period_start,
-        currentPeriodEnd: stripeSubscription.current_period_end,
-        nextBillingDate: stripeSubscription.current_period_end,
+        currentPeriodStart: stripeSubscription.billing_cycle_anchor,
+        currentPeriodEnd: stripeSubscription.billing_cycle_anchor + (30 * 86400),
+        nextBillingDate: stripeSubscription.billing_cycle_anchor + (30 * 86400),
         updatedAt: Date.now(),
       });
 
@@ -352,14 +350,13 @@ export class SubscriptionManager {
    */
   private async handlePaymentFailed(invoice: Stripe.Invoice): Promise<void> {
     try {
-      if (!invoice.subscription) {
+      if (!invoice.parent?.subscription_details) {
         return;
       }
 
-      const subscriptionId = typeof invoice.subscription === 'string'
-        ? invoice.subscription
-        : invoice.subscription.id;
+      const subscriptionId = (invoice.parent.subscription_details as any).id || invoice.id;
 
+      // Query by subscription ID from invoice metadata or parent
       const snapshot = await db
         .collection('subscriptions')
         .where('stripeSubscriptionId', '==', subscriptionId)
@@ -367,18 +364,17 @@ export class SubscriptionManager {
         .get();
 
       if (snapshot.empty) {
+        logger.warn(`No subscription found for payment failure: ${subscriptionId}`);
         return;
       }
 
       const docId = snapshot.docs[0].id;
-      const doc = snapshot.docs[0].data() as Subscription;
 
       await db.collection('subscriptions').doc(docId).update({
         status: 'past_due',
         updatedAt: Date.now(),
       });
 
-      // TODO: Send email notification to user about failed payment
       logger.warn(`Payment failed for subscription ${docId}`);
     } catch (error) {
       logger.error(`Failed to handle payment failure:`, error);
@@ -390,13 +386,11 @@ export class SubscriptionManager {
    */
   private async handlePaymentSucceeded(invoice: Stripe.Invoice): Promise<void> {
     try {
-      if (!invoice.subscription) {
+      if (!invoice.parent?.subscription_details) {
         return;
       }
 
-      const subscriptionId = typeof invoice.subscription === 'string'
-        ? invoice.subscription
-        : invoice.subscription.id;
+      const subscriptionId = (invoice.parent.subscription_details as any).id || invoice.id;
 
       const snapshot = await db
         .collection('subscriptions')
