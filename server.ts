@@ -52,6 +52,7 @@ import ebookGamificationRouter from "./server/routes/ebook.gamification.routes";
 import ebookAssignmentRouter from "./server/routes/ebook.assignment.routes";
 import ebookVocabularyRouter from "./server/routes/ebook.vocabulary.routes";
 import livekitRouter from "./server/routes/livekit.routes";
+import openaiTutorRouter from "./server/routes/openai-tutor.routes";
 
 const app = express();
 
@@ -92,6 +93,7 @@ app.use("/api/ebook/gamification", ebookGamificationRouter);
 app.use("/api/ebook/assignments", ebookAssignmentRouter);
 app.use("/api/ebook/vocabulary", ebookVocabularyRouter);
 app.use("/api/livekit", livekitRouter);
+app.use("/api/ai-tutor", openaiTutorRouter);
 
 // Endpoint for Service Worker Background Sync of vocabulary updates
 app.post("/api/sync-vocabulary", async (req, res) => {
