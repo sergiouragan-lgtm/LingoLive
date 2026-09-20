@@ -80,6 +80,50 @@ app.use((req, res, next) => {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
   }
 
+  // Content Security Policy - prevents XSS, clickjacking, and other injection attacks
+  // Policy applies to all resources (scripts, styles, fonts, images, etc.)
+  const csp = [
+    // Default fallback for all resources
+    "default-src 'self'",
+
+    // Scripts: self + unsafe-inline for Tailwind/Vite injected styles, Firebase SDK
+    "script-src 'self' 'unsafe-inline' https://*.firebaseapp.com https://cdn.jsdelivr.net",
+
+    // Styles: self + unsafe-inline (Tailwind CSS injection), Google Fonts
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
+
+    // Fonts from Google Fonts and CDNs
+    "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net",
+
+    // Images from self, data URIs (for base64 encoded images), and HTTPS sources
+    "img-src 'self' data: https: blob:",
+
+    // Media (video/audio) from self and HTTPS
+    "media-src 'self' https: blob:",
+
+    // API connections to Firebase, OpenAI, and local API
+    "connect-src 'self' https://*.firebaseio.com https://*.firebaseapp.com https://firestore.googleapis.com https://storage.googleapis.com https://www.googleapis.com https://api.openai.com https://*.stripe.com wss://*",
+
+    // Frames/iframes restricted
+    "frame-src 'none'",
+
+    // Embedded objects (Flash, etc.) blocked
+    "object-src 'none'",
+
+    // Form submissions only to same origin
+    "form-action 'self'",
+
+    // Can only be embedded by own origin
+    "frame-ancestors 'none'",
+
+    // Base URL must be same origin
+    "base-uri 'self'",
+  ].join('; ');
+
+  // Use Content-Security-Policy (enforcing) header
+  // Use report-only mode for testing: change to 'Content-Security-Policy-Report-Only'
+  res.setHeader('Content-Security-Policy', csp);
+
   next();
 });
 
