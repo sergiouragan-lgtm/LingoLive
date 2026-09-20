@@ -56,6 +56,33 @@ import openaiTutorRouter from "./server/routes/openai-tutor.routes";
 
 const app = express();
 
+// Security Headers Middleware
+// Protects against common web vulnerabilities
+app.use((req, res, next) => {
+  // Prevent MIME type sniffing - forces browser to respect Content-Type header
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+
+  // Prevent clickjacking - page cannot be framed by other sites
+  res.setHeader('X-Frame-Options', 'DENY');
+
+  // Legacy XSS protection header (modern browsers use CSP)
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+
+  // Control referrer information leakage
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+  // Control which APIs/features can be used (geolocation, camera, microphone, etc.)
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+
+  // Enforce HTTPS in browsers that support it
+  // Remove if running behind a reverse proxy that handles HTTPS
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+  }
+
+  next();
+});
+
 // Stripe Webhook needs express.raw BEFORE express.json() is applied globally
 // Mount paymentRouter containing Stripe webhook first
 app.use("/api/payment", paymentRouter);
