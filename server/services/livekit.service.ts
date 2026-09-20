@@ -1,389 +1,245 @@
-import { AccessToken } from 'livekit-server-sdk';
-import { db } from '../config/firebase';
-import { logger } from '../utils/logger';
+/**
+ * LiveKit Service — WebRTC Live Classes
+ */
 
-export interface LiveKitRoom {
-  id: string;
-  teacherId: string;
-  title: string;
-  scheduledTime: number;
-  duration: number;
-  maxParticipants: number;
-  participants: Map<string, ParticipantInfo>;
-  recordingUrl?: string;
-  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
-  createdAt: number;
-  updatedAt: number;
+import { AccessToken, RoomServiceClient, ParticipantInfo } from "livekit-server-sdk";
+
+const LIVEKIT_URL = process.env.LIVEKIT_URL;
+const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY;
+const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET;
+
+if (!LIVEKIT_URL || !LIVEKIT_API_KEY || !LIVEKIT_API_SECRET) {
+  console.warn("[LiveKit] ⚠️ LiveKit credentials not configured");
 }
 
-export interface ParticipantInfo {
-  userId: string;
-  name: string;
-  role: 'teacher' | 'student';
-  joinedAt: number;
-  leftAt?: number;
-  videoEnabled: boolean;
-  audioEnabled: boolean;
-}
-
-export interface RoomTokenRequest {
+export interface LiveClassSession {
   roomName: string;
-  userId: string;
-  userName: string;
-  role?: 'teacher' | 'student';
-  metadata?: Record<string, any>;
+  sessionId: string;
+  instructorId: string;
+  instructorName: string;
+  language: string;
+  level: string;
+  maxParticipants: number;
+  startTime: Date;
+  status: "pending" | "active" | "recording" | "ended";
+  participantCount: number;
+  participants: ParticipantInfo[];
+}
+
+export interface LiveClassToken {
+  token: string;
+  url: string;
+  roomName: string;
+  expiresAt: Date;
 }
 
 export class LiveKitService {
-  private apiKey: string;
-  private apiSecret: string;
-  private liveKitUrl: string;
-  private rooms: Map<string, LiveKitRoom> = new Map();
+  private static roomClient: RoomServiceClient | null = null;
 
-  constructor() {
-    this.apiKey = process.env.LIVEKIT_API_KEY || '';
-    this.apiSecret = process.env.LIVEKIT_API_SECRET || '';
-    this.liveKitUrl = process.env.LIVEKIT_URL || '';
-
-    if (!this.apiKey || !this.apiSecret || !this.liveKitUrl) {
-      logger.warn('LiveKit environment variables not configured');
+  private static initRoomClient(): RoomServiceClient | null {
+    if (!LIVEKIT_URL || !LIVEKIT_API_KEY || !LIVEKIT_API_SECRET) {
+      throw new Error("LiveKit credentials not configured");
     }
-  }
 
-  /**
-   * Create a room token for a participant
-   */
-  createRoomToken(request: RoomTokenRequest): string {
-    try {
-      const token = new AccessToken(this.apiKey, this.apiSecret);
-
-      token.addGrant({
-        room: request.roomName,
-        roomJoin: true,
-        canPublish: true,
-        canPublishData: true,
-        canSubscribe: true,
-      });
-
-      token.identity = request.userId;
-      token.name = request.userName;
-
-      const jwt = token.toJwt();
-      logger.info(`Generated room token for ${request.userId} in room ${request.roomName}`);
-      return jwt;
-    } catch (error) {
-      logger.error(`Failed to create room token for ${request.userId}:`, error);
-      throw error;
+    if (!this.roomClient) {
+      this.roomClient = new RoomServiceClient(LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET);
     }
+
+    return this.roomClient;
   }
 
   /**
-   * Get LiveKit URL for client connection
+   * Generate access token for joining a live class
    */
-  getLiveKitUrl(): string {
-    return this.liveKitUrl;
-  }
-
-  /**
-   * Initialize a room in Firestore
-   */
-  async initializeRoom(
-    classId: string,
-    teacherId: string,
-    title: string,
-    scheduledTime: number,
-    duration: number,
-    maxParticipants: number = 50
-  ): Promise<LiveKitRoom> {
-    try {
-      const room: LiveKitRoom = {
-        id: classId,
-        teacherId,
-        title,
-        scheduledTime,
-        duration,
-        maxParticipants,
-        participants: new Map(),
-        status: 'scheduled',
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
-
-      // Store in Firestore
-      await db.collection('live_classes').doc(classId).set({
-        id: classId,
-        teacherId,
-        title,
-        scheduledTime,
-        duration,
-        maxParticipants,
-        participants: [],
-        status: 'scheduled',
-        createdAt: room.createdAt,
-        updatedAt: room.updatedAt,
-      });
-
-      // Keep in memory
-      this.rooms.set(classId, room);
-
-      logger.info(`Room initialized: ${classId}`);
-      return room;
-    } catch (error) {
-      logger.error(`Failed to initialize room ${classId}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Register participant join
-   */
-  async registerParticipant(
-    roomId: string,
+  static generateToken(
     userId: string,
     userName: string,
-    role: 'teacher' | 'student'
-  ): Promise<ParticipantInfo> {
+    roomName: string,
+    isInstructor: boolean = false,
+    expirationSeconds: number = 3600
+  ): LiveClassToken {
+    if (!LIVEKIT_API_KEY || !LIVEKIT_API_SECRET || !LIVEKIT_URL) {
+      throw new Error("LiveKit is not configured");
+    }
+
+    const token = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET);
+
+    token.identity = userId;
+    token.name = userName;
+    token.metadata = JSON.stringify({
+      userId,
+      userName,
+      isInstructor,
+      joinedAt: new Date().toISOString(),
+    });
+
+    token.addGrant({
+      room: roomName,
+      roomJoin: true,
+      canPublish: true,
+      canPublishData: true,
+      canSubscribe: true,
+    });
+
+    token.ttl = expirationSeconds;
+    const jwt = token.toJwt();
+
+    return {
+      token: jwt,
+      url: `${LIVEKIT_URL}?token=${jwt}`,
+      roomName,
+      expiresAt: new Date(Date.now() + expirationSeconds * 1000),
+    };
+  }
+
+  /**
+   * Create a new live class room
+   */
+  static async createRoom(
+    roomName: string,
+    options: { maxParticipants?: number; metadata?: string } = {}
+  ): Promise<{ success: boolean; roomName: string }> {
     try {
-      const participant: ParticipantInfo = {
-        userId,
-        name: userName,
-        role,
-        joinedAt: Date.now(),
-        videoEnabled: true,
-        audioEnabled: true,
+      const roomClient = this.initRoomClient();
+      if (!roomClient) throw new Error("Room client not initialized");
+
+      const room = await roomClient.createRoom({
+        roomName,
+        maxParticipants: options.maxParticipants || 50,
+        emptyTimeout: 300,
+        metadata: options.metadata || "",
+      });
+
+      console.log(`[LiveKit] ✅ Room created: ${roomName}`);
+      return { success: true, roomName: room.name };
+    } catch (error: any) {
+      console.error(`[LiveKit] ❌ Failed to create room:`, error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Get room information
+   */
+  static async getRoomInfo(roomName: string): Promise<LiveClassSession | null> {
+    try {
+      const roomClient = this.initRoomClient();
+      if (!roomClient) throw new Error("Room client not initialized");
+
+      const room = await roomClient.listRooms([roomName]);
+      if (!room || room.length === 0) return null;
+
+      const roomInfo = room[0];
+      const participants = await roomClient.listParticipants(roomName);
+      const metadata = roomInfo.metadata ? JSON.parse(roomInfo.metadata) : {};
+
+      return {
+        roomName: roomInfo.name,
+        sessionId: metadata.sessionId || roomInfo.name,
+        instructorId: metadata.instructorId || "unknown",
+        instructorName: metadata.instructorName || "Instructor",
+        language: metadata.language || "unknown",
+        level: metadata.level || "beginner",
+        maxParticipants: roomInfo.maxParticipants,
+        startTime: new Date(roomInfo.creationTime * 1000),
+        status: participants.length > 0 ? "active" : "pending",
+        participantCount: participants.length,
+        participants,
       };
-
-      // Update Firestore
-      const roomRef = db.collection('live_classes').doc(roomId);
-      const roomDoc = await roomRef.get();
-
-      if (roomDoc.exists) {
-        const roomData = roomDoc.data();
-        const participants = roomData?.participants || [];
-
-        await roomRef.update({
-          participants: [
-            ...participants,
-            {
-              userId,
-              name: userName,
-              role,
-              joinedAt: Date.now(),
-              videoEnabled: true,
-              audioEnabled: true,
-            },
-          ],
-          updatedAt: Date.now(),
-        });
-      }
-
-      // Update in-memory room
-      const room = this.rooms.get(roomId);
-      if (room) {
-        room.participants.set(userId, participant);
-        room.updatedAt = Date.now();
-      }
-
-      logger.info(`Participant registered: ${userId} in room ${roomId}`);
-      return participant;
-    } catch (error) {
-      logger.error(`Failed to register participant in room ${roomId}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Register participant leave
-   */
-  async registerParticipantLeave(roomId: string, userId: string): Promise<void> {
-    try {
-      // Update Firestore
-      const roomRef = db.collection('live_classes').doc(roomId);
-      const roomDoc = await roomRef.get();
-
-      if (roomDoc.exists) {
-        const roomData = roomDoc.data();
-        const participants = (roomData?.participants || []).map((p: any) => {
-          if (p.userId === userId) {
-            return { ...p, leftAt: Date.now() };
-          }
-          return p;
-        });
-
-        await roomRef.update({
-          participants,
-          updatedAt: Date.now(),
-        });
-      }
-
-      // Update in-memory room
-      const room = this.rooms.get(roomId);
-      if (room) {
-        const participant = room.participants.get(userId);
-        if (participant) {
-          participant.leftAt = Date.now();
-        }
-        room.updatedAt = Date.now();
-      }
-
-      logger.info(`Participant left: ${userId} from room ${roomId}`);
-    } catch (error) {
-      logger.error(`Failed to register participant leave in room ${roomId}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Start recording
-   */
-  async startRecording(roomId: string): Promise<void> {
-    try {
-      // LiveKit recording is handled via webhooks/API
-      // This is a placeholder for when recording actually starts
-
-      const roomRef = db.collection('live_classes').doc(roomId);
-      await roomRef.update({
-        recordingStartedAt: Date.now(),
-        recordingStatus: 'in_progress',
-      });
-
-      logger.info(`Recording started for room ${roomId}`);
-    } catch (error) {
-      logger.error(`Failed to start recording for room ${roomId}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * End room (close the class)
-   */
-  async endRoom(roomId: string): Promise<void> {
-    try {
-      const room = this.rooms.get(roomId);
-
-      if (room) {
-        room.status = 'completed';
-        room.updatedAt = Date.now();
-      }
-
-      // Update Firestore
-      const roomRef = db.collection('live_classes').doc(roomId);
-      await roomRef.update({
-        status: 'completed',
-        updatedAt: Date.now(),
-      });
-
-      logger.info(`Room ended: ${roomId}`);
-    } catch (error) {
-      logger.error(`Failed to end room ${roomId}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get room state
-   */
-  async getRoomState(roomId: string): Promise<LiveKitRoom | null> {
-    try {
-      // Try to get from Firestore first
-      const roomRef = db.collection('live_classes').doc(roomId);
-      const roomDoc = await roomRef.get();
-
-      if (roomDoc.exists) {
-        const data = roomDoc.data() as any;
-        const room: LiveKitRoom = {
-          id: data.id,
-          teacherId: data.teacherId,
-          title: data.title,
-          scheduledTime: data.scheduledTime,
-          duration: data.duration,
-          maxParticipants: data.maxParticipants,
-          participants: new Map(
-            (data.participants || []).map((p: any) => [p.userId, p])
-          ),
-          recordingUrl: data.recordingUrl,
-          status: data.status,
-          createdAt: data.createdAt,
-          updatedAt: data.updatedAt,
-        };
-
-        // Update in-memory cache
-        this.rooms.set(roomId, room);
-
-        return room;
-      }
-
-      return this.rooms.get(roomId) || null;
-    } catch (error) {
-      logger.error(`Failed to get room state for ${roomId}:`, error);
+    } catch (error: any) {
+      console.error(`[LiveKit] ❌ Failed to get room info:`, error.message);
       return null;
     }
   }
 
   /**
-   * Broadcast message to all participants in a room
-   * (Would be implemented via LiveKit webhooks or real-time messaging)
+   * List all active rooms
    */
-  async broadcastMessage(
-    roomId: string,
-    message: Record<string, any>
-  ): Promise<void> {
+  static async listActiveRooms(): Promise<LiveClassSession[]> {
     try {
-      logger.info(`Broadcasting message to room ${roomId}:`, message);
-      // Implementation depends on LiveKit's messaging capabilities
-    } catch (error) {
-      logger.error(`Failed to broadcast message in room ${roomId}:`, error);
-      throw error;
-    }
-  }
+      const roomClient = this.initRoomClient();
+      if (!roomClient) throw new Error("Room client not initialized");
 
-  /**
-   * Get transcription for a room session
-   * (Placeholder for Whisper API integration)
-   */
-  async getTranscription(roomId: string): Promise<any[]> {
-    try {
-      // This would be populated by a transcription service
-      const roomRef = db.collection('live_class_recordings').doc(roomId);
-      const recordingDoc = await roomRef.get();
+      const rooms = await roomClient.listRooms([]);
+      const sessions: LiveClassSession[] = [];
 
-      if (recordingDoc.exists) {
-        return recordingDoc.data()?.transcription || [];
+      for (const room of rooms) {
+        const participants = await roomClient.listParticipants(room.name);
+        const metadata = room.metadata ? JSON.parse(room.metadata) : {};
+
+        sessions.push({
+          roomName: room.name,
+          sessionId: metadata.sessionId || room.name,
+          instructorId: metadata.instructorId || "unknown",
+          instructorName: metadata.instructorName || "Instructor",
+          language: metadata.language || "unknown",
+          level: metadata.level || "beginner",
+          maxParticipants: room.maxParticipants,
+          startTime: new Date(room.creationTime * 1000),
+          status: participants.length > 0 ? "active" : "pending",
+          participantCount: participants.length,
+          participants,
+        });
       }
 
-      return [];
-    } catch (error) {
-      logger.error(`Failed to get transcription for room ${roomId}:`, error);
+      return sessions;
+    } catch (error: any) {
+      console.error("[LiveKit] ❌ Failed to list rooms:", error.message);
       return [];
     }
   }
 
   /**
-   * Store recording metadata
+   * Remove participant
    */
-  async storeRecordingMetadata(
-    roomId: string,
-    recordingUrl: string,
-    duration: number,
-    fileSize: number
-  ): Promise<void> {
+  static async removeParticipant(roomName: string, participantId: string): Promise<boolean> {
     try {
-      await db.collection('live_class_recordings').doc(roomId).set({
-        classId: roomId,
-        videoUrl: recordingUrl,
-        duration,
-        fileSize,
-        processingStatus: 'pending',
-        generatedAt: Date.now(),
-        createdAt: Date.now(),
-      });
+      const roomClient = this.initRoomClient();
+      if (!roomClient) throw new Error("Room client not initialized");
 
-      logger.info(`Recording metadata stored for room ${roomId}`);
-    } catch (error) {
-      logger.error(`Failed to store recording metadata for room ${roomId}:`, error);
-      throw error;
+      await roomClient.removeParticipant(roomName, participantId);
+      console.log(`[LiveKit] ✅ Participant removed: ${participantId}`);
+      return true;
+    } catch (error: any) {
+      console.error("[LiveKit] ❌ Failed to remove participant:", error.message);
+      return false;
+    }
+  }
+
+  /**
+   * End session
+   */
+  static async endSession(roomName: string): Promise<boolean> {
+    try {
+      const roomClient = this.initRoomClient();
+      if (!roomClient) throw new Error("Room client not initialized");
+
+      const participants = await roomClient.listParticipants(roomName);
+      await roomClient.deleteRoom(roomName);
+      console.log(`[LiveKit] ✅ Session ended: ${roomName} (${participants.length} participants)`);
+      return true;
+    } catch (error: any) {
+      console.error("[LiveKit] ❌ Failed to end session:", error.message);
+      return false;
+    }
+  }
+
+  /**
+   * Health check
+   */
+  static async healthCheck(): Promise<{ healthy: boolean; error?: string }> {
+    try {
+      if (!LIVEKIT_URL || !LIVEKIT_API_KEY || !LIVEKIT_API_SECRET) {
+        return { healthy: false, error: "LiveKit not configured" };
+      }
+
+      const roomClient = this.initRoomClient();
+      if (!roomClient) return { healthy: false, error: "Failed to initialize" };
+
+      await roomClient.listRooms([]);
+      return { healthy: true };
+    } catch (error: any) {
+      return { healthy: false, error: error.message };
     }
   }
 }
-
-export const liveKitService = new LiveKitService();
