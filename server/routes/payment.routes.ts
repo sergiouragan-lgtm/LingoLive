@@ -54,10 +54,7 @@ const handleWebhookEvent = async (req: any, res: any) => {
   }
 
   try {
-    console.log(`[Webhook] Processing event: ${event?.type} with data:`, JSON.stringify(event?.data?.object || event));
-    if (!event) {
-      return res.status(400).json({ error: "Event object is undefined", payload: req.body });
-    }
+    console.log(`[Webhook] Processing event: ${event.type} with data:`, JSON.stringify(event.data?.object || event));
     const result = await StripeService.handleWebhookEvent(event);
     console.log(`[Webhook] Result:`, result);
     res.json(result || { received: true });

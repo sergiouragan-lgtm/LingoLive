@@ -32,9 +32,6 @@ export function checkWsRateLimit(ip: string, uid: string, maxConnections = 10, w
   return result.allowed;
 }
 
-// Log for debugging
-console.log(`[RateLimit Init] NODE_ENV=${process.env.NODE_ENV}, VITEST=${process.env.VITEST}`);
-
 // Explicit rate limiters as requested
 export const chatLimiter = createRateLimiter({
   windowMs: 60000,
