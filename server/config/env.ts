@@ -1,5 +1,5 @@
-import dotenv from "dotenv";
-dotenv.config();
+// Environment variables are already loaded by server/config/preload.ts
+// Do not call dotenv.config() again here to avoid overriding test variables
 
 // Enable sandbox fallback ONLY in development/demo environments, disabled in production
 export const ENABLE_SANDBOX_FALLBACK = process.env.NODE_ENV !== "production" && process.env.ENABLE_SANDBOX_FALLBACK === "true";
