@@ -1,0 +1,8 @@
+title = "gitleaks config"
+description = "Gitleaks config to exclude known test credentials"
+
+[[allowlist]]
+description = "Firebase test key in historical commit - now replaced with placeholder"
+regexes = ["AIzaSyCOr2KeJzfQjjd1"]
+paths = ["tests/integration/payment-flow.integration.test.ts"]
+commits = ["5466a867f7dd447427087f3af4d7b669939e2953"]
