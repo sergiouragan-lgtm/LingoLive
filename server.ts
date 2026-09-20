@@ -226,6 +226,20 @@ import { distributedTracingService } from "./server/services/distributed-tracing
 import { alertingNotificationsService } from "./server/services/alerting-notifications.service";
 import { healthChecksUptimeService } from "./server/services/health-checks-uptime.service";
 import { performanceOptimizationService } from "./server/services/performance-optimization.service";
+import securityAuditVulnerabilityRouter from "./server/routes/security-audit-vulnerability.routes";
+import dataEncryptionKeyManagementRouter from "./server/routes/data-encryption-key-management.routes";
+import accessControlAuthorizationRouter from "./server/routes/access-control-authorization.routes";
+import complianceMonitoringRouter from "./server/routes/compliance-monitoring.routes";
+import securityEventManagementRouter from "./server/routes/security-event-management.routes";
+import apiSecurityRateLimitingRouter from "./server/routes/api-security-rate-limiting.routes";
+import securityTestingPenetrationRouter from "./server/routes/security-testing-penetration.routes";
+import { securityAuditVulnerabilityService } from "./server/services/security-audit-vulnerability.service";
+import { dataEncryptionKeyManagementService } from "./server/services/data-encryption-key-management.service";
+import { accessControlAuthorizationService } from "./server/services/access-control-authorization.service";
+import { complianceMonitoringService } from "./server/services/compliance-monitoring.service";
+import { securityEventManagementService } from "./server/services/security-event-management.service";
+import { apiSecurityRateLimitingService } from "./server/services/api-security-rate-limiting.service";
+import { securityTestingPenetrationService } from "./server/services/security-testing-penetration.service";
 
 const app = express();
 
@@ -498,6 +512,13 @@ app.use("/api/monitoring/tracing", distributedTracingRouter);
 app.use("/api/monitoring/alerting", alertingNotificationsRouter);
 app.use("/api/monitoring/health", healthChecksUptimeRouter);
 app.use("/api/monitoring/optimization", performanceOptimizationRouter);
+app.use("/api/security/audit", securityAuditVulnerabilityRouter);
+app.use("/api/security/encryption", dataEncryptionKeyManagementRouter);
+app.use("/api/security/authorization", accessControlAuthorizationRouter);
+app.use("/api/security/compliance", complianceMonitoringRouter);
+app.use("/api/security/events", securityEventManagementRouter);
+app.use("/api/security/api", apiSecurityRateLimitingRouter);
+app.use("/api/security/testing", securityTestingPenetrationRouter);
 
 /**
  * @swagger
