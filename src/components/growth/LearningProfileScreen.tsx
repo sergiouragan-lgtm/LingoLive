@@ -1,15 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { 
-  GraduationCap, 
-  Sparkles, 
-  Globe, 
-  Target, 
-  Award, 
-  CheckCircle2, 
-  Info, 
-  Save, 
-  BookOpen, 
+import {
+  GraduationCap,
+  Sparkles,
+  Globe,
+  Target,
+  Award,
+  CheckCircle2,
+  Info,
+  Save,
+  BookOpen,
   ShieldCheck,
   Brain
 } from 'lucide-react';
@@ -18,6 +18,9 @@ import { LANGUAGES } from '../../data';
 import { useToast } from '../../context/ToastContext';
 import { smartProfileEngine } from '../../services/SmartProfileEngine';
 import { ProfileCard, getProfileVisualState } from './ProfileCard';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { usePersonalization } from '../../hooks/usePersonalization';
+import { auth } from '../../firebase';
 
 interface LearningProfileScreenProps {
   userProfile?: any;
@@ -40,6 +43,11 @@ export const LearningProfileScreen = ({
   setSelectedProficiency,
   setView
 }: LearningProfileScreenProps) => {
+  // Phase 38-45 Hook Integration
+  const userId = auth.currentUser?.uid || userProfile?.id || userProfile?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { profile, updatePreferences } = usePersonalization(userId);
+
   const { showToast } = useToast();
 
   const [activeGoal, setActiveGoal] = useState<string>(
@@ -48,6 +56,28 @@ export const LearningProfileScreen = ({
 
   const [languageToAdd, setLanguageToAdd] = useState<string>('');
   const [isSaved, setIsSaved] = useState(false);
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('learning_profile_screen_accessed', {
+        timestamp: new Date().toISOString(),
+        selectedAgeGroup,
+        selectedLanguage,
+        selectedProficiency,
+        currentGoal: activeGoal,
+      });
+    }
+  }, [userId, trackEvent, selectedAgeGroup, selectedLanguage, selectedProficiency, activeGoal]);
+
+  useEffect(() => {
+    if (userId && activeGoal) {
+      trackEvent('learning_goal_changed', {
+        goal: activeGoal,
+        timestamp: new Date().toISOString(),
+      });
+      updatePreferences({ learningGoal: activeGoal });
+    }
+  }, [activeGoal, userId, trackEvent, updatePreferences]);
 
   // Map age group to standardized label & range
   const normalizeAgeGroup = (group: AgeGroup) => {
@@ -110,6 +140,11 @@ export const LearningProfileScreen = ({
     if (targetGroup === 'CHILD') newGroup = 'CHILD';
     if (targetGroup === 'TEEN') newGroup = 'TEEN';
     setSelectedAgeGroup(newGroup);
+    trackEvent('age_group_selected', {
+      ageGroup: targetGroup,
+      timestamp: new Date().toISOString(),
+    });
+    updatePreferences({ ageGroup: targetGroup });
     setIsSaved(true);
     showToast(`Perfil de ${profileInfo[targetGroup].title} ativado! A adaptar interface e dashboard...`, 'success');
     setTimeout(() => {
@@ -118,6 +153,13 @@ export const LearningProfileScreen = ({
   };
 
   const handleSave = () => {
+    trackEvent('learning_profile_saved', {
+      ageGroup: selectedAgeGroup,
+      language: selectedLanguage,
+      proficiency: selectedProficiency,
+      goal: activeGoal,
+      timestamp: new Date().toISOString(),
+    });
     setIsSaved(true);
     showToast('Preferências e Perfil de Aprendizagem guardados com sucesso!', 'success');
     setTimeout(() => setIsSaved(false), 3000);
@@ -131,11 +173,20 @@ export const LearningProfileScreen = ({
       return;
     }
     try {
+      trackEvent('target_language_added', {
+        language: languageToAdd,
+        timestamp: new Date().toISOString(),
+      });
       await smartProfileEngine.addTargetLanguage(userProfile.id || userProfile.uid, languageToAdd);
       showToast('Idioma adicionado com sucesso!', 'success');
       setLanguageToAdd('');
     } catch (error) {
       console.error("Erro ao adicionar idioma:", error);
+      trackEvent('target_language_add_failed', {
+        language: languageToAdd,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString(),
+      });
       showToast('Erro ao adicionar idioma.', 'error');
     }
   };
