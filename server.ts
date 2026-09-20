@@ -284,6 +284,16 @@ import { containerOrchestrationService } from "./server/services/container-orche
 import { infrastructureProvisioningService } from "./server/services/infrastructure-provisioning.service";
 import { networkOptimizationService } from "./server/services/network-optimization.service";
 import { disasterRecoveryService } from "./server/services/disaster-recovery.service";
+import advancedSecretsManagementRouter from "./server/routes/advanced-secrets-management.routes";
+import microservicesCommunicationRouter from "./server/routes/microservices-communication.routes";
+import highAvailabilityResilienceRouter from "./server/routes/high-availability-resilience.routes";
+import costOptimizationRouter from "./server/routes/cost-optimization.routes";
+import realtimeStreamingRouter from "./server/routes/realtime-streaming.routes";
+import { advancedSecretsManagementService } from "./server/services/advanced-secrets-management.service";
+import { microservicesCommunicationService } from "./server/services/microservices-communication.service";
+import { highAvailabilityResilienceService } from "./server/services/high-availability-resilience.service";
+import { costOptimizationService } from "./server/services/cost-optimization.service";
+import { realtimeStreamingService } from "./server/services/realtime-streaming.service";
 
 const app = express();
 
@@ -585,6 +595,11 @@ app.use("/api/containers", containerOrchestrationRouter);
 app.use("/api/provisioning", infrastructureProvisioningRouter);
 app.use("/api/network", networkOptimizationRouter);
 app.use("/api/disaster-recovery", disasterRecoveryRouter);
+app.use("/api/secrets", advancedSecretsManagementRouter);
+app.use("/api/microservices", microservicesCommunicationRouter);
+app.use("/api/ha", highAvailabilityResilienceRouter);
+app.use("/api/costs", costOptimizationRouter);
+app.use("/api/streaming", realtimeStreamingRouter);
 
 /**
  * @swagger
