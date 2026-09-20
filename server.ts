@@ -102,6 +102,16 @@ import { engagementService } from "./server/services/engagement.service";
 import { learningAnalyticsService } from "./server/services/learning-analytics.service";
 import { insightsService } from "./server/services/insights.service";
 import { predictiveAnalyticsService } from "./server/services/predictive-analytics.service";
+import adminRouter from "./server/routes/admin.routes";
+import reportingRouter from "./server/routes/reporting.routes";
+import complianceRouter from "./server/routes/compliance.routes";
+import systemHealthRouter from "./server/routes/system-health.routes";
+import financialAnalyticsRouter from "./server/routes/financial-analytics.routes";
+import { adminService } from "./server/services/admin.service";
+import { reportingService } from "./server/services/reporting.service";
+import { complianceService } from "./server/services/compliance.service";
+import { systemHealthService } from "./server/services/system-health.service";
+import { financialAnalyticsService } from "./server/services/financial-analytics.service";
 
 const app = express();
 
@@ -312,6 +322,11 @@ app.use("/api/engagement", engagementRouter);
 app.use("/api/learning-analytics", learningAnalyticsRouter2);
 app.use("/api/insights", insightsRouter);
 app.use("/api/predictive-analytics", predictiveAnalyticsRouter);
+app.use("/api/admin", adminRouter);
+app.use("/api/reporting", reportingRouter);
+app.use("/api/compliance", complianceRouter);
+app.use("/api/system-health", systemHealthRouter);
+app.use("/api/financial-analytics", financialAnalyticsRouter);
 
 /**
  * @swagger
