@@ -3,6 +3,8 @@ import { Settings, UserCog, ShieldCheck, Sparkles, Lock, Target, Database, Trash
 import { UserRole, AppView, Localization, SavedWord, StreakData } from '../../types';
 import { useLocalization } from '../../context/LocalizationContext';
 import { useAppTheme } from '../../context/ThemeContext';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 import { LocalizationTests } from './LocalizationTests';
 import { getCacheSizeEstimate, clearAllOfflineDB } from '../../utils/indexedDB';
 import { toggleFullscreen } from '../../utils/fullscreen';
@@ -61,6 +63,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   streakData,
   onProtectStreakWithPoints,
 }) => {
+  const currentUserId = auth.currentUser?.uid || userId || '';
+  const { trackEvent } = useAnalytics(currentUserId);
+  const { monitors } = useMonitoring();
+
   const { colorScheme, setColorScheme } = useAppTheme();
   const [cacheStats, setCacheStats] = React.useState<{ count: number; sizeBytes: number }>({ count: 0, sizeBytes: 0 });
   const [isClearing, setIsClearing] = React.useState(false);
@@ -99,6 +105,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setPreferredVoice(voiceId);
     localStorage.setItem("lingolive_tts_voice_id", voiceId);
   };
+
+  // Track component lifecycle
+  React.useEffect(() => {
+    if (currentUserId) {
+      trackEvent('settings_view_accessed', {
+        userRole: role,
+        hasNotificationPermission: permissionState === 'granted',
+      });
+    }
+  }, [currentUserId, trackEvent, role, permissionState]);
 
   // Load notification settings from Firestore
   React.useEffect(() => {
@@ -145,7 +161,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
     try {
       const isCurrentlyEnabled = notifSettings.enabled;
-      
+
       if (!isCurrentlyEnabled) {
         const permission = await requestNotificationPermission();
         setPermissionState(permission);
@@ -163,6 +179,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
         await saveNotificationSettingsToFirestore(userId, updatedSettings);
         setNotifSettings(updatedSettings);
+
+        if (currentUserId) {
+          trackEvent('push_notifications_enabled', {
+            permissionState: permission,
+            hasFCMToken: !!token,
+          });
+        }
         setTestPushStatus({ type: 'success', text: 'Notificações Push ativadas com sucesso!' });
       } else {
         const updatedSettings: NotificationSettings = {
@@ -173,9 +196,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
         await saveNotificationSettingsToFirestore(userId, updatedSettings);
         setNotifSettings(updatedSettings);
+
+        if (currentUserId) {
+          trackEvent('push_notifications_disabled', {});
+        }
         setTestPushStatus({ type: 'info', text: 'Notificações Push desativadas.' });
       }
     } catch (err: any) {
+      if (currentUserId) {
+        trackEvent('push_notifications_toggle_failed', {
+          errorMessage: err?.message || 'Unknown error',
+        });
+      }
       console.error(err);
       setTestPushStatus({ type: 'error', text: err.message || 'Erro ao atualizar notificações.' });
     } finally {
@@ -230,16 +262,28 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         throw new Error(data.error || 'Erro ao enviar notificação de teste.');
       }
 
+      if (currentUserId) {
+        trackEvent('push_notification_tested', {
+          status: data.status,
+          isSimulated: data.status === 'simulated',
+        });
+      }
+
       if (data.status === 'simulated') {
-        setTestPushStatus({ 
-          type: 'success', 
-          text: 'Sucesso! Notificação simulada disparada no ambiente de desenvolvimento.' 
+        setTestPushStatus({
+          type: 'success',
+          text: 'Sucesso! Notificação simulada disparada no ambiente de desenvolvimento.'
         });
         showLocalWebNotification(data.title, data.body);
       } else {
         setTestPushStatus({ type: 'success', text: data.message });
       }
     } catch (err: any) {
+      if (currentUserId) {
+        trackEvent('push_notification_test_failed', {
+          errorMessage: err?.message || 'Unknown error',
+        });
+      }
       console.error(err);
       setTestPushStatus({ type: 'error', text: err.message || 'Falha ao testar notificação.' });
     } finally {
@@ -271,14 +315,27 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setIsClearing(true);
     setSyncStatus(null);
     try {
+      const previousStats = cacheStats;
       await clearAllOfflineDB();
       if (onVocabularyUpdated) {
         onVocabularyUpdated([]);
       }
       await loadStats();
+
+      if (currentUserId) {
+        trackEvent('offline_cache_cleared', {
+          previousCacheSize: previousStats.sizeBytes,
+          previousItemCount: previousStats.count,
+        });
+      }
       setSyncStatus({ type: 'success', text: 'Cache offline limpo com sucesso!' });
       setConfirmClear(false);
     } catch (err) {
+      if (currentUserId) {
+        trackEvent('cache_clear_failed', {
+          errorMessage: (err as any)?.message || 'Unknown error',
+        });
+      }
       console.error(err);
       setSyncStatus({ type: 'error', text: 'Erro ao limpar cache offline.' });
     } finally {
@@ -291,18 +348,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   
   const handleDeleteAccount = async () => {
     if (!auth.currentUser || !userId) return;
-    
+
     try {
       const credential = EmailAuthProvider.credential(auth.currentUser.email!, deletePassword);
       await reauthenticateWithCredential(auth.currentUser, credential);
-      
+
+      if (currentUserId) {
+        trackEvent('account_deletion_initiated', {
+          email: auth.currentUser.email,
+        });
+      }
+
       const userRepo = new UserRepository();
       await userRepo.deleteUser(userId);
       await deleteUser(auth.currentUser);
-      
+
       localStorage.clear();
       window.location.reload();
     } catch (e: any) {
+      if (currentUserId) {
+        trackEvent('account_deletion_failed', {
+          errorMessage: e?.message || 'Unknown error',
+        });
+      }
       setDeleteError(e.message);
     }
   };
@@ -320,11 +388,28 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         if (onVocabularyUpdated) {
           onVocabularyUpdated(words);
         }
+        if (currentUserId) {
+          trackEvent('firestore_sync_completed', {
+            wordsCount: words.length,
+            status: 'success',
+          });
+        }
         setSyncStatus({ type: 'success', text: `Sincronizado! ${words.length} palavras recuperadas.` });
       } else {
+        if (currentUserId) {
+          trackEvent('firestore_sync_completed', {
+            wordsCount: 0,
+            status: 'success',
+          });
+        }
         setSyncStatus({ type: 'success', text: 'Nenhuma palavra encontrada na nuvem.' });
       }
     } catch (err) {
+      if (currentUserId) {
+        trackEvent('firestore_sync_failed', {
+          errorMessage: (err as any)?.message || 'Unknown error',
+        });
+      }
       console.error(err);
       setSyncStatus({ type: 'error', text: 'Erro ao sincronizar dados.' });
     } finally {
