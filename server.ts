@@ -1,5 +1,6 @@
-import dotenv from "dotenv";
-dotenv.config();
+// CRITICAL: Load environment variables FIRST, before any other imports
+import "./server/config/preload";
+import path from "path";
 
 // Rede de segurança: erros assíncronos não tratados (ex: falhas de credenciais
 // do Google Cloud disparadas em segundo plano pelo SDK do Firestore/gRPC) não
@@ -13,7 +14,6 @@ process.on("uncaughtException", (err: any) => {
 
 import express from "express";
 import http from "http";
-import path from "path";
 import { createServer as createViteServer } from "vite";
 
 import { PORT, ENABLE_SANDBOX_FALLBACK } from "./server/config/env";
@@ -58,7 +58,7 @@ const app = express();
 
 // Stripe Webhook needs express.raw BEFORE express.json() is applied globally
 // Mount paymentRouter containing Stripe webhook first
-app.use("/api", paymentRouter);
+app.use("/api/payment", paymentRouter);
 
 // Global express.json() is applied only AFTER Stripe webhook route registration
 app.use(express.json({ limit: '50mb' }));

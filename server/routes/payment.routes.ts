@@ -4,6 +4,7 @@ import { getStripeClient } from "../config/stripe";
 import { requireAuth } from "../middleware/requireAuth";
 import { paymentsLimiter } from "../middleware/rateLimit";
 import { SERVER_PLANS } from "../config/plans";
+import { dbAdmin } from "../config/firebaseAdmin";
 
 const router = Router();
 
