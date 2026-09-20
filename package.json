@@ -39,6 +39,7 @@
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
     "firebase": "^12.15.0",
     "firebase-admin": "^14.4.0",
     "ioredis": "^5.11.1",
@@ -64,7 +65,8 @@
     "tsyringe": "^4.10.0",
     "uuid": "^11.1.1",
     "vite": "^6.2.3",
-    "ws": "^8.21.0"
+    "ws": "^8.21.0",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@firebase/eslint-plugin-security-rules": "^0.0.2",
