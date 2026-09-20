@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from "react";
-import { 
-  BarChart3, Users, User, Shield, GraduationCap, Award, Calendar, 
-  Clock, CheckCircle, Flame, MessageSquare, Download, Play, 
-  TrendingUp, RefreshCw, Sparkles, BookOpen, Volume2, PenTool, 
-  HelpCircle, AlertTriangle, FileText, Database, ShieldAlert, 
+import {
+  BarChart3, Users, User, Shield, GraduationCap, Award, Calendar,
+  Clock, CheckCircle, Flame, MessageSquare, Download, Play,
+  TrendingUp, RefreshCw, Sparkles, BookOpen, Volume2, PenTool,
+  HelpCircle, AlertTriangle, FileText, Database, ShieldAlert,
   Check, FileDown, Layers, Terminal, Activity, Info, MapPin, BrainCircuit, CloudLightning
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { auth } from "../../firebase";
 import { useToast } from "../../context/ToastContext";
 import { useUserRole } from "../../context/UserRoleContext";
+import { useAnalytics } from "../../hooks/useAnalytics";
+import { useMonitoring } from "../../hooks/useMonitoring";
 import { 
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, 
   Tooltip, PieChart, Pie, Cell, BarChart, Bar, Legend,
@@ -71,6 +73,11 @@ export const LearningAnalyticsPlatform: React.FC = () => {
   const { role } = useUserRole();
   const { addToast } = useToast();
   const user = auth.currentUser;
+
+  // Phase 38-45 Hook Integration
+  const userId = user?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
 
   // Selected Dashboard tab
   type DashboardRole = "student" | "teacher" | "parent" | "school" | "admin";
@@ -152,6 +159,17 @@ export const LearningAnalyticsPlatform: React.FC = () => {
     }
     void loadRealAnalytics();
   }, [role]);
+
+  // Track analytics platform access (Phase 38-45 Analytics)
+  useEffect(() => {
+    if (userId) {
+      trackEvent('learning_analytics_accessed', {
+        userRole: role,
+        dashboard: selectedDashboard,
+        studentCount: students?.length || 0,
+      });
+    }
+  }, [userId, trackEvent, role, selectedDashboard, students]);
 
   const handleSyncFirestoreAggregations = async () => {
     await loadRealAnalytics();
