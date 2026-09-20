@@ -19,7 +19,7 @@ export default defineConfig({
       name: 'chromium',
       use: {
         browserName: 'chromium',
-        launchArgs: ['--disable-dev-shm-usage'],
+        launchArgs: ['--disable-dev-shm-usage', '--no-sandbox'],
         executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
         headless: true,
       },
