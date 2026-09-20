@@ -5,6 +5,21 @@
 
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import axios from "axios";
+import { getFirestore } from "firebase/firestore";
+import { initializeApp } from "firebase/app";
+
+// Firebase config for tests
+const firebaseConfig = {
+  apiKey: "AIzaSyCOr2KeJzfQjjd1_-W7-n9P7e1i3C7-fGI",
+  authDomain: "lingolive-ia-f5778.firebaseapp.com",
+  projectId: "lingolive-ia-f5778",
+  storageBucket: "lingolive-ia-f5778.appspot.com",
+  messagingSenderId: "898797589156",
+  appId: "1:898797589156:web:4c74f9d04f9f3a6a63f8ca"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
 const API_BASE = process.env.API_BASE || "http://localhost:3000";
 const TEST_USER_EMAIL = `test-${Date.now()}@example.com`;
@@ -31,8 +46,8 @@ describe("Complete Payment Flow Integration", () => {
       const response = await axios.post(
         `${API_BASE}/api/payment/checkout`,
         {
-          planId: "pro_monthly",
-          priceAmount: 99.99,
+          planId: "family_monthly",
+          priceAmount: 19.99,
           currency: "usd",
         },
         {
@@ -64,14 +79,14 @@ describe("Complete Payment Flow Integration", () => {
         throw new Error("Should have thrown error");
       } catch (error: any) {
         expect(error.response.status).toBe(400);
-        expect(error.response.data.error).toContain("Invalid plan");
+        expect(error.response.data.error).toMatch(/invalid|inválido/i);
       }
     });
 
     it("should reject unauthenticated requests", async () => {
       try {
         await axios.post(`${API_BASE}/api/payment/checkout`, {
-          planId: "pro_monthly",
+          planId: "family_monthly",
         });
         throw new Error("Should have thrown error");
       } catch (error: any) {
@@ -92,8 +107,8 @@ describe("Complete Payment Flow Integration", () => {
             client_reference_id: userId,
             customer: `cus_${Date.now()}`,
             payment_intent: `pi_${Date.now()}`,
-            metadata: { planId: "pro_monthly" },
-            amount_total: 9999,
+            metadata: { planId: "family_monthly" },
+            amount_total: 1999,
             currency: "usd",
           },
         },
@@ -129,9 +144,9 @@ describe("Complete Payment Flow Integration", () => {
           object: {
             id: `in_${Date.now()}`,
             customer: `cus_${Date.now()}`,
-            amount_due: 9999,
+            amount_due: 1999,
             attempt_count: 1,
-            metadata: { userId, planId: "pro_monthly" },
+            metadata: { userId, planId: "family_monthly" },
           },
         },
       };
@@ -152,7 +167,7 @@ describe("Complete Payment Flow Integration", () => {
   describe("3. Subscription Management", () => {
     it("should retrieve subscription details", async () => {
       const response = await axios.get(
-        `${API_BASE}/api/payment/subscription`,
+        `${API_BASE}/api/payment/subscription/details`,
         {
           headers: { Authorization: `Bearer ${authToken}` },
         }
@@ -194,8 +209,8 @@ describe("Complete Payment Flow Integration", () => {
             client_reference_id: userId,
             customer: `cus_dup_${Date.now()}`,
             payment_intent: `pi_dup_${Date.now()}`,
-            metadata: { planId: "pro_monthly" },
-            amount_total: 9999,
+            metadata: { planId: "family_monthly" },
+            amount_total: 1999,
           },
         },
       };
