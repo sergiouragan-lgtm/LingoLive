@@ -152,6 +152,16 @@ import { socialLearningService } from "./server/services/social-learning.service
 import { contentCurationGenerationService } from "./server/services/content-curation-generation.service";
 import { analyticsDashboardService as analyticsDashboardService26 } from "./server/services/analytics-dashboard.service";
 import { mobileOfflineSyncService } from "./server/services/mobile-offline-sync.service";
+import adaptiveLearningPathsRouter from "./server/routes/adaptive-learning-paths.routes";
+import aiTutorResponseRouter from "./server/routes/ai-tutor-response.routes";
+import personalizationEngineRouter from "./server/routes/personalization-engine.routes";
+import learningStyleAdaptationRouter from "./server/routes/learning-style-adaptation.routes";
+import predictiveInterventionRouter from "./server/routes/predictive-intervention.routes";
+import { adaptiveLearningPathsService } from "./server/services/adaptive-learning-paths.service";
+import { aiTutorResponseService } from "./server/services/ai-tutor-response.service";
+import { personalizationEngineService } from "./server/services/personalization-engine.service";
+import { learningStyleAdaptationService } from "./server/services/learning-style-adaptation.service";
+import { predictiveInterventionService } from "./server/services/predictive-intervention.service";
 
 const app = express();
 
@@ -387,6 +397,11 @@ app.use("/api/social", socialLearningRouter);
 app.use("/api/content", contentCurationGenerationRouter);
 app.use("/api/analytics/insights", analyticsDashboardRouter26);
 app.use("/api/mobile", mobileOfflineSyncRouter);
+app.use("/api/learning-paths", adaptiveLearningPathsRouter);
+app.use("/api/tutor", aiTutorResponseRouter);
+app.use("/api/personalization", personalizationEngineRouter);
+app.use("/api/learning-style", learningStyleAdaptationRouter);
+app.use("/api/interventions", predictiveInterventionRouter);
 
 /**
  * @swagger
