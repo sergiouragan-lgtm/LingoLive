@@ -191,13 +191,14 @@ export function PersonalizedLearningPath() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {group.recommendations.map((rec) => (
-                      <RecommendationCard
-                        key={rec.recommendationId}
-                        recommendation={rec}
-                        isSelected={selectedPath === rec.recommendationId}
-                        onSelect={() => handleSelectPath(rec.recommendationId)}
-                        onRate={(rating) => handleRateRecommendation(rec.recommendationId, rating)}
-                      />
+                      <div key={rec.recommendationId}>
+                        <RecommendationCard
+                          recommendation={rec}
+                          isSelected={selectedPath === rec.recommendationId}
+                          onSelect={() => handleSelectPath(rec.recommendationId)}
+                          onRate={(rating) => handleRateRecommendation(rec.recommendationId, rating)}
+                        />
+                      </div>
                     ))}
                   </div>
                 </div>
