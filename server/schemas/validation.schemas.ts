@@ -69,7 +69,7 @@ export const PaymentIntentSchema = z.object({
   amount: z.number().int().min(100).max(999999), // Amount in cents (min $1, max $9,999.99)
   currency: z.enum(['USD', 'EUR', 'BRL', 'GBP']).default('USD'),
   subscriptionPlanId: z.string().optional(),
-  metadata: z.record(z.string()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
 }).strict();
 
 export type PaymentIntent = z.infer<typeof PaymentIntentSchema>;
@@ -134,7 +134,7 @@ export function validateBody<T extends z.ZodType>(schema: T) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({
           error: 'Validation failed',
-          details: error.errors.map(e => ({
+          details: error.issues.map(e => ({
             path: e.path.join('.'),
             message: e.message,
             code: e.code,
@@ -160,7 +160,7 @@ export function validateQuery<T extends z.ZodType>(schema: T) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({
           error: 'Invalid query parameters',
-          details: error.errors.map(e => ({
+          details: error.issues.map(e => ({
             path: e.path.join('.'),
             message: e.message,
             code: e.code,
@@ -186,7 +186,7 @@ export function validateParams<T extends z.ZodType>(schema: T) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({
           error: 'Invalid path parameters',
-          details: error.errors.map(e => ({
+          details: error.issues.map(e => ({
             path: e.path.join('.'),
             message: e.message,
             code: e.code,
