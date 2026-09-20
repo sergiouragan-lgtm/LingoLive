@@ -264,6 +264,7 @@ class OfflineFirstAnalyticsReportingService {
 
       if (peakHours.length > 0) {
         const patternId = `pattern_${userId}_time_${Date.now()}`;
+        const eventNames = Array.from(new Set(events.map((e) => String(e.eventName))));
         const pattern: OfflineUsagePattern = {
           patternId,
           userId,
@@ -272,7 +273,7 @@ class OfflineFirstAnalyticsReportingService {
           frequency: 'daily',
           avgUsageTime: events.length * 2, // estimate 2 min per event
           peakUsageHours: peakHours,
-          affectedFeatures: [...new Set(events.map((e) => String(e.eventName)))],
+          affectedFeatures: eventNames,
           confidence: Math.min(100, (peakHours.length / 24) * 100) / 100,
           detectedAt: new Date(),
         };
