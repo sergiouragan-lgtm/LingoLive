@@ -69,6 +69,11 @@ import twoFARouter from "./server/routes/twofa.routes";
 import paymentTiersRouter from "./server/routes/payment.routes";
 import fcmRouter from "./server/routes/fcm.routes";
 import analyticsDashboardRouter from "./server/routes/analytics.routes";
+import rateLimitRouter from "./server/routes/ratelimit.routes";
+import cacheRouter from "./server/routes/cache.routes";
+import webhooksRouter from "./server/routes/webhooks.routes";
+import featureFlagsRouter from "./server/routes/featureflags.routes";
+import dataExportRouter from "./server/routes/dataexport.routes";
 import { queueManager, JobType } from "./server/services/queue.service";
 import { processEmailJob } from "./server/services/jobProcessors/emailProcessor";
 import { processReportJob } from "./server/services/jobProcessors/reportProcessor";
@@ -82,6 +87,11 @@ import { twoFAService } from "./server/services/twofa.service";
 import { paymentService } from "./server/services/payment.service";
 import { fcmService } from "./server/services/fcm.service";
 import { analyticsDashboardService } from "./server/services/analytics.dashboard.service";
+import { rateLimitService } from "./server/services/ratelimit.service";
+import { cacheService } from "./server/services/cache.service";
+import { webhooksService } from "./server/services/webhooks.service";
+import { featureFlagsService } from "./server/services/featureflags.service";
+import { dataExportService } from "./server/services/dataexport.service";
 
 const app = express();
 
@@ -282,6 +292,11 @@ app.use("/api/2fa", twoFARouter);
 app.use("/api/subscriptions", paymentTiersRouter);
 app.use("/api/fcm", fcmRouter);
 app.use("/api/analytics/dashboard", analyticsDashboardRouter);
+app.use("/api/rate-limit", rateLimitRouter);
+app.use("/api/cache", cacheRouter);
+app.use("/api/webhooks", webhooksRouter);
+app.use("/api/feature-flags", featureFlagsRouter);
+app.use("/api/data-export", dataExportRouter);
 
 /**
  * @swagger
