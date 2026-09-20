@@ -162,6 +162,16 @@ import { aiTutorResponseService } from "./server/services/ai-tutor-response.serv
 import { personalizationEngineService } from "./server/services/personalization-engine.service";
 import { learningStyleAdaptationService } from "./server/services/learning-style-adaptation.service";
 import { predictiveInterventionService } from "./server/services/predictive-intervention.service";
+import realTimeFormativeAssessmentRouter from "./server/routes/real-time-formative-assessment.routes";
+import masteryCompetencyTrackingRouter from "./server/routes/mastery-competency-tracking.routes";
+import learningOutcomeMeasurementRouter from "./server/routes/learning-outcome-measurement.routes";
+import progressDashboardReportingRouter from "./server/routes/progress-dashboard-reporting.routes";
+import assessmentAnalyticsRouter from "./server/routes/assessment-analytics.routes";
+import { realTimeFormativeAssessmentService } from "./server/services/real-time-formative-assessment.service";
+import { masteryCompetencyTrackingService } from "./server/services/mastery-competency-tracking.service";
+import { learningOutcomeMeasurementService } from "./server/services/learning-outcome-measurement.service";
+import { progressDashboardReportingService } from "./server/services/progress-dashboard-reporting.service";
+import { assessmentAnalyticsService } from "./server/services/assessment-analytics.service";
 
 const app = express();
 
@@ -402,6 +412,11 @@ app.use("/api/tutor", aiTutorResponseRouter);
 app.use("/api/personalization", personalizationEngineRouter);
 app.use("/api/learning-style", learningStyleAdaptationRouter);
 app.use("/api/interventions", predictiveInterventionRouter);
+app.use("/api/assessment/formative", realTimeFormativeAssessmentRouter);
+app.use("/api/assessment/mastery", masteryCompetencyTrackingRouter);
+app.use("/api/assessment/outcomes", learningOutcomeMeasurementRouter);
+app.use("/api/assessment/progress", progressDashboardReportingRouter);
+app.use("/api/assessment/analytics", assessmentAnalyticsRouter);
 
 /**
  * @swagger
