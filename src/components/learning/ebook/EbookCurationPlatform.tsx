@@ -13,6 +13,9 @@ import { motion, AnimatePresence } from "motion/react";
 import { auth, db } from "../../../firebase";
 import { useToast } from "../../../context/ToastContext";
 import { useUserRole } from "../../../context/UserRoleContext";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useMonitoring } from "../../../hooks/useMonitoring";
+import { useRecommendations } from "../../../hooks/useRecommendations";
 import jsPDF from "jspdf";
 import { BlockEditor, type Block, blocksToMarkdown, markdownToBlocks } from "./BlockEditor";
 
@@ -309,6 +312,11 @@ export function EbookCurationPlatform() {
   const { showToast } = useToast();
   const { role } = useUserRole();
 
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+  const { recommendations } = useRecommendations(userId);
+
   // navigation
   type Screen = "dashboard" | "create" | "editor" | "preview" | "analytics";
   const [screen, setScreen] = useState<Screen>("dashboard");
@@ -362,6 +370,26 @@ export function EbookCurationPlatform() {
     if (!listLoaded) loadEbooks();
   }, [listLoaded, loadEbooks]);
 
+  // Track component lifecycle
+  useEffect(() => {
+    if (userId) {
+      trackEvent('ebook_curation_platform_accessed', {
+        userRole: role,
+        ebooksCount: ebooks.length,
+      });
+    }
+  }, [userId, trackEvent, role, ebooks.length]);
+
+  // Track screen changes
+  useEffect(() => {
+    if (userId) {
+      trackEvent('ebook_screen_changed', {
+        screen,
+        projectId: projectId || 'none',
+      });
+    }
+  }, [screen, projectId, userId, trackEvent]);
+
   // ─── wizard helpers ───
   const fetchTitleSuggestions = async () => {
     if (!topic) return;
@@ -410,8 +438,27 @@ export function EbookCurationPlatform() {
       setProjectId(undefined);
       setSelectedChapterIdx(0);
       setScreen("editor");
+
+      if (userId) {
+        trackEvent('ebook_structure_generated', {
+          topic,
+          language,
+          cefrLevel,
+          numChapters,
+          title: structure.title,
+        });
+      }
+
       showToast("Estrutura gerada com sucesso!", "success");
     } catch (err: any) {
+      if (userId) {
+        trackEvent('ebook_structure_generation_failed', {
+          topic,
+          language,
+          cefrLevel,
+          error: err.message,
+        });
+      }
       showToast(err.message ?? "Erro ao gerar estrutura", "error");
     } finally {
       setGeneratingStructure(false);
@@ -499,8 +546,25 @@ export function EbookCurationPlatform() {
         previousContext,
       });
       updateChapterContent(data.content ?? "");
+
+      if (userId) {
+        trackEvent('ebook_chapter_generated', {
+          projectId: projectId || 'draft',
+          chapterNumber: currentChapter.number,
+          chapterTitle: currentChapter.title,
+          language: project.language,
+        });
+      }
+
       showToast("Conteúdo gerado!", "success");
     } catch (err: any) {
+      if (userId) {
+        trackEvent('ebook_chapter_generation_failed', {
+          projectId: projectId || 'draft',
+          chapterNumber: currentChapter?.number,
+          error: err.message,
+        });
+      }
       showToast(err.message ?? "Erro ao gerar capítulo", "error");
     } finally {
       setGeneratingChapter(false);
@@ -519,8 +583,24 @@ export function EbookCurationPlatform() {
       });
       updateChapterContent(data.content ?? currentChapter.content);
       setAiInstruction("");
+
+      if (userId) {
+        trackEvent('ebook_content_improved', {
+          projectId: projectId || 'draft',
+          chapterNumber: currentChapter.number,
+          instruction: aiInstruction,
+        });
+      }
+
       showToast("Conteúdo melhorado!", "success");
     } catch (err: any) {
+      if (userId) {
+        trackEvent('ebook_content_improvement_failed', {
+          projectId: projectId || 'draft',
+          chapterNumber: currentChapter?.number,
+          error: err.message,
+        });
+      }
       showToast(err.message ?? "Erro ao melhorar conteúdo", "error");
     } finally {
       setImprovingContent(false);
@@ -541,8 +621,25 @@ export function EbookCurationPlatform() {
           : ch
       );
       setProject({ ...project, chapters: updated });
+
+      if (userId) {
+        trackEvent('ebook_tone_analyzed', {
+          projectId: projectId || 'draft',
+          chapterNumber: currentChapter.number,
+          toneScore: data.analysis.score,
+          targetTone: JSON.stringify(project.tone),
+        });
+      }
+
       showToast(`Análise de tom: ${data.analysis.score}/100`, "success");
-    } catch {
+    } catch (err: any) {
+      if (userId) {
+        trackEvent('ebook_tone_analysis_failed', {
+          projectId: projectId || 'draft',
+          chapterNumber: currentChapter?.number,
+          error: err.message,
+        });
+      }
       showToast("Erro ao analisar tom", "error");
     } finally {
       setAnalyzingTone(false);
@@ -563,8 +660,26 @@ export function EbookCurationPlatform() {
         i === selectedChapterIdx ? { ...ch, exercises: data.exercises ?? [] } : ch
       );
       setProject({ ...project, chapters: updated });
+
+      if (userId) {
+        trackEvent('ebook_exercises_generated', {
+          projectId: projectId || 'draft',
+          chapterNumber: currentChapter.number,
+          exercisesCount: data.exercises?.length || 0,
+          cefrLevel: project.cefrLevel,
+          language: project.language,
+        });
+      }
+
       showToast(`${data.exercises?.length ?? 0} exercícios gerados!`, "success");
-    } catch {
+    } catch (err: any) {
+      if (userId) {
+        trackEvent('ebook_exercises_generation_failed', {
+          projectId: projectId || 'draft',
+          chapterNumber: currentChapter?.number,
+          error: err.message,
+        });
+      }
       showToast("Erro ao gerar exercícios", "error");
     } finally {
       setGeneratingExercises(false);
@@ -580,9 +695,28 @@ export function EbookCurationPlatform() {
         ...project,
       } as any);
       if (!projectId && data.id) setProjectId(data.id);
+
+      if (userId) {
+        trackEvent(projectId ? 'ebook_updated' : 'ebook_created', {
+          ebookId: projectId || data.id,
+          title: project.title,
+          language: project.language,
+          cefrLevel: project.cefrLevel,
+          chaptersCount: project.chapters.length,
+          totalWords: project.chapters.reduce((sum, ch) => sum + (ch.wordCount || 0), 0),
+          status: project.status,
+        });
+      }
+
       showToast("E-book guardado!", "success");
       setListLoaded(false);
-    } catch {
+    } catch (err: any) {
+      if (userId) {
+        trackEvent('ebook_save_failed', {
+          projectId: projectId || 'draft',
+          error: err.message,
+        });
+      }
       showToast("Erro ao guardar e-book", "error");
     } finally {
       setSavingProject(false);
@@ -594,8 +728,21 @@ export function EbookCurationPlatform() {
     try {
       await apiDelete(id);
       setEbooks((prev) => prev.filter((e) => e.id !== id));
+
+      if (userId) {
+        trackEvent('ebook_deleted', {
+          ebookId: id,
+        });
+      }
+
       showToast("E-book eliminado", "success");
-    } catch {
+    } catch (err: any) {
+      if (userId) {
+        trackEvent('ebook_delete_failed', {
+          ebookId: id,
+          error: err.message,
+        });
+      }
       showToast("Erro ao eliminar e-book", "error");
     }
   };
@@ -659,8 +806,23 @@ export function EbookCurationPlatform() {
       });
 
       doc.save(`${project.title.replace(/\s+/g, "_")}.pdf`);
+
+      if (userId) {
+        trackEvent('ebook_exported_to_pdf', {
+          ebookId: projectId || 'draft',
+          title: project.title,
+          chaptersCount: project.chapters.length,
+        });
+      }
+
       showToast("PDF exportado com sucesso!", "success");
-    } catch (err) {
+    } catch (err: any) {
+      if (userId) {
+        trackEvent('ebook_export_failed', {
+          ebookId: projectId || 'draft',
+          error: err.message,
+        });
+      }
       showToast("Erro ao exportar PDF", "error");
     }
   };
