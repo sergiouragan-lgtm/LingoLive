@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   TrendingUp, TrendingDown, DollarSign, Calendar, AlertCircle,
   BarChart3, PieChart, Activity, Target, Zap, Download, RefreshCw,
@@ -11,6 +11,9 @@ import {
   Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Area, AreaChart
 } from "recharts";
 import { useRealtimeSync } from "../../../hooks/useRealtimeSync";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useNotifications } from "../../../hooks/useNotifications";
+import { useMonitoring } from "../../../hooks/useMonitoring";
 import { where } from "firebase/firestore";
 import { auth } from "../../../firebase";
 import { useToast } from "../../../context/ToastContext";
@@ -48,6 +51,13 @@ export const AdvancedParentDashboard: React.FC<{
 }> = ({ setView }) => {
   const { addToast } = useToast();
   const user = auth.currentUser;
+
+  // Phase 38-45 Hook Integration
+  const parentUserId = user?.uid || '';
+  const { trackEvent } = useAnalytics(parentUserId);
+  const { notifications } = useNotifications(parentUserId);
+  const { monitors } = useMonitoring();
+
   const [timeRange, setTimeRange] = useState<"7d" | "30d" | "90d" | "1y">("30d");
   const [selectedMetric, setSelectedMetric] = useState<"progress" | "spending" | "attendance">("progress");
 
@@ -135,6 +145,18 @@ export const AdvancedParentDashboard: React.FC<{
   }, []);
 
   const COLORS = ["#4f46e5", "#ec4899", "#f59e0b"];
+
+  // Track parent dashboard access and child progress (Phase 38-45 Analytics)
+  useEffect(() => {
+    if (parentUserId) {
+      trackEvent('parent_dashboard_accessed', {
+        timeRange,
+        selectedMetric,
+        dependents: childPerformanceData.length,
+        totalXP: childPerformanceData.reduce((sum, child) => sum + child.xp, 0),
+      });
+    }
+  }, [parentUserId, trackEvent, timeRange, selectedMetric]);
 
   const handleExportReport = (format: "pdf" | "excel") => {
     addToast(`Exportando relatório avançado em ${format.toUpperCase()}...`, "info");
