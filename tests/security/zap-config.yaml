@@ -1,0 +1,83 @@
+# OWASP ZAP Configuration for LingoLive Security Testing
+# Usage: zaproxy -config tests/security/zap-config.yaml
+
+env:
+  # Target API
+  target: http://localhost:3000/api
+  contextFile: /tmp/context.ctx
+
+contexts:
+  - name: LingoLive API
+    includePaths:
+      - http://localhost:3000/api/*
+    excludePaths:
+      - http://localhost:3000/api/admin/*
+    authentication:
+      type: bearer
+      tokenHeader: Authorization
+      token: "Bearer ${AUTH_TOKEN}"
+
+# Automated scanning
+scan:
+  type: full
+  policy: API
+  attackStrength: MEDIUM
+  alertThreshold: MEDIUM
+
+# Passive scanning
+passiveScan:
+  enabled: true
+  maxRuleId: 50000
+
+# Active scanning rules
+activeScan:
+  - id: 40012
+    name: SQL Injection
+    enabled: true
+  - id: 40018
+    name: SQL Injection (Time Based)
+    enabled: true
+  - id: 40027
+    name: XPath Injection
+    enabled: true
+  - id: 90018
+    name: Remote Code Execution
+    enabled: true
+  - id: 20014
+    name: HTTP Parameter Pollution
+    enabled: true
+
+# Authentication testing
+auth:
+  endpoints:
+    - method: POST
+      url: /auth/login
+      params: { email, password }
+    - method: GET
+      url: /auth/verify
+      headers: { Authorization }
+
+# API-specific checks
+api:
+  endpoints:
+    - path: /payment/checkout
+      method: POST
+      requiredAuth: true
+      validateSchema: true
+    - path: /ai-tutor/chat
+      method: POST
+      requiredAuth: true
+      rateLimit: 10/min
+    - path: /livekit/token
+      method: POST
+      requiredAuth: true
+      validateSchema: true
+
+# Reports
+reports:
+  - format: html
+    filename: zap-report.html
+  - format: json
+    filename: zap-report.json
+  - format: sarif
+    filename: zap-report.sarif
