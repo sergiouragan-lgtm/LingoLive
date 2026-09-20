@@ -9,6 +9,7 @@ export default defineConfig({
       '**/dist/**',
       'src/tests/firestoreRulesEmulator.test.ts',
       'tests/integration/**',
+      'tests/e2e/**',
       'tests/performance/**',
     ],
   },
