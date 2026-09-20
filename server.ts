@@ -188,6 +188,16 @@ import customReportBuilderRouter from "./server/routes/custom-report-builder.rou
 import { realtimeLearnerAnalyticsService } from "./server/services/realtime-learner-analytics.service";
 import { cohortAnalysisBenchmarkingService } from "./server/services/cohort-analysis-benchmarking.service";
 import { customReportBuilderService } from "./server/services/custom-report-builder.service";
+import offlineFirstArchitectureRouter from "./server/routes/offline-first-architecture.routes";
+import advancedServiceWorkerRouter from "./server/routes/advanced-service-worker.routes";
+import offlineDataSyncRouter from "./server/routes/offline-data-sync.routes";
+import mobilePerformanceOptimizationRouter from "./server/routes/mobile-performance-optimization.routes";
+import offlineFirstAnalyticsReportingRouter from "./server/routes/offline-first-analytics-reporting.routes";
+import { offlineFirstArchitectureService } from "./server/services/offline-first-architecture.service";
+import { advancedServiceWorkerService } from "./server/services/advanced-service-worker.service";
+import { offlineDataSyncService } from "./server/services/offline-data-sync.service";
+import { mobilePerformanceOptimizationService } from "./server/services/mobile-performance-optimization.service";
+import { offlineFirstAnalyticsReportingService } from "./server/services/offline-first-analytics-reporting.service";
 
 const app = express();
 
@@ -441,6 +451,11 @@ app.use("/api/certification/transcripts", transcriptManagementVerificationRouter
 app.use("/api/analytics/realtime-learner", realtimeLearnerAnalyticsRouter);
 app.use("/api/analytics/cohorts", cohortAnalysisBenchmarkingRouter);
 app.use("/api/analytics/reports", customReportBuilderRouter);
+app.use("/api/offline/architecture", offlineFirstArchitectureRouter);
+app.use("/api/offline/service-worker", advancedServiceWorkerRouter);
+app.use("/api/offline/sync", offlineDataSyncRouter);
+app.use("/api/mobile/performance", mobilePerformanceOptimizationRouter);
+app.use("/api/offline/analytics", offlineFirstAnalyticsReportingRouter);
 
 /**
  * @swagger
