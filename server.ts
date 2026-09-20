@@ -270,6 +270,20 @@ import { qualityAssuranceReleaseManagementService } from "./server/services/qual
 import { advancedPerformanceOptimizationService } from "./server/services/advanced-performance-optimization.service";
 import { advancedDataGovernanceService } from "./server/services/advanced-data-governance.service";
 import { customerSuccessSupportService } from "./server/services/customer-success-support.service";
+import apiGatewayManagementRouter from "./server/routes/api-gateway-management.routes";
+import serviceMeshOrchestrationRouter from "./server/routes/service-mesh-orchestration.routes";
+import advancedLoggingMonitoringRouter from "./server/routes/advanced-logging-monitoring.routes";
+import containerOrchestrationRouter from "./server/routes/container-orchestration.routes";
+import infrastructureProvisioningRouter from "./server/routes/infrastructure-provisioning.routes";
+import networkOptimizationRouter from "./server/routes/network-optimization.routes";
+import disasterRecoveryRouter from "./server/routes/disaster-recovery.routes";
+import { apiGatewayManagementService } from "./server/services/api-gateway-management.service";
+import { serviceMeshOrchestrationService } from "./server/services/service-mesh-orchestration.service";
+import { advancedLoggingMonitoringService } from "./server/services/advanced-logging-monitoring.service";
+import { containerOrchestrationService } from "./server/services/container-orchestration.service";
+import { infrastructureProvisioningService } from "./server/services/infrastructure-provisioning.service";
+import { networkOptimizationService } from "./server/services/network-optimization.service";
+import { disasterRecoveryService } from "./server/services/disaster-recovery.service";
 
 const app = express();
 
@@ -564,6 +578,13 @@ app.use("/api/qa", qualityAssuranceReleaseManagementRouter);
 app.use("/api/optimization", advancedPerformanceOptimizationRouter);
 app.use("/api/governance", advancedDataGovernanceRouter);
 app.use("/api/support", customerSuccessSupportRouter);
+app.use("/api/gateway", apiGatewayManagementRouter);
+app.use("/api/mesh", serviceMeshOrchestrationRouter);
+app.use("/api/logging", advancedLoggingMonitoringRouter);
+app.use("/api/containers", containerOrchestrationRouter);
+app.use("/api/provisioning", infrastructureProvisioningRouter);
+app.use("/api/network", networkOptimizationRouter);
+app.use("/api/disaster-recovery", disasterRecoveryRouter);
 
 /**
  * @swagger
