@@ -19,6 +19,7 @@ import rateLimit from "express-rate-limit";
 import cors from "cors";
 import swaggerUi from "swagger-ui-express";
 import swaggerJsdoc from "swagger-jsdoc";
+import { Server as SocketIOServer } from "socket.io";
 
 import { PORT, ENABLE_SANDBOX_FALLBACK } from "./server/config/env";
 import { dbAdmin, authAdmin, verifyFirebaseConnection } from "./server/config/firebaseAdmin";
@@ -61,11 +62,14 @@ import openaiTutorRouter from "./server/routes/openai-tutor.routes";
 import analyticsAdvancedRouter from "./server/routes/analytics-advanced.routes";
 import queueRouter from "./server/routes/queue.routes";
 import searchRouter from "./server/routes/search.routes";
+import notificationsRouter from "./server/routes/notifications.routes";
 import { queueManager, JobType } from "./server/services/queue.service";
 import { processEmailJob } from "./server/services/jobProcessors/emailProcessor";
 import { processReportJob } from "./server/services/jobProcessors/reportProcessor";
 import { processExportJob } from "./server/services/jobProcessors/exportProcessor";
 import { processBatchNotificationJob } from "./server/services/jobProcessors/notificationProcessor";
+import { notificationsService } from "./server/services/notifications.service";
+import { notificationsGateway } from "./server/websocket/notifications.gateway";
 
 const app = express();
 
@@ -259,6 +263,7 @@ app.use("/api/ai-tutor", openaiTutorRouter);
 app.use("/api/analytics", analyticsAdvancedRouter);
 app.use("/api/queue", queueRouter);
 app.use("/api/search", searchRouter);
+app.use("/api/notifications", notificationsRouter);
 
 /**
  * @swagger
@@ -381,13 +386,33 @@ app.post("/api/sync-vocabulary", async (req, res) => {
 // Create HTTP Server
 const server = http.createServer(app);
 
-// Setup WebSockets
+// Setup WebSockets for Live Classes
 setupWebSocket(server);
+
+// Initialize Socket.IO for Real-Time Notifications
+const io = new SocketIOServer(server, {
+  cors: {
+    origin: process.env.NODE_ENV === 'production'
+      ? ['https://lingolive.app', 'https://www.lingolive.app']
+      : ['http://localhost:5173', 'http://127.0.0.1:5173'],
+    credentials: true,
+  },
+  transports: ['websocket', 'polling'],
+  path: '/socket.io/',
+  maxHttpBufferSize: 1e6, // 1MB
+  pingInterval: 30000,
+  pingTimeout: 10000,
+});
 
 // Configure Vite or Static Asset serving
 async function startServer() {
   // Explicitly await Firebase initialization
   await verifyFirebaseConnection();
+
+  // Initialize Notifications Gateway
+  console.log('[Server] Initializing real-time notifications gateway...');
+  notificationsGateway.initialize(io);
+  console.log('[Server] Notifications gateway initialized successfully');
 
   // Initialize Job Queue Processors
   console.log('[Server] Initializing background job processors...');
