@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  LayoutDashboard, Users, BookOpen, FileText, CheckSquare, Sparkles, 
-  MessageSquare, Calendar, TrendingUp, Award, Clock, ArrowRight, 
-  ChevronRight, Play, CheckCircle, AlertCircle, RefreshCw, Send, Plus, 
-  Trash2, Filter, Search, Download, Edit2, Check, BarChart2, PieChart, 
+import {
+  LayoutDashboard, Users, BookOpen, FileText, CheckSquare, Sparkles,
+  MessageSquare, Calendar, TrendingUp, Award, Clock, ArrowRight,
+  ChevronRight, Play, CheckCircle, AlertCircle, RefreshCw, Send, Plus,
+  Trash2, Filter, Search, Download, Edit2, Check, BarChart2, PieChart,
   Trophy, BookOpenCheck, HelpCircle, FileSignature, ThumbsUp, Volume2,
-  Sliders, Settings, GraduationCap, Cpu, Image, Library, ShoppingCart, 
-  Globe, ShieldCheck, HeartHandshake, FolderOpen, Newspaper, FileCode, 
+  Sliders, Settings, GraduationCap, Cpu, Image, Library, ShoppingCart,
+  Globe, ShieldCheck, HeartHandshake, FolderOpen, Newspaper, FileCode,
   Layers, ListTodo, ClipboardList, Target, Bookmark, Share2, Eye, PlayCircle, Database
 } from 'lucide-react';
+import { useAnalytics } from '../../../hooks/useAnalytics';
+import { useMonitoring } from '../../../hooks/useMonitoring';
+import { auth } from '../../../firebase';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   LineChart, Line, AreaChart, Area, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
@@ -102,6 +105,11 @@ interface Submission {
 }
 
 export const AreaProfessorDashboard: React.FC<AreaProfessorDashboardProps> = ({ setView }) => {
+  // Phase 38-45 Hook Integration
+  const professorUserId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(professorUserId);
+  const { monitors } = useMonitoring();
+
   // Navigation State & Modes
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [platformMode, setPlatformMode] = useState<'professor' | 'creator'>('professor');
@@ -272,6 +280,34 @@ export const AreaProfessorDashboard: React.FC<AreaProfessorDashboardProps> = ({ 
   const [subAnalysisResult, setSubAnalysisResult] = useState<any | null>(null);
   const [customTeacherScore, setCustomTeacherScore] = useState<number>(85);
   const [customTeacherNote, setCustomTeacherNote] = useState<string>('');
+
+  useEffect(() => {
+    if (professorUserId) {
+      trackEvent('professor_dashboard_accessed', {
+        timestamp: new Date().toISOString(),
+        coursesCount: courses.length,
+        classesCount: classes.length,
+      });
+    }
+  }, [professorUserId, trackEvent, courses.length, classes.length]);
+
+  useEffect(() => {
+    if (professorUserId && activeTab) {
+      trackEvent('professor_tab_changed', {
+        tab: activeTab,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }, [activeTab, professorUserId, trackEvent]);
+
+  useEffect(() => {
+    if (professorUserId && platformMode) {
+      trackEvent('professor_mode_switched', {
+        mode: platformMode,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }, [platformMode, professorUserId, trackEvent]);
 
   // Toast handler
   const triggerToast = (msg: string) => {
