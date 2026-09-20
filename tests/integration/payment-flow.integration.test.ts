@@ -8,9 +8,9 @@ import axios from "axios";
 import { getFirestore } from "firebase/firestore";
 import { initializeApp } from "firebase/app";
 
-// Firebase config for tests
+// Firebase config for tests (using placeholder key for CI/testing)
 const firebaseConfig = {
-  apiKey: "AIzaSyCOr2KeJzfQjjd1_-W7-n9P7e1i3C7-fGI",
+  apiKey: "AIzaSyDummyTestKeyForCI0000000000000000",
   authDomain: "lingolive-ia-f5778.firebaseapp.com",
   projectId: "lingolive-ia-f5778",
   storageBucket: "lingolive-ia-f5778.appspot.com",
