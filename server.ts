@@ -294,6 +294,14 @@ import { microservicesCommunicationService } from "./server/services/microservic
 import { highAvailabilityResilienceService } from "./server/services/high-availability-resilience.service";
 import { costOptimizationService } from "./server/services/cost-optimization.service";
 import { realtimeStreamingService } from "./server/services/realtime-streaming.service";
+import complianceAuditTrailRouter from "./server/routes/compliance-audit-trail.routes";
+import apiRateLimitingRouter from "./server/routes/api-rate-limiting.routes";
+import databaseOptimizationRouter from "./server/routes/database-optimization.routes";
+import userAnalyticsTrackingRouter from "./server/routes/user-analytics-tracking.routes";
+import { complianceAuditTrailService } from "./server/services/compliance-audit-trail.service";
+import { apiRateLimitingService } from "./server/services/api-rate-limiting.service";
+import { databaseOptimizationService } from "./server/services/database-optimization.service";
+import { userAnalyticsTrackingService } from "./server/services/user-analytics-tracking.service";
 
 const app = express();
 
@@ -600,6 +608,10 @@ app.use("/api/microservices", microservicesCommunicationRouter);
 app.use("/api/ha", highAvailabilityResilienceRouter);
 app.use("/api/costs", costOptimizationRouter);
 app.use("/api/streaming", realtimeStreamingRouter);
+app.use("/api/compliance", complianceAuditTrailRouter);
+app.use("/api/ratelimit", apiRateLimitingRouter);
+app.use("/api/database", databaseOptimizationRouter);
+app.use("/api/analytics/user", userAnalyticsTrackingRouter);
 
 /**
  * @swagger
