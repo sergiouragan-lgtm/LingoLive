@@ -58,6 +58,7 @@ import ebookAssignmentRouter from "./server/routes/ebook.assignment.routes";
 import ebookVocabularyRouter from "./server/routes/ebook.vocabulary.routes";
 // import livekitRouter from "./server/routes/livekit.routes"; // TODO: Fix TypeScript errors in livekit service
 import openaiTutorRouter from "./server/routes/openai-tutor.routes";
+import analyticsAdvancedRouter from "./server/routes/analytics-advanced.routes";
 
 const app = express();
 
@@ -248,6 +249,7 @@ app.use("/api/ebook/assignments", ebookAssignmentRouter);
 app.use("/api/ebook/vocabulary", ebookVocabularyRouter);
 // app.use("/api/livekit", livekitRouter); // TODO: Fix TypeScript errors in livekit service
 app.use("/api/ai-tutor", openaiTutorRouter);
+app.use("/api/analytics", analyticsAdvancedRouter);
 
 /**
  * @swagger

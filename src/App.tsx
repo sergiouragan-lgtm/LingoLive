@@ -124,6 +124,9 @@ import { recordLanguageExplored, recordQuizCompleted, recordSavedWordsCount, bac
 import { getWordsFromDB, saveAllWordsToDB, getProgressFromDB, saveProgressToDB, savePendingSync, triggerManualSync, registerBackgroundSync } from "./utils/indexedDB";
 import { requestFullscreen, exitFullscreen, isFullscreenActive } from "./utils/fullscreen";
 import { useDeviceOrientation } from "./hooks/useDeviceOrientation";
+import { performanceMonitor } from "./services/PerformanceMonitor";
+import { errorTracker } from "./services/ErrorTracker";
+import { realTimeAnalytics } from "./services/RealTimeAnalytics";
 
 // Lazy loading fallback UI
 const LazyComponentFallback: React.FC = () => (
@@ -166,6 +169,45 @@ function AppContent() {
   const [showWelcomeTour, setShowWelcomeTour] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [showLogoTooltip, setShowLogoTooltip] = useState(false);
+
+  // Initialize monitoring services
+  useEffect(() => {
+    // Start performance monitoring
+    performanceMonitor.startMonitoring();
+
+    // Setup engagement tracking
+    realTimeAnalytics.startEngagementTracking();
+
+    // Set user context in error tracker when user logs in
+    if (user?.uid) {
+      errorTracker.setUserContext(user.uid, {
+        email: user.email,
+        displayName: user.displayName,
+      });
+      realTimeAnalytics.setUserId(user.uid);
+    }
+
+    // Report performance metrics periodically
+    const metricsInterval = setInterval(async () => {
+      const metrics = performanceMonitor.getMetrics();
+      if (Object.keys(metrics).length > 0) {
+        await performanceMonitor.reportMetrics(metrics);
+      }
+    }, 60000); // Every 60 seconds
+
+    // Flush analytics on page unload
+    const handleUnload = () => {
+      performanceMonitor.stopMonitoring();
+      realTimeAnalytics.flush();
+    };
+
+    window.addEventListener('beforeunload', handleUnload);
+
+    return () => {
+      clearInterval(metricsInterval);
+      window.removeEventListener('beforeunload', handleUnload);
+    };
+  }, [user?.uid]);
 
   useEffect(() => {
     // COPPA Enforcement: Redireciona menores sem consentimento para fluxo de consentimento
