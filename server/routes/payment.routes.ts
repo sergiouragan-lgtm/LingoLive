@@ -193,11 +193,7 @@ router.get("/subscription/details", requireAuth, async (req: any, res: any) => {
     const userId = req.user.uid;
     const userDoc = await safeGetDoc("users", userId);
 
-    if (!userDoc.exists) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    const userData = userDoc.data() || {};
+    const userData = userDoc.exists ? userDoc.data() || {} : {};
     res.json({
       subscriptionStatus: userData.subscriptionStatus || "free",
       planId: userData.planId || null,
@@ -222,15 +218,17 @@ router.post("/subscription/cancel", requireAuth, async (req: any, res: any) => {
     const userId = req.user.uid;
     const userDoc = await safeGetDoc("users", userId);
 
-    if (!userDoc.exists) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    const userData = userDoc.data() || {};
+    const userData = userDoc.exists ? userDoc.data() || {} : {};
     const stripeCustomerId = userData.stripeCustomerId;
 
     if (!stripeCustomerId) {
-      return res.status(400).json({ error: "No active subscription found" });
+      // Return default response for users without active subscription
+      return res.json({
+        subscriptionId: null,
+        cancelAtPeriodEnd: false,
+        currentPeriodEnd: null,
+        message: "No active subscription to cancel"
+      });
     }
 
     const stripe = getStripeClient();
