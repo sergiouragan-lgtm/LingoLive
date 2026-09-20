@@ -59,6 +59,12 @@ import ebookVocabularyRouter from "./server/routes/ebook.vocabulary.routes";
 // import livekitRouter from "./server/routes/livekit.routes"; // TODO: Fix TypeScript errors in livekit service
 import openaiTutorRouter from "./server/routes/openai-tutor.routes";
 import analyticsAdvancedRouter from "./server/routes/analytics-advanced.routes";
+import queueRouter from "./server/routes/queue.routes";
+import { queueManager, JobType } from "./server/services/queue.service";
+import { processEmailJob } from "./server/services/jobProcessors/emailProcessor";
+import { processReportJob } from "./server/services/jobProcessors/reportProcessor";
+import { processExportJob } from "./server/services/jobProcessors/exportProcessor";
+import { processBatchNotificationJob } from "./server/services/jobProcessors/notificationProcessor";
 
 const app = express();
 
@@ -250,6 +256,7 @@ app.use("/api/ebook/vocabulary", ebookVocabularyRouter);
 // app.use("/api/livekit", livekitRouter); // TODO: Fix TypeScript errors in livekit service
 app.use("/api/ai-tutor", openaiTutorRouter);
 app.use("/api/analytics", analyticsAdvancedRouter);
+app.use("/api/queue", queueRouter);
 
 /**
  * @swagger
@@ -379,6 +386,14 @@ setupWebSocket(server);
 async function startServer() {
   // Explicitly await Firebase initialization
   await verifyFirebaseConnection();
+
+  // Initialize Job Queue Processors
+  console.log('[Server] Initializing background job processors...');
+  queueManager.registerProcessor(JobType.SEND_EMAIL, processEmailJob, 5);
+  queueManager.registerProcessor(JobType.GENERATE_REPORT, processReportJob, 2);
+  queueManager.registerProcessor(JobType.EXPORT_DATA, processExportJob, 2);
+  queueManager.registerProcessor(JobType.BATCH_NOTIFICATION, processBatchNotificationJob, 3);
+  console.log('[Server] Job processors registered successfully');
 
   // Background Scheduler for Study Goal and Scheduled Lesson Reminders
   // Runs every 60 seconds to scan for reminders matching current local time
