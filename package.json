@@ -18,6 +18,10 @@
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:ui": "playwright test --ui",
     "test:firestore-rules": "firebase emulators:exec --only firestore \"vitest run --config vitest.firestore.config.ts\"",
+    "test:coverage": "vitest run --coverage",
+    "generate:openapi": "node scripts/generate-openapi.mjs",
+    "generate:tests": "npx tsx scripts/generate-test-files.ts",
+    "setup:firestore": "npx tsx scripts/firestore-setup.ts",
     "audit:prod": "npm audit --omit=dev --audit-level=high",
     "check": "npm run typecheck && npm run test:ci && npm run test:integration && npm run test:firestore-rules && npm run audit:prod && npm run build"
   },
