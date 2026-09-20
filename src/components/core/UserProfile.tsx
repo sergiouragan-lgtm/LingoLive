@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Flame, 
-  BookOpen, 
-  GraduationCap, 
-  Award, 
-  Shield, 
-  ArrowRight, 
-  CheckCircle2, 
-  Trophy, 
+import {
+  Flame,
+  BookOpen,
+  GraduationCap,
+  Award,
+  Shield,
+  ArrowRight,
+  CheckCircle2,
+  Trophy,
   Bookmark,
   Sparkles,
   School,
@@ -29,6 +29,9 @@ import { Achievement, StreakData, Language, Proficiency, PlatformFeatures } from
 import { useToast } from '../../context/ToastContext';
 import { useAppTheme } from '../../context/ThemeContext';
 import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { usePersonalization } from '../../hooks/usePersonalization';
+import { useNotifications } from '../../hooks/useNotifications';
 import { subscribeToAchievements, UserAchievements, Badge } from '../../lib/AchievementsManager';
 import { 
   ResponsiveContainer, 
@@ -106,19 +109,26 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-export const UserProfile: React.FC<UserProfileProps> = ({ 
-  userName, 
-  userEmail, 
-  streakData, 
-  achievements, 
+export const UserProfile: React.FC<UserProfileProps> = ({
+  userName,
+  userEmail,
+  streakData,
+  achievements,
   selectedLanguage,
   selectedProficiency,
   setView,
   features,
-  onOpenQuiz 
+  onOpenQuiz
 }) => {
   const { addToast } = useToast();
   const { theme, age, setAge } = useAppTheme();
+
+  // Phase 38-45 Hook Integration
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { profile: personalizationProfile } = usePersonalization(userId);
+  const { notifications } = useNotifications(userId);
+
   const [firestoreAchievements, setFirestoreAchievements] = useState<UserAchievements | null>(null);
   const [activeCelebration, setActiveCelebration] = useState<{ title: string; id: number } | null>(null);
   const [confettiParticles, setConfettiParticles] = useState<ConfettiParticle[]>([]);
@@ -129,6 +139,19 @@ export const UserProfile: React.FC<UserProfileProps> = ({
   const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
   const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
+
+  // Track user profile view (Phase 38-45 Analytics)
+  useEffect(() => {
+    if (userId) {
+      trackEvent('user_profile_viewed', {
+        userName,
+        language: selectedLanguage?.name,
+        proficiency: selectedProficiency,
+        streak: streakData?.count || 0,
+        achievements: achievements?.length || 0,
+      });
+    }
+  }, [userId, trackEvent, userName, selectedLanguage, selectedProficiency, streakData, achievements]);
 
   // Initialize practice history with localStorage or high-fidelity seeded past sessions
   const [history, setHistory] = useState<any[]>(() => {
