@@ -64,6 +64,11 @@ import queueRouter from "./server/routes/queue.routes";
 import searchRouter from "./server/routes/search.routes";
 import notificationsRouter from "./server/routes/notifications.routes";
 import userPreferencesRouter from "./server/routes/userPreferences.routes";
+import emailRouter from "./server/routes/email.routes";
+import twoFARouter from "./server/routes/twofa.routes";
+import paymentTiersRouter from "./server/routes/payment.routes";
+import fcmRouter from "./server/routes/fcm.routes";
+import analyticsDashboardRouter from "./server/routes/analytics.routes";
 import { queueManager, JobType } from "./server/services/queue.service";
 import { processEmailJob } from "./server/services/jobProcessors/emailProcessor";
 import { processReportJob } from "./server/services/jobProcessors/reportProcessor";
@@ -72,6 +77,11 @@ import { processBatchNotificationJob } from "./server/services/jobProcessors/not
 import { notificationsService } from "./server/services/notifications.service";
 import { notificationsGateway } from "./server/websocket/notifications.gateway";
 import { userPreferencesService } from "./server/services/userPreferences.service";
+import { emailService } from "./server/services/email.service";
+import { twoFAService } from "./server/services/twofa.service";
+import { paymentService } from "./server/services/payment.service";
+import { fcmService } from "./server/services/fcm.service";
+import { analyticsDashboardService } from "./server/services/analytics.dashboard.service";
 
 const app = express();
 
@@ -267,6 +277,11 @@ app.use("/api/queue", queueRouter);
 app.use("/api/search", searchRouter);
 app.use("/api/notifications", notificationsRouter);
 app.use("/api/user-preferences", userPreferencesRouter);
+app.use("/api/email", emailRouter);
+app.use("/api/2fa", twoFARouter);
+app.use("/api/subscriptions", paymentTiersRouter);
+app.use("/api/fcm", fcmRouter);
+app.use("/api/analytics/dashboard", analyticsDashboardRouter);
 
 /**
  * @swagger
