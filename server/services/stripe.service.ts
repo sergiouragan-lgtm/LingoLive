@@ -390,6 +390,123 @@ export class StripeService {
         } else {
           await PaymentEngineService.markEventProcessed(eventId, "stripe", event.type, { warning: "missing_userId" });
         }
+      } else if (event.type === "charge.dispute.created") {
+        // Chargeback/dispute initiated
+        const charge = event.data.object;
+        const customerId = charge.customer;
+        const amount = charge.amount ? charge.amount / 100 : 0;
+        const currency = charge.currency || "usd";
+
+        let userId: string | null = charge.metadata?.userId || null;
+        if (!userId && dbAdmin && customerId && !isRunningUnderTests) {
+          const userSnap = await dbAdmin.collection("users").where("stripeCustomerId", "==", customerId).limit(1).get();
+          if (!userSnap.empty) {
+            userId = userSnap.docs[0].id;
+          }
+        }
+
+        if (userId) {
+          // Record dispute and revoke access temporarily
+          await PaymentEngineService.recordPayment({
+            paymentId: `stripe_dispute_${charge.id}`,
+            userId,
+            provider: "stripe",
+            providerTransactionId: charge.id,
+            providerCustomerId: customerId,
+            planId: charge.metadata?.planId || "UNKNOWN",
+            amount,
+            currency,
+            status: "disputed",
+            requiresReview: true,
+            reviewReason: "Chargeback initiated",
+            metadata: {
+              chargeId: charge.id,
+              disputeReason: event.data.object.reason,
+              stripeCustomerId: customerId
+            }
+          });
+
+          // TODO: Send notification to user about dispute
+          console.log(`[Stripe Webhook] 🚨 Dispute created for user ${userId}, charge ${charge.id}`);
+        }
+
+        await PaymentEngineService.markEventProcessed(eventId, "stripe", event.type, { chargeId: charge.id }, userId || undefined);
+      } else if (event.type === "charge.refunded") {
+        // Refund processed
+        const charge = event.data.object;
+        const customerId = charge.customer;
+        const refundedAmount = charge.refunded ? charge.amount_refunded / 100 : 0;
+        const currency = charge.currency || "usd";
+
+        let userId: string | null = charge.metadata?.userId || null;
+        if (!userId && dbAdmin && customerId && !isRunningUnderTests) {
+          const userSnap = await dbAdmin.collection("users").where("stripeCustomerId", "==", customerId).limit(1).get();
+          if (!userSnap.empty) {
+            userId = userSnap.docs[0].id;
+          }
+        }
+
+        if (userId && refundedAmount > 0) {
+          // Record refund
+          await PaymentEngineService.recordPayment({
+            paymentId: `stripe_refund_${charge.id}`,
+            userId,
+            provider: "stripe",
+            providerTransactionId: charge.id,
+            providerCustomerId: customerId,
+            planId: charge.metadata?.planId || "UNKNOWN",
+            amount: -refundedAmount, // Negative amount for refund
+            currency,
+            status: "refunded",
+            metadata: {
+              chargeId: charge.id,
+              originalAmount: (charge.amount / 100).toString(),
+              refundedAmount: refundedAmount.toString(),
+              stripeCustomerId: customerId
+            }
+          });
+
+          // TODO: Update subscription access if needed (prorated refund)
+          console.log(`[Stripe Webhook] 💰 Refund of ${refundedAmount} ${currency} processed for user ${userId}`);
+        }
+
+        await PaymentEngineService.markEventProcessed(eventId, "stripe", event.type, { chargeId: charge.id, refundedAmount }, userId || undefined);
+      } else if (event.type === "payment_intent.payment_failed") {
+        // Payment intent failed (covers more granular failure scenarios)
+        const paymentIntent = event.data.object;
+        const customerId = paymentIntent.customer;
+        const amount = paymentIntent.amount ? paymentIntent.amount / 100 : 0;
+        const currency = paymentIntent.currency || "usd";
+        const lastError = paymentIntent.last_payment_error;
+
+        let userId: string | null = paymentIntent.metadata?.userId || null;
+        if (!userId && dbAdmin && customerId && !isRunningUnderTests) {
+          const userSnap = await dbAdmin.collection("users").where("stripeCustomerId", "==", customerId).limit(1).get();
+          if (!userSnap.empty) {
+            userId = userSnap.docs[0].id;
+          }
+        }
+
+        if (userId) {
+          await PaymentEngineService.handlePaymentFailure({
+            userId,
+            planId: paymentIntent.metadata?.planId || "UNKNOWN",
+            provider: "stripe",
+            transactionId: paymentIntent.id,
+            amount,
+            currency,
+            reason: lastError?.message || "Payment intent failed",
+            eventId,
+            metadata: {
+              paymentIntentId: paymentIntent.id,
+              errorCode: lastError?.code,
+              errorMessage: lastError?.message,
+              stripeCustomerId: customerId
+            }
+          });
+        }
+
+        await PaymentEngineService.markEventProcessed(eventId, "stripe", event.type, { paymentIntentId: paymentIntent.id }, userId || undefined);
       } else {
         // Log other events safely
         await PaymentEngineService.markEventProcessed(eventId, "stripe", event.type, { id: event.data?.object?.id });
