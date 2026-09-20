@@ -13,9 +13,10 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "test:ci": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:firestore-rules": "firebase emulators:exec --only firestore \"vitest run --config vitest.firestore.config.ts\"",
     "audit:prod": "npm audit --omit=dev --audit-level=high",
-    "check": "npm run typecheck && npm run test:ci && npm run test:firestore-rules && npm run audit:prod && npm run build"
+    "check": "npm run typecheck && npm run test:ci && npm run test:integration && npm run test:firestore-rules && npm run audit:prod && npm run build"
   },
   "dependencies": {
     "@elevenlabs/client": "^1.14.0",
@@ -67,7 +68,7 @@
     "autoprefixer": "^10.4.21",
     "axios": "^1.20.0",
     "esbuild": "^0.25.0",
-    "firebase-tools": "^15.30.1",
+    "firebase-tools": "^10.1.1",
     "jsdom": "^29.1.1",
     "livekit-server-sdk": "^2.19.0",
     "tailwindcss": "^4.1.14",
