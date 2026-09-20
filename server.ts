@@ -182,6 +182,12 @@ import { certificateCompletionVerificationService } from "./server/services/cert
 import { skillCredentialsCompetencyBadgesService } from "./server/services/skill-credentials-competency-badges.service";
 import { portfolioBuildingShowcaseService } from "./server/services/portfolio-building-showcase.service";
 import { transcriptManagementVerificationService } from "./server/services/transcript-management-verification.service";
+import realtimeLearnerAnalyticsRouter from "./server/routes/realtime-learner-analytics.routes";
+import cohortAnalysisBenchmarkingRouter from "./server/routes/cohort-analysis-benchmarking.routes";
+import customReportBuilderRouter from "./server/routes/custom-report-builder.routes";
+import { realtimeLearnerAnalyticsService } from "./server/services/realtime-learner-analytics.service";
+import { cohortAnalysisBenchmarkingService } from "./server/services/cohort-analysis-benchmarking.service";
+import { customReportBuilderService } from "./server/services/custom-report-builder.service";
 
 const app = express();
 
@@ -432,6 +438,9 @@ app.use("/api/certification/certificates", certificateCompletionVerificationRout
 app.use("/api/certification/skills", skillCredentialsCompetencyBadgesRouter);
 app.use("/api/certification/portfolio", portfolioBuildingShowcaseRouter);
 app.use("/api/certification/transcripts", transcriptManagementVerificationRouter);
+app.use("/api/analytics/realtime-learner", realtimeLearnerAnalyticsRouter);
+app.use("/api/analytics/cohorts", cohortAnalysisBenchmarkingRouter);
+app.use("/api/analytics/reports", customReportBuilderRouter);
 
 /**
  * @swagger
