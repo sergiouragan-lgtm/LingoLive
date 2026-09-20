@@ -112,6 +112,16 @@ import { reportingService } from "./server/services/reporting.service";
 import { complianceService } from "./server/services/compliance.service";
 import { systemHealthService } from "./server/services/system-health.service";
 import { financialAnalyticsService } from "./server/services/financial-analytics.service";
+import anomalyDetectionRouter from "./server/routes/anomaly-detection.routes";
+import mlModelsRouter from "./server/routes/ml-models.routes";
+import realtimeDashboardRouter from "./server/routes/realtime-dashboard.routes";
+import biIntegrationRouter from "./server/routes/bi-integration.routes";
+import recommendationsRouter from "./server/routes/recommendations.routes";
+import { anomalyDetectionService } from "./server/services/anomaly-detection.service";
+import { mlModelsService } from "./server/services/ml-models.service";
+import { realtimeDashboardService } from "./server/services/realtime-dashboard.service";
+import { biIntegrationService } from "./server/services/bi-integration.service";
+import { recommendationsService } from "./server/services/recommendations.service";
 
 const app = express();
 
@@ -327,6 +337,11 @@ app.use("/api/reporting", reportingRouter);
 app.use("/api/compliance", complianceRouter);
 app.use("/api/system-health", systemHealthRouter);
 app.use("/api/financial-analytics", financialAnalyticsRouter);
+app.use("/api/anomaly-detection", anomalyDetectionRouter);
+app.use("/api/ml-models", mlModelsRouter);
+app.use("/api/realtime-dashboard", realtimeDashboardRouter);
+app.use("/api/bi-integration", biIntegrationRouter);
+app.use("/api/recommendations", recommendationsRouter);
 
 /**
  * @swagger
