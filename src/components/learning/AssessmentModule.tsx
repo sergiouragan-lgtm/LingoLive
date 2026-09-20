@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { auth } from "../../firebase";
+import { useAnalytics } from "../../hooks/useAnalytics";
+import { useMonitoring } from "../../hooks/useMonitoring";
 import { 
   FileText, 
   CheckSquare, 
@@ -74,6 +77,10 @@ interface AssessmentModuleProps {
 
 export const AssessmentModule: React.FC<AssessmentModuleProps> = ({ onAddXp, setView }) => {
   const service = React.useMemo(() => new AssessmentService(), []);
+
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
 
   // Mode: "portal" (selection/scheduler) | "active-exam" | "grading-result"
   const [moduleMode, setModuleMode] = useState<"portal" | "active-exam" | "grading-result">("portal");
@@ -197,6 +204,26 @@ export const AssessmentModule: React.FC<AssessmentModuleProps> = ({ onAddXp, set
     return () => clearInterval(countdownIntervalRef.current);
   }, [moduleMode, examTimeRemaining]);
 
+  // Track component lifecycle
+  useEffect(() => {
+    if (userId) {
+      trackEvent('assessment_module_accessed', {
+        examsCount: exams.length,
+        scheduledExamsCount: scheduledExams.length,
+        certificatesCount: certificates.length,
+      });
+    }
+  }, [userId, trackEvent, exams.length, scheduledExams.length, certificates.length]);
+
+  // Track module mode changes
+  useEffect(() => {
+    if (userId && moduleMode !== 'portal') {
+      trackEvent('assessment_module_mode_changed', {
+        moduleMode,
+      });
+    }
+  }, [moduleMode, userId, trackEvent]);
+
   // --- AUDIO QUESTION ANSWER CAPTURE ---
   const handleStartAudioAnswer = async (qId: string) => {
     audioChunksRef.current = [];
@@ -240,6 +267,15 @@ export const AssessmentModule: React.FC<AssessmentModuleProps> = ({ onAddXp, set
 
   // --- START EXAM ---
   const handleStartExam = (exam: Exam) => {
+    if (userId) {
+      trackEvent('exam_started', {
+        examId: exam.id,
+        examTitle: exam.title,
+        questionsCount: exam.questions.length,
+        durationMin: exam.durationMin,
+        isAdaptive: exam.isAdaptive,
+      });
+    }
     setActiveExam(exam);
     setTempAnswers({});
     setRecordedBase64({});
@@ -251,6 +287,14 @@ export const AssessmentModule: React.FC<AssessmentModuleProps> = ({ onAddXp, set
 
   // --- AUTO SUBMIT ON TIMEOUT ---
   const handleAutoSubmit = () => {
+    if (userId && activeExam) {
+      trackEvent('exam_auto_submitted', {
+        examId: activeExam.id,
+        examTitle: activeExam.title,
+        answeredQuestionsCount: Object.keys(tempAnswers).length,
+        totalQuestionsCount: activeExam.questions.length,
+      });
+    }
     alert("O tempo limite do exame expirou! Suas respostas serão enviadas automaticamente para correção por inteligência artificial.");
     handleSubmitExam();
   };
@@ -274,10 +318,30 @@ export const AssessmentModule: React.FC<AssessmentModuleProps> = ({ onAddXp, set
       setLastExamResult(res);
       setModuleMode("grading-result");
 
+      if (userId) {
+        trackEvent('exam_submitted', {
+          examId: activeExam.id,
+          examTitle: activeExam.title,
+          studentName,
+          answeredQuestionsCount: submissionsList.filter(s => s.value).length,
+          totalQuestionsCount: activeExam.questions.length,
+          scorePercent: res.attempt.scorePercent,
+          passed: res.attempt.passed,
+        });
+      }
+
       if (res.attempt.passed && onAddXp) {
         onAddXp(150); // High points for passing formal enterprise certification
       }
     } catch (err: any) {
+      if (userId && activeExam) {
+        trackEvent('exam_submission_failed', {
+          examId: activeExam.id,
+          examTitle: activeExam.title,
+          errorMessage: (err as any)?.message || 'Unknown error',
+          errorCode: (err as any)?.code,
+        });
+      }
       alert(`Erro na correção: ${err.message}`);
     } finally {
       setIsSubmitting(false);
@@ -290,14 +354,29 @@ export const AssessmentModule: React.FC<AssessmentModuleProps> = ({ onAddXp, set
     if (!schedExamId) return;
     try {
       await service.scheduleExam(schedExamId, schedTitle, schedClass);
+      if (userId) {
+        trackEvent('exam_scheduled', {
+          examId: schedExamId,
+          examTitle: schedTitle,
+          className: schedClass,
+        });
+      }
       setShowSchedulerModal(false);
       setSchedTitle("");
-      
+
       // reload
       const sList = await service.getScheduledExams();
       setScheduledExams(sList);
       alert("Exame agendado com sucesso para a turma!");
     } catch (err) {
+      if (userId) {
+        trackEvent('exam_schedule_failed', {
+          examId: schedExamId,
+          examTitle: schedTitle,
+          className: schedClass,
+          errorMessage: (err as any)?.message || 'Unknown error',
+        });
+      }
       alert("Erro ao agendar.");
     }
   };
