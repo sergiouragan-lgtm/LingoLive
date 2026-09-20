@@ -1,19 +1,22 @@
-import React, { useState } from 'react';
-import { 
-  Building, BookOpen, Users, UserPlus, GraduationCap, 
-  Clock, BookCheck, ClipboardList, CalendarDays, Award, 
-  DollarSign, FileText, Settings, Settings2, Sparkles, 
-  TrendingUp, BarChart2, PieChart, MessageSquare, Phone, 
-  Mail, Bell, AlertTriangle, CheckCircle2, Download, 
+import React, { useState, useEffect } from 'react';
+import {
+  Building, BookOpen, Users, UserPlus, GraduationCap,
+  Clock, BookCheck, ClipboardList, CalendarDays, Award,
+  DollarSign, FileText, Settings, Settings2, Sparkles,
+  TrendingUp, BarChart2, PieChart, MessageSquare, Phone,
+  Mail, Bell, AlertTriangle, CheckCircle2, Download,
   RefreshCw, Search, Plus, Trash, Eye, Shield, Share2, HelpCircle
 } from 'lucide-react';
-import { 
-  AreaChart, Area, BarChart, Bar, LineChart, Line, 
-  PieChart as RePieChart, Pie, Cell, XAxis, YAxis, 
-  CartesianGrid, Tooltip, ResponsiveContainer, Legend 
+import {
+  AreaChart, Area, BarChart, Bar, LineChart, Line,
+  PieChart as RePieChart, Pie, Cell, XAxis, YAxis,
+  CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
+import { auth } from '../../../firebase';
 import { getAtRiskStudents } from '../../../lib/schoolAnalytics';
 import { GeographicIntelligenceMap } from './WorldMapVisualization';
+import { useAnalytics } from '../../../hooks/useAnalytics';
+import { useMonitoring } from '../../../hooks/useMonitoring';
 
 // --- TYPES & INTERFACES ---
 interface Teacher {
@@ -94,6 +97,10 @@ const cefrData = [
 const colors = ['#6366F1', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
 
 export const SchoolManagement: React.FC = () => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   // Navigation tabs
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   // Role-Based Access Control Switcher
@@ -136,6 +143,39 @@ export const SchoolManagement: React.FC = () => {
     }, 4000);
   };
 
+  // Track component lifecycle
+  useEffect(() => {
+    if (userId) {
+      trackEvent('school_management_accessed', {
+        rbacRole,
+        teachersCount: teachers.length,
+        studentsCount: students.length,
+        classesCount: classes.length,
+      });
+    }
+  }, [userId, trackEvent, rbacRole, teachers.length, students.length, classes.length]);
+
+  // Track tab changes
+  useEffect(() => {
+    if (userId) {
+      trackEvent('school_management_tab_changed', {
+        activeTab,
+      });
+    }
+  }, [activeTab, userId, trackEvent]);
+
+  // Track RBAC role changes
+  useEffect(() => {
+    if (userId) {
+      trackEvent('school_management_rbac_role_changed', {
+        rbacRole,
+        teachersCount: teachers.length,
+        studentsCount: students.length,
+        classesCount: classes.length,
+      });
+    }
+  }, [rbacRole, userId, trackEvent, teachers.length, students.length, classes.length]);
+
   // Sync animation simulation
   const triggerSync = (section: string) => {
     setIsSyncing(section);
@@ -164,6 +204,16 @@ export const SchoolManagement: React.FC = () => {
       email: email || `${name.toLowerCase().replace(/\s+/g, '')}@lingolive.ai`
     };
     setTeachers(prev => [newProf, ...prev]);
+
+    if (userId) {
+      trackEvent('teacher_added', {
+        teacherId: newProf.id,
+        name,
+        language,
+        email: newProf.email,
+      });
+    }
+
     addToast(`Professor(a) ${name} cadastrado e credenciais sincronizadas!`);
   };
 
@@ -185,6 +235,16 @@ export const SchoolManagement: React.FC = () => {
       grade: 80
     };
     setStudents(prev => [newStudent, ...prev]);
+
+    if (userId) {
+      trackEvent('student_added', {
+        studentId: newStudent.id,
+        name,
+        classId: targetClass,
+        languages: newStudent.languages,
+        level: newStudent.level,
+      });
+    }
     addToast(`Aluno ${name} importado para a turma ${targetClass}!`);
   };
 
@@ -296,6 +356,14 @@ Adaptação geral de conversação ativa para alunos internacionais.
       }
       setAiResponse(formattedResponse);
       setIsGenerating(false);
+
+      if (userId) {
+        trackEvent('school_ai_test_generated', {
+          geoRegion: selectedGeoRegion,
+          prompt: teacherPrompt,
+        });
+      }
+
       addToast(`Exercício localizado para a região ${selectedGeoRegion} criado com sucesso!`);
     }, 1200);
   };
