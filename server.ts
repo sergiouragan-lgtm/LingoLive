@@ -74,6 +74,11 @@ import cacheRouter from "./server/routes/cache.routes";
 import webhooksRouter from "./server/routes/webhooks.routes";
 import featureFlagsRouter from "./server/routes/featureflags.routes";
 import dataExportRouter from "./server/routes/dataexport.routes";
+import analyticsRouter from "./server/routes/analytics.routes";
+import engagementRouter from "./server/routes/engagement.routes";
+import learningAnalyticsRouter2 from "./server/routes/learning-analytics.routes";
+import insightsRouter from "./server/routes/insights.routes";
+import predictiveAnalyticsRouter from "./server/routes/predictive-analytics.routes";
 import { queueManager, JobType } from "./server/services/queue.service";
 import { processEmailJob } from "./server/services/jobProcessors/emailProcessor";
 import { processReportJob } from "./server/services/jobProcessors/reportProcessor";
@@ -92,6 +97,11 @@ import { cacheService } from "./server/services/cache.service";
 import { webhooksService } from "./server/services/webhooks.service";
 import { featureFlagsService } from "./server/services/featureflags.service";
 import { dataExportService } from "./server/services/dataexport.service";
+import { analyticsService } from "./server/services/analytics.service";
+import { engagementService } from "./server/services/engagement.service";
+import { learningAnalyticsService } from "./server/services/learning-analytics.service";
+import { insightsService } from "./server/services/insights.service";
+import { predictiveAnalyticsService } from "./server/services/predictive-analytics.service";
 
 const app = express();
 
@@ -297,6 +307,11 @@ app.use("/api/cache", cacheRouter);
 app.use("/api/webhooks", webhooksRouter);
 app.use("/api/feature-flags", featureFlagsRouter);
 app.use("/api/data-export", dataExportRouter);
+app.use("/api/analytics/events", analyticsRouter);
+app.use("/api/engagement", engagementRouter);
+app.use("/api/learning-analytics", learningAnalyticsRouter2);
+app.use("/api/insights", insightsRouter);
+app.use("/api/predictive-analytics", predictiveAnalyticsRouter);
 
 /**
  * @swagger

@@ -1,62 +1,150 @@
-import { Router, Request, Response } from 'express';
+import express from 'express';
 import { requireAuth } from '../middleware/requireAuth';
-import { analyticsDashboardService } from '../services/analytics.dashboard.service';
+import { analyticsService } from '../services/analytics.service';
+import crypto from 'crypto';
 
-const router = Router();
+const router = express.Router();
 
-router.get('/dashboard', requireAuth, async (req: any, res) => {
-  try {
-    const timeRange = (req.query.timeRange || '7d') as '24h' | '7d' | '30d';
-    const metrics = await analyticsDashboardService.getDashboardMetrics(timeRange);
-    res.json({ success: true, metrics });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+/**
+ * @swagger
+ * /api/analytics/track-event:
+ *   post:
+ *     summary: Track user event
+ *     tags:
+ *       - Analytics
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               eventType:
+ *                 type: string
+ *               metadata:
+ *                 type: object
+ *               sessionId:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Event tracked
+ */
+router.post('/track-event', requireAuth, async (req: any, res) => {
+  const userId = req.user?.uid;
+  const { eventType, metadata = {}, sessionId = crypto.randomUUID() } = req.body;
+
+  if (!eventType) {
+    return res.status(400).json({ error: 'eventType required' });
   }
+
+  await analyticsService.trackEvent(userId, eventType, metadata, sessionId);
+  res.json({ success: true });
 });
 
-router.get('/user-metrics/:userId', requireAuth, async (req: any, res) => {
-  try {
-    const { userId } = req.params;
-    const metrics = await analyticsDashboardService.getUserMetrics(userId);
-    res.json({ success: true, metrics });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
+/**
+ * @swagger
+ * /api/analytics/history:
+ *   get:
+ *     summary: Get user event history
+ *     tags:
+ *       - Analytics
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: limit
+ *         in: query
+ *         type: number
+ *       - name: eventType
+ *         in: query
+ *         type: string
+ *     responses:
+ *       200:
+ *         description: Event history
+ */
+router.get('/history', requireAuth, async (req: any, res) => {
+  const userId = req.user?.uid;
+  const { limit = 100, eventType } = req.query;
+
+  const history = await analyticsService.getEventHistory(
+    userId,
+    parseInt(limit as string),
+    eventType
+  );
+  res.json(history);
 });
 
-router.get('/timeseries', requireAuth, async (req: any, res) => {
-  try {
-    const { eventType, timeRange } = req.query;
-    if (!eventType) return res.status(400).json({ error: 'eventType required' });
+/**
+ * @swagger
+ * /api/analytics/timeline:
+ *   get:
+ *     summary: Get user event timeline
+ *     tags:
+ *       - Analytics
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: days
+ *         in: query
+ *         type: number
+ *     responses:
+ *       200:
+ *         description: Event timeline by day
+ */
+router.get('/timeline', requireAuth, async (req: any, res) => {
+  const userId = req.user?.uid;
+  const { days = 30 } = req.query;
 
-    const timeseries = await analyticsDashboardService.getEventTimeseries(
-      eventType,
-      (timeRange || '7d') as '24h' | '7d' | '30d'
-    );
-    res.json({ success: true, timeseries });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
+  const timeline = await analyticsService.getUserEventTimeline(
+    userId,
+    parseInt(days as string)
+  );
+  res.json(timeline);
 });
 
-router.get('/top-features', requireAuth, async (req: any, res) => {
-  try {
-    const limit = Math.min(Number(req.query.limit) || 10, 100);
-    const features = await analyticsDashboardService.getTopFeatures(limit);
-    res.json({ success: true, features });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
+/**
+ * @swagger
+ * /api/analytics/stats:
+ *   get:
+ *     summary: Get platform event statistics
+ *     tags:
+ *       - Analytics
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: timeWindow
+ *         in: query
+ *         type: number
+ *     responses:
+ *       200:
+ *         description: Event statistics
+ */
+router.get('/stats', requireAuth, async (req: any, res) => {
+  const { timeWindow = 7 } = req.query;
+
+  const stats = await analyticsService.getEventStats(
+    parseInt(timeWindow as string)
+  );
+  res.json(stats);
 });
 
-router.get('/cohort-analysis', requireAuth, async (req: any, res) => {
-  try {
-    const cohortDays = Number(req.query.cohortDays) || 7;
-    const cohorts = await analyticsDashboardService.getCohortAnalysis(cohortDays);
-    res.json({ success: true, cohorts });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
+/**
+ * @swagger
+ * /api/analytics/flush:
+ *   post:
+ *     summary: Flush event buffer to storage
+ *     tags:
+ *       - Analytics
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Buffer flushed
+ */
+router.post('/flush', requireAuth, async (req: any, res) => {
+  await analyticsService.ensureFlushed();
+  res.json({ success: true, message: 'Event buffer flushed' });
 });
 
 export default router;
