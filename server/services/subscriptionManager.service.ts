@@ -1,5 +1,5 @@
 import Stripe from 'stripe';
-import { db } from '../config/firebase';
+import { dbAdmin } from '../config/firebaseAdmin';
 import { logger } from '../utils/logger';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {

@@ -31,7 +31,6 @@
     "server/services/livekit.service.ts",
     "server/routes/livekit.routes.ts",
     "server/routes/__tests__/livekit.routes.test.ts",
-    "src/hooks/useRealtimeSync.ts",
     "src/services/realtime.service.ts",
     "src/components/ai-tutor/AITutorChat.tsx",
     "src/components/analytics/AdvancedAnalytics.tsx",
