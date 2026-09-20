@@ -1,5 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { SchoolMetrics, Teacher, Class, Student, PlatformFeatures } from '../../types';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
+import { useFeatureFlags } from '../../hooks/useFeatureFlags';
+import { useNotifications } from '../../hooks/useNotifications';
+import { auth } from '../../firebase';
 import { 
   Users, 
   BookOpen, 
@@ -53,27 +58,58 @@ interface AdminDashboardProps {
   initialTab?: 'professores' | 'turmas' | 'alunos' | 'permissoes' | 'seguranca' | 'backups' | 'features' | 'qa' | 'deploy' | 'bi' | 'dw' | 'ai-cost' | 'disaster-recovery';
 }
 
-export default function AdminDashboard({ 
-  metrics, 
-  features, 
+export default function AdminDashboard({
+  metrics,
+  features,
   onToggleFeature,
   healthStatus,
   onRefreshHealth,
   isCheckingHealth,
   initialTab
 }: AdminDashboardProps) {
+  // Phase 38-45 Hook Integration
+  const adminUserId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(adminUserId);
+  const { monitors, isLoading: monitorsLoading } = useMonitoring();
+  const { isFlagEnabled } = useFeatureFlags();
+  const { notifications } = useNotifications(adminUserId);
+
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
-  
+
   // Dashboard Tabs
   const [activeTab, setActiveTab] = useState<'professores' | 'turmas' | 'alunos' | 'permissoes' | 'seguranca' | 'backups' | 'features' | 'qa' | 'deploy' | 'bi' | 'dw' | 'ai-cost' | 'disaster-recovery'>('professores');
-  
+
+  // Track admin dashboard access and system health (Phase 38-45 Analytics)
+  useEffect(() => {
+    if (adminUserId) {
+      trackEvent('admin_dashboard_mounted', {
+        tab: initialTab || 'professores',
+        teachers: teachers.length,
+        classes: classes.length,
+        students: students.length,
+      });
+
+      // Track health status
+      if (healthStatus) {
+        trackEvent('admin_health_check', {
+          status: healthStatus.status,
+          services: Object.keys(healthStatus.services || {}).length,
+        });
+      }
+    }
+  }, [adminUserId, trackEvent, initialTab, teachers, classes, students, healthStatus]);
+
   useEffect(() => {
     if (initialTab) {
       setActiveTab(initialTab);
+      // Track tab changes
+      if (adminUserId) {
+        trackEvent('admin_tab_changed', { tab: initialTab });
+      }
     }
-  }, [initialTab]);
+  }, [initialTab, adminUserId, trackEvent]);
   
   // Email Permissions States
   const [emailPermissions, setEmailPermissions] = useState<any[]>([]);
