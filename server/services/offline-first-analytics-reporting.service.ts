@@ -264,7 +264,7 @@ class OfflineFirstAnalyticsReportingService {
 
       if (peakHours.length > 0) {
         const patternId = `pattern_${userId}_time_${Date.now()}`;
-        const eventNames = Array.from(new Set(events.map((e) => String(e.eventName))));
+        const eventNames: string[] = Array.from(new Set(events.map((e) => String(e.eventName))));
         const pattern: OfflineUsagePattern = {
           patternId,
           userId,
