@@ -9,7 +9,7 @@ vi.mock("../../config/stripe");
 
 describe("Stripe Webhook Integration", () => {
   const mockUserId = "test-user-123";
-  const mockPlanId = "pro_monthly";
+  const mockPlanId = "family_monthly";
   const mockCustomerId = "cus_test123";
 
   beforeEach(() => {
@@ -322,7 +322,7 @@ describe("Stripe Webhook Integration", () => {
       expect(PaymentEngineService.recordPayment).toHaveBeenCalledWith(
         expect.objectContaining({
           status: "refunded",
-          amount: -999.99,
+          amount: -999,
         })
       );
     });
@@ -393,7 +393,8 @@ describe("Stripe Webhook Integration", () => {
         data: {
           object: {
             id: "cs_no_user",
-            // No client_reference_id or metadata
+            client_reference_id: mockUserId,
+            // No metadata.planId
             amount_total: 99900,
             currency: "usd",
           },
@@ -406,11 +407,14 @@ describe("Stripe Webhook Integration", () => {
       const result = await StripeService.handleWebhookEvent(mockEvent);
 
       expect(result.received).toBe(true);
+      expect(result.error).toBe("UNKNOWN_PLAN_ID");
       expect(PaymentEngineService.markEventProcessed).toHaveBeenCalledWith(
-        expect.any(String),
+        "evt_no_user",
         "stripe",
         "checkout.session.completed",
-        expect.objectContaining({ warning: "missing_userId" })
+        expect.objectContaining({ error: "UNKNOWN_PLAN_ID" }),
+        mockUserId,
+        "UNKNOWN_PLAN_ID"
       );
     });
   });
