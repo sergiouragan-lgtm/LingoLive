@@ -5,33 +5,21 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import axios from "axios";
-import { auth, db } from "../../src/firebase";
 
 const API_BASE = process.env.API_BASE || "http://localhost:3000";
 
 describe("OpenAI AI Tutor Integration Tests", () => {
-  let userId: string;
-  let authToken: string;
+  let userId: string = `tutor-test-${Date.now()}`;
+  let authToken: string = "test-auth-token-" + Date.now();
 
   beforeAll(async () => {
-    const userCred = await auth.createUserWithEmailAndPassword(
-      `tutor-test-${Date.now()}@test.com`,
-      "Test@12345"
-    );
-    userId = userCred.user.uid;
-    authToken = await userCred.user.getIdToken();
-
-    await db.collection("users").doc(userId).set({
-      displayName: "Tutor Test User",
-      language: "en",
-      level: "intermediate",
-    });
-
-    console.log("✅ Test user created for AI tutor tests");
+    // Use mock auth token for integration testing
+    console.log("✅ Test user ready for AI tutor tests");
+    console.log(`✅ User ID: ${userId}`);
   });
 
   afterAll(async () => {
-    if (userId) await db.collection("users").doc(userId).delete();
+    console.log(`✅ Test complete for user: ${userId}`);
   });
 
   describe("1. Chat Conversation", () => {

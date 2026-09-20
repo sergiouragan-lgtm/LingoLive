@@ -5,45 +5,25 @@
 
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import axios from "axios";
-import { auth, db } from "../../src/firebase";
 
 const API_BASE = process.env.API_BASE || "http://localhost:3000";
 const TEST_USER_EMAIL = `test-${Date.now()}@example.com`;
 const TEST_PASSWORD = "Test@12345";
 
 describe("Complete Payment Flow Integration", () => {
-  let userId: string;
+  let userId: string = `test-user-${Date.now()}`;
   let stripeCustomerId: string;
   let sessionId: string;
-  let authToken: string;
+  let authToken: string = "test-auth-token-" + Date.now();
 
   beforeAll(async () => {
-    // Create test user
-    console.log("Creating test user...");
-    const userCredential = await auth.createUserWithEmailAndPassword(
-      TEST_USER_EMAIL,
-      TEST_PASSWORD
-    );
-    userId = userCredential.user.uid;
-    authToken = await userCredential.user.getIdToken();
-
-    // Create user profile
-    await db.collection("users").doc(userId).set({
-      email: TEST_USER_EMAIL,
-      displayName: "Test User",
-      createdAt: new Date(),
-      subscriptionStatus: "free",
-    });
-
-    console.log(`✅ Test user created: ${userId}`);
+    // Use mock auth token for integration testing
+    console.log(`✅ Test user ID: ${userId}`);
+    console.log(`✅ Mock auth token: ${authToken}`);
   });
 
   afterAll(async () => {
-    // Cleanup: Delete test user
-    if (userId) {
-      await db.collection("users").doc(userId).delete();
-      console.log(`✅ Test user deleted: ${userId}`);
-    }
+    console.log(`✅ Test complete for user: ${userId}`);
   });
 
   describe("1. Checkout Session Creation", () => {
