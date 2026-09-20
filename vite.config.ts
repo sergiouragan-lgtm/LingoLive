@@ -40,6 +40,13 @@ export default defineConfig(() => {
                 id.includes('node_modules/dompurify')) {
               return 'vendor-utils';
             }
+            // Core services shared across features
+            if (id.includes('src/services/') ||
+                id.includes('src/context/') ||
+                id.includes('src/hooks/') ||
+                id.includes('src/utils/')) {
+              return 'shared-core';
+            }
             // Feature chunks
             if (id.includes('src/components/admin')) {
               return 'feature-admin';
@@ -59,12 +66,22 @@ export default defineConfig(() => {
             if (id.includes('src/components/ai-tutor')) {
               return 'feature-ai-tutor';
             }
+            // Large learning components
+            if (id.includes('src/components/learning/')) {
+              return 'feature-learning';
+            }
           },
           chunkFileNames: 'assets/[name]-[hash].js',
           entryFileNames: 'assets/[name]-[hash].js',
         },
       },
-      chunkSizeWarningLimit: 600,
+      chunkSizeWarningLimit: 500,
+      terserOptions: {
+        compress: {
+          drop_console: true, // Remove console.log in production
+          dead_code: true,
+        },
+      },
     },
   };
 });
