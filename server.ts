@@ -172,6 +172,16 @@ import { masteryCompetencyTrackingService } from "./server/services/mastery-comp
 import { learningOutcomeMeasurementService } from "./server/services/learning-outcome-measurement.service";
 import { progressDashboardReportingService } from "./server/services/progress-dashboard-reporting.service";
 import { assessmentAnalyticsService } from "./server/services/assessment-analytics.service";
+import badgeAchievementRecognitionRouter from "./server/routes/badge-achievement-recognition.routes";
+import certificateCompletionVerificationRouter from "./server/routes/certificate-completion-verification.routes";
+import skillCredentialsCompetencyBadgesRouter from "./server/routes/skill-credentials-competency-badges.routes";
+import portfolioBuildingShowcaseRouter from "./server/routes/portfolio-building-showcase.routes";
+import transcriptManagementVerificationRouter from "./server/routes/transcript-management-verification.routes";
+import { badgeAchievementRecognitionService } from "./server/services/badge-achievement-recognition.service";
+import { certificateCompletionVerificationService } from "./server/services/certificate-completion-verification.service";
+import { skillCredentialsCompetencyBadgesService } from "./server/services/skill-credentials-competency-badges.service";
+import { portfolioBuildingShowcaseService } from "./server/services/portfolio-building-showcase.service";
+import { transcriptManagementVerificationService } from "./server/services/transcript-management-verification.service";
 
 const app = express();
 
@@ -417,6 +427,11 @@ app.use("/api/assessment/mastery", masteryCompetencyTrackingRouter);
 app.use("/api/assessment/outcomes", learningOutcomeMeasurementRouter);
 app.use("/api/assessment/progress", progressDashboardReportingRouter);
 app.use("/api/assessment/analytics", assessmentAnalyticsRouter);
+app.use("/api/certification/badges", badgeAchievementRecognitionRouter);
+app.use("/api/certification/certificates", certificateCompletionVerificationRouter);
+app.use("/api/certification/skills", skillCredentialsCompetencyBadgesRouter);
+app.use("/api/certification/portfolio", portfolioBuildingShowcaseRouter);
+app.use("/api/certification/transcripts", transcriptManagementVerificationRouter);
 
 /**
  * @swagger
