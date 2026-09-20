@@ -16,6 +16,7 @@
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:e2e": "playwright test",
     "test:e2e:debug": "playwright test --debug",
+    "test:e2e:ui": "playwright test --ui",
     "test:firestore-rules": "firebase emulators:exec --only firestore \"vitest run --config vitest.firestore.config.ts\"",
     "audit:prod": "npm audit --omit=dev --audit-level=high",
     "check": "npm run typecheck && npm run test:ci && npm run test:integration && npm run test:firestore-rules && npm run audit:prod && npm run build"
