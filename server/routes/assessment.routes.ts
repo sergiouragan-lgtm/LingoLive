@@ -72,6 +72,77 @@ router.post("/schedule", requireAuth, async (req: any, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /assessment/submit:
+ *   post:
+ *     summary: Submit completed assessment/exam
+ *     description: Submits exam responses for scoring. Supports automatic and AI-based grading via Gemini
+ *     tags:
+ *       - Assessment
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - examId
+ *               - submissions
+ *             properties:
+ *               examId:
+ *                 type: string
+ *                 description: Assessment/exam identifier
+ *               submissions:
+ *                 type: array
+ *                 description: Array of question responses
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     questionId:
+ *                       type: string
+ *                     answer:
+ *                       type: string
+ *               studentName:
+ *                 type: string
+ *                 description: Student name for grading record
+ *     responses:
+ *       200:
+ *         description: Assessment submitted and scored successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 submissionId:
+ *                   type: string
+ *                 score:
+ *                   type: number
+ *                 totalPoints:
+ *                   type: number
+ *                 percentage:
+ *                   type: number
+ *       400:
+ *         description: Invalid submission data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ValidationError'
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 // 4. Submit Completed Exam (Automatic Scoring + Gemini AI for free-text)
 router.post("/submit", requireAuth, async (req: any, res) => {
   const userId = req.user.uid;

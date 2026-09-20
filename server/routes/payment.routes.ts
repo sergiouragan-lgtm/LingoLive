@@ -72,6 +72,70 @@ router.post("/stripe-webhook", express.raw({ type: "*/*" }), handleWebhookEvent)
 // Webhook endpoint for tests (matches integration test expectations)
 router.post("/webhook", express.json(), handleWebhookEvent);
 
+/**
+ * @swagger
+ * /payment/checkout:
+ *   post:
+ *     summary: Create Stripe checkout session
+ *     description: Creates a checkout session for payment processing using Stripe
+ *     tags:
+ *       - Payments
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - planId
+ *             properties:
+ *               planId:
+ *                 type: string
+ *                 description: Subscription plan identifier
+ *               priceAmount:
+ *                 type: number
+ *                 description: Price amount in cents
+ *               currency:
+ *                 type: string
+ *                 enum: [usd, eur, brl, gbp]
+ *     responses:
+ *       200:
+ *         description: Checkout session created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 sessionId:
+ *                   type: string
+ *                 clientSecret:
+ *                   type: string
+ *                 url:
+ *                   type: string
+ *                   format: uri
+ *                 planId:
+ *                   type: string
+ *       400:
+ *         description: Invalid plan or request
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 // Checkout endpoint - standard name for tests
 router.post("/checkout", express.json(), requireAuth, paymentsLimiter, async (req: any, res: any) => {
   const { planId, priceAmount, currency } = req.body;

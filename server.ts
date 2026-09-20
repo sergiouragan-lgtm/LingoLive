@@ -17,11 +17,14 @@ import http from "http";
 import { createServer as createViteServer } from "vite";
 import rateLimit from "express-rate-limit";
 import cors from "cors";
+import swaggerUi from "swagger-ui-express";
+import swaggerJsdoc from "swagger-jsdoc";
 
 import { PORT, ENABLE_SANDBOX_FALLBACK } from "./server/config/env";
 import { dbAdmin, authAdmin, verifyFirebaseConnection } from "./server/config/firebaseAdmin";
 import { localMemoryDb, safeSetDoc, logSandboxWarning } from "./server/services/firestoreSafe.service";
 import { setupWebSocket } from "./server/websocket/live.gateway";
+import { swaggerConfig, swaggerOptions } from "./server/config/swagger.config";
 
 // Import Routers
 import healthRouter from "./server/routes/health.routes";
@@ -205,6 +208,15 @@ app.use('/api/', generalLimiter);
 // Apply strict limiter to specific auth-related endpoints
 // (Note: Specific auth routes should be protected further in their route handlers)
 
+// Swagger/OpenAPI Documentation Setup
+const swaggerSpec = swaggerJsdoc(swaggerConfig);
+app.use('/api/docs', swaggerUi.serve);
+app.get('/api/docs', swaggerUi.setup(swaggerSpec, swaggerOptions));
+app.get('/api/docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
+});
+
 // Mount remaining API routers
 app.use("/api/service-health", healthRouter);
 app.use("/api", aiRouter);
@@ -237,6 +249,74 @@ app.use("/api/ebook/vocabulary", ebookVocabularyRouter);
 // app.use("/api/livekit", livekitRouter); // TODO: Fix TypeScript errors in livekit service
 app.use("/api/ai-tutor", openaiTutorRouter);
 
+/**
+ * @swagger
+ * /sync-vocabulary:
+ *   post:
+ *     summary: Sync vocabulary words for a user
+ *     description: |
+ *       Synchronizes vocabulary words via Service Worker background sync.
+ *       Used for offline-first vocabulary management.
+ *     tags:
+ *       - Vocabulary
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - words
+ *             properties:
+ *               userId:
+ *                 type: string
+ *                 format: uuid
+ *                 description: Optional user ID (verified from token)
+ *               words:
+ *                 type: array
+ *                 minItems: 1
+ *                 maxItems: 1000
+ *                 items:
+ *                   $ref: '#/components/schemas/VocabWord'
+ *     responses:
+ *       200:
+ *         description: Vocabulary synced successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Invalid request payload
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ValidationError'
+ *       401:
+ *         description: Unauthorized (missing or invalid token)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       403:
+ *         description: Forbidden (identity mismatch)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 // Endpoint for Service Worker Background Sync of vocabulary updates
 app.post("/api/sync-vocabulary", async (req, res) => {
   const authHeader = req.headers.authorization;
