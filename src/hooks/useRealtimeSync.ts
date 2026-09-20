@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { QueryConstraint } from 'firebase/firestore';
 import { realtimeService } from '../services/realtime.service';
-import { logger } from '../utils/logger';
 
 export interface UseSyncOptions {
   enabled?: boolean;
@@ -46,7 +45,7 @@ export function useRealtimeSync<T>(
         if (options?.onError) {
           options.onError(err);
         }
-        logger.error(`Real-time sync error for ${collectionPath}:`, err);
+        console.error(`Real-time sync error for ${collectionPath}:`, err);
       }
     );
 
@@ -143,7 +142,7 @@ export function useRealtimeSyncDoc<T>(
         if (options?.onError) {
           options.onError(err);
         }
-        logger.error(`Real-time sync error for ${collectionPath}/${docId}:`, err);
+        console.error(`Real-time sync error for ${collectionPath}/${docId}:`, err);
       }
     );
 

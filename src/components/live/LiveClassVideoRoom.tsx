@@ -2,12 +2,12 @@ import React, { useState, useEffect, useCallback } from "react";
 import {
   Video, Mic, MicOff, VideoOff, Share2, Settings, LogOut, Users,
   Clock, Calendar, Phone, PhoneOff, MessageSquare, Send, Copy, Check,
-  Record, StopCircle, Hand, Monitor, MoreVertical
+  Circle, StopCircle, Hand, Monitor, MoreVertical
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { auth, db } from "../../../firebase";
+import { auth, db } from "@/src/firebase";
 import { doc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
-import { useToast } from "../../../context/ToastContext";
+import { useToast } from "@/src/context/ToastContext";
 
 interface LiveRoom {
   id: string;
@@ -343,7 +343,7 @@ export const LiveClassVideoRoom: React.FC<{
                   : "bg-slate-700 hover:bg-slate-600"
               }`}
             >
-              {isRecording ? <StopCircle className="w-5 h-5" /> : <Record className="w-5 h-5" />}
+              {isRecording ? <StopCircle className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
             </motion.button>
           )}
 

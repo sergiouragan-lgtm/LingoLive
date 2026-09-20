@@ -12,7 +12,6 @@ import {
   QueryConstraint,
   Unsubscribe,
 } from 'firebase/firestore';
-import { logger } from '../utils/logger';
 
 export interface SyncOperation {
   id: string;
@@ -43,13 +42,13 @@ export class RealtimeService {
     // Listen for online/offline events
     window.addEventListener('online', () => {
       this.isOnline = true;
-      logger.info('App is online. Starting offline queue flush...');
+      console.log('App is online. Starting offline queue flush...');
       this.flushOfflineQueue();
     });
 
     window.addEventListener('offline', () => {
       this.isOnline = false;
-      logger.warn('App is offline. Subsequent writes will be queued.');
+      console.warn('App is offline. Subsequent writes will be queued.');
     });
 
     // Load offline queue from localStorage
@@ -78,10 +77,10 @@ export class RealtimeService {
             ...doc.data(),
           } as T));
           onData(data);
-          logger.debug(`Real-time update for ${collectionPath}: ${data.length} items`);
+          console.debug(`Real-time update for ${collectionPath}: ${data.length} items`);
         },
         (error) => {
-          logger.error(`Real-time subscription error for ${collectionPath}:`, error);
+          console.error(`Real-time subscription error for ${collectionPath}:`, error);
           if (onError) onError(error);
         }
       );
@@ -92,10 +91,10 @@ export class RealtimeService {
         constraints,
       });
 
-      logger.info(`Subscribed to ${collectionPath} (ID: ${subscriptionId})`);
+      console.log(`Subscribed to ${collectionPath} (ID: ${subscriptionId})`);
       return subscriptionId;
     } catch (error) {
-      logger.error(`Failed to subscribe to ${collectionPath}:`, error);
+      console.error(`Failed to subscribe to ${collectionPath}:`, error);
       throw error;
     }
   }
@@ -123,13 +122,13 @@ export class RealtimeService {
               ...snapshot.data(),
             } as T;
             onData(data);
-            logger.debug(`Real-time update for ${collectionPath}/${docId}`);
+            console.debug(`Real-time update for ${collectionPath}/${docId}`);
           } else {
             onData(null);
           }
         },
         (error) => {
-          logger.error(`Real-time subscription error for ${collectionPath}/${docId}:`, error);
+          console.error(`Real-time subscription error for ${collectionPath}/${docId}:`, error);
           if (onError) onError(error);
         }
       );
@@ -140,10 +139,10 @@ export class RealtimeService {
         unsubscribe,
       });
 
-      logger.info(`Subscribed to ${collectionPath}/${docId} (ID: ${subscriptionId})`);
+      console.log(`Subscribed to ${collectionPath}/${docId} (ID: ${subscriptionId})`);
       return subscriptionId;
     } catch (error) {
-      logger.error(`Failed to subscribe to ${collectionPath}/${docId}:`, error);
+      console.error(`Failed to subscribe to ${collectionPath}/${docId}:`, error);
       throw error;
     }
   }
@@ -156,7 +155,7 @@ export class RealtimeService {
     if (subscription) {
       subscription.unsubscribe();
       this.subscriptions.delete(subscriptionId);
-      logger.info(`Unsubscribed from ${subscriptionId}`);
+      console.log(`Unsubscribed from ${subscriptionId}`);
     }
   }
 
@@ -179,7 +178,7 @@ export class RealtimeService {
           ...data,
           updatedAt: Timestamp.now(),
         });
-        logger.info(`Updated ${collectionPath}/${docId} online`);
+        console.log(`Updated ${collectionPath}/${docId} online`);
       } else {
         // Offline: queue the operation
         if (optimistic) {
@@ -196,11 +195,11 @@ export class RealtimeService {
           };
           this.offlineQueue.set(operation.id, operation);
           this.saveOfflineQueue();
-          logger.info(`Queued update for ${collectionPath}/${docId}`);
+          console.log(`Queued update for ${collectionPath}/${docId}`);
         }
       }
     } catch (error) {
-      logger.error(`Failed to update ${collectionPath}/${docId}:`, error);
+      console.error(`Failed to update ${collectionPath}/${docId}:`, error);
       throw error;
     }
   }
@@ -217,7 +216,7 @@ export class RealtimeService {
 
     try {
       const operations = Array.from(this.offlineQueue.values());
-      logger.info(`Flushing ${operations.length} pending operations...`);
+      console.log(`Flushing ${operations.length} pending operations...`);
 
       for (const op of operations) {
         try {
@@ -237,9 +236,9 @@ export class RealtimeService {
           // Mark as synced
           op.status = 'synced';
           this.offlineQueue.delete(op.id);
-          logger.info(`Synced operation: ${op.id}`);
+          console.log(`Synced operation: ${op.id}`);
         } catch (error) {
-          logger.error(`Failed to sync operation ${op.id}:`, error);
+          console.error(`Failed to sync operation ${op.id}:`, error);
           op.retryCount++;
           op.error = (error as Error).message;
 
@@ -252,9 +251,9 @@ export class RealtimeService {
       }
 
       this.saveOfflineQueue();
-      logger.info(`Offline queue flush complete. ${this.offlineQueue.size} operations remaining.`);
+      console.log(`Offline queue flush complete. ${this.offlineQueue.size} operations remaining.`);
     } catch (error) {
-      logger.error('Offline queue flush failed:', error);
+      console.error('Offline queue flush failed:', error);
     } finally {
       this.syncInProgress = false;
     }
@@ -289,7 +288,7 @@ export class RealtimeService {
   clearOfflineQueue(): void {
     this.offlineQueue.clear();
     this.saveOfflineQueue();
-    logger.warn('Offline queue cleared');
+    console.warn('Offline queue cleared');
   }
 
   /**
@@ -300,7 +299,7 @@ export class RealtimeService {
       const operations = Array.from(this.offlineQueue.values());
       localStorage.setItem('lingolive_offline_queue', JSON.stringify(operations));
     } catch (error) {
-      logger.error('Failed to save offline queue:', error);
+      console.error('Failed to save offline queue:', error);
     }
   }
 
@@ -315,10 +314,10 @@ export class RealtimeService {
         operations.forEach((op) => {
           this.offlineQueue.set(op.id, op);
         });
-        logger.info(`Loaded ${operations.length} operations from offline queue`);
+        console.log(`Loaded ${operations.length} operations from offline queue`);
       }
     } catch (error) {
-      logger.error('Failed to load offline queue:', error);
+      console.error('Failed to load offline queue:', error);
     }
   }
 
@@ -345,7 +344,7 @@ export class RealtimeService {
       sub.unsubscribe();
     });
     this.subscriptions.clear();
-    logger.info('Unsubscribed from all real-time listeners');
+    console.log('Unsubscribed from all real-time listeners');
   }
 }
 

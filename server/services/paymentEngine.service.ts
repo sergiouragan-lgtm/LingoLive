@@ -22,6 +22,7 @@ export type PaymentStatus =
   | "failed"
   | "cancelled"
   | "refunded"
+  | "disputed"
   | "partially_refunded"
   | "reversed"
   | "expired"

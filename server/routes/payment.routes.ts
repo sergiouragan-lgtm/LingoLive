@@ -249,7 +249,7 @@ router.post("/subscription/cancel", requireAuth, async (req: any, res: any) => {
     const subscription = subscriptions.data[0];
     const canceledSubscription = await stripe.subscriptions.update(subscription.id, {
       cancel_at_period_end: true
-    });
+    }) as any;
 
     // Update user record using safe method
     await safeSetDoc("users", userId, {

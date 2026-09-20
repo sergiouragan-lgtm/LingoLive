@@ -4,7 +4,7 @@ import {
   ChevronLeft,
   ChevronRight,
   BookOpen,
-  Highlight2,
+  Highlighter,
   Bookmark,
   Share2,
   Settings,
@@ -350,7 +350,7 @@ export const EbookReader: React.FC<EbookReaderProps> = ({
                 onClick={addHighlight}
                 className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 flex items-center justify-center gap-2 text-sm font-medium"
               >
-                <Highlight2 className="w-4 h-4" />
+                <Highlighter className="w-4 h-4" />
                 Destacar
               </button>
             </motion.div>
@@ -395,7 +395,7 @@ export const EbookReader: React.FC<EbookReaderProps> = ({
             className="mt-8 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-6"
           >
             <h2 className="text-lg font-semibold text-indigo-900 dark:text-indigo-100 mb-4 flex items-center gap-2">
-              <Highlight2 className="w-5 h-5" />
+              <Highlighter className="w-5 h-5" />
               Seus Destaques ({highlights.length})
             </h2>
             <div className="space-y-2 max-h-48 overflow-y-auto">
