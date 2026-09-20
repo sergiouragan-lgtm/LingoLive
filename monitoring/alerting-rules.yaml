@@ -1,0 +1,133 @@
+# Cloud Monitoring Alert Policies
+# Deploy with: gcloud alpha monitoring policies create --policy-from-file=alerting-rules.yaml
+
+alerts:
+  - name: high_error_rate
+    display_name: "High Error Rate"
+    documentation:
+      content: |
+        The error rate has exceeded 1% for the last 5 minutes.
+        Check Cloud Logging for error details.
+      mime_type: text/markdown
+    conditions:
+      - display_name: "Error Rate > 1%"
+        condition_threshold:
+          filter: |
+            resource.type = "cloud_run_revision"
+            resource.labels.service_name = "lingolive-server-*"
+            metric.type = "logging.googleapis.com/user/error_rate"
+          comparison: COMPARISON_GT
+          threshold_value: 0.01
+          duration: 300s
+    notification_channels:
+      - ops@lingolive.com
+      - #alerts-production (Slack)
+
+  - name: high_latency
+    display_name: "High API Latency"
+    documentation:
+      content: |
+        P95 response latency exceeds 3 seconds for 10 minutes.
+        May indicate database performance issues or scaling limits.
+      mime_type: text/markdown
+    conditions:
+      - display_name: "P95 Latency > 3s"
+        condition_threshold:
+          filter: |
+            resource.type = "cloud_run_revision"
+            metric.type = "run.googleapis.com/request_latencies"
+          aggregation:
+            alignment_period: 60s
+            per_series_aligner: ALIGN_PERCENTILE_95
+          comparison: COMPARISON_GT
+          threshold_value: 3000
+          duration: 600s
+    notification_channels:
+      - ops@lingolive.com
+      - pagerduty-lingolive
+
+  - name: out_of_memory
+    display_name: "Cloud Run Out of Memory"
+    documentation:
+      content: |
+        Cloud Run instance memory usage exceeds 90%.
+        Auto-scaling may not keep up. Consider increasing memory allocation.
+      mime_type: text/markdown
+    conditions:
+      - display_name: "Memory Usage > 90%"
+        condition_threshold:
+          filter: |
+            resource.type = "cloud_run_revision"
+            metric.type = "run.googleapis.com/container_memory_utilizations"
+          aggregation:
+            alignment_period: 60s
+          comparison: COMPARISON_GT
+          threshold_value: 0.9
+          duration: 120s
+    notification_channels:
+      - ops@lingolive.com
+      - engineering-team
+
+  - name: database_connection_pool_exhaustion
+    display_name: "Database Connection Pool Exhausted"
+    documentation:
+      content: |
+        Active database connections exceed 180 (90% of 200 max).
+        Connections will soon be refused. Check for connection leaks.
+      mime_type: text/markdown
+    conditions:
+      - display_name: "Active Connections > 180"
+        condition_threshold:
+          filter: |
+            resource.type = "cloudsql_database"
+            metric.type = "cloudsql.googleapis.com/database/postgresql/num_backends"
+          comparison: COMPARISON_GT
+          threshold_value: 180
+          duration: 300s
+    notification_channels:
+      - ops@lingolive.com
+      - database-team
+
+  - name: stripe_webhook_failures
+    display_name: "Stripe Webhook Processing Failures"
+    documentation:
+      content: |
+        Stripe webhook processing errors exceed 5 per minute.
+        Check Stripe configuration and webhook event handlers.
+      mime_type: text/markdown
+    conditions:
+      - display_name: "Stripe Errors > 5/min"
+        condition_threshold:
+          filter: |
+            resource.type = "cloud_run_revision"
+            jsonPayload.message =~ "Stripe Webhook.*Error"
+          aggregation:
+            alignment_period: 60s
+            per_series_aligner: ALIGN_RATE
+          comparison: COMPARISON_GT
+          threshold_value: 5
+          duration: 120s
+    notification_channels:
+      - payment-team
+
+  - name: cloud_run_crashing
+    display_name: "Cloud Run Service Crashing"
+    documentation:
+      content: |
+        Cloud Run instances are crashing frequently.
+        This may indicate memory issues, unhandled exceptions, or resource limits.
+      mime_type: text/markdown
+    conditions:
+      - display_name: "Crash Rate High"
+        condition_threshold:
+          filter: |
+            resource.type = "cloud_run_revision"
+            metric.type = "run.googleapis.com/instance_count"
+          aggregation:
+            alignment_period: 60s
+          comparison: COMPARISON_LT
+          threshold_value: 1
+          duration: 180s
+    notification_channels:
+      - ops@lingolive.com
+      - pagerduty-lingolive
