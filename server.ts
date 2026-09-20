@@ -15,6 +15,7 @@ process.on("uncaughtException", (err: any) => {
 import express from "express";
 import http from "http";
 import { createServer as createViteServer } from "vite";
+import rateLimit from "express-rate-limit";
 
 import { PORT, ENABLE_SANDBOX_FALLBACK } from "./server/config/env";
 import { dbAdmin, authAdmin, verifyFirebaseConnection } from "./server/config/firebaseAdmin";
@@ -133,6 +134,40 @@ app.use("/api/payment", paymentRouter);
 
 // Global express.json() is applied only AFTER Stripe webhook route registration
 app.use(express.json({ limit: '50mb' }));
+
+// Rate Limiting Middleware - prevents brute force and DoS attacks
+// General API rate limiter: 100 requests per 15 minutes per IP
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later',
+  standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
+  legacyHeaders: false, // Disable `X-RateLimit-*` headers
+  skip: (req) => {
+    // Skip rate limiting for health checks and static assets
+    return req.path.startsWith('/api/service-health') ||
+           req.path.startsWith('/.') ||
+           req.path.endsWith('.js') ||
+           req.path.endsWith('.css');
+  }
+});
+
+// Strict limiter for authentication endpoints: 5 requests per 15 minutes per IP
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // limit each IP to 5 requests per windowMs
+  message: 'Too many authentication attempts, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true, // Don't count successful requests
+  skipFailedRequests: false, // DO count failed requests (brute force protection)
+});
+
+// Apply general limiter to all /api routes
+app.use('/api/', generalLimiter);
+
+// Apply strict limiter to specific auth-related endpoints
+// (Note: Specific auth routes should be protected further in their route handlers)
 
 // Mount remaining API routers
 app.use("/api/service-health", healthRouter);
