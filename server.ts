@@ -240,6 +240,16 @@ import { complianceMonitoringService } from "./server/services/compliance-monito
 import { securityEventManagementService } from "./server/services/security-event-management.service";
 import { apiSecurityRateLimitingService } from "./server/services/api-security-rate-limiting.service";
 import { securityTestingPenetrationService } from "./server/services/security-testing-penetration.service";
+import devopsInfrastructureRouter from "./server/routes/devops-infrastructure.routes";
+import apiDocumentationDeveloperExperienceRouter from "./server/routes/api-documentation-developer-experience.routes";
+import internationalizationLocalizationRouter from "./server/routes/internationalization-localization.routes";
+import advancedContentManagementRouter from "./server/routes/advanced-content-management.routes";
+import realtimeCollaborationCommunicationRouter from "./server/routes/realtime-collaboration-communication.routes";
+import { devOpsInfrastructureService } from "./server/services/devops-infrastructure.service";
+import { apiDocumentationDeveloperExperienceService } from "./server/services/api-documentation-developer-experience.service";
+import { internationalizationLocalizationService } from "./server/services/internationalization-localization.service";
+import { advancedContentManagementService } from "./server/services/advanced-content-management.service";
+import { realtimeCollaborationCommunicationService } from "./server/services/realtime-collaboration-communication.service";
 
 const app = express();
 
@@ -519,6 +529,11 @@ app.use("/api/security/compliance", complianceMonitoringRouter);
 app.use("/api/security/events", securityEventManagementRouter);
 app.use("/api/security/api", apiSecurityRateLimitingRouter);
 app.use("/api/security/testing", securityTestingPenetrationRouter);
+app.use("/api/devops", devopsInfrastructureRouter);
+app.use("/api/developer", apiDocumentationDeveloperExperienceRouter);
+app.use("/api/i18n", internationalizationLocalizationRouter);
+app.use("/api/content", advancedContentManagementRouter);
+app.use("/api/collaboration", realtimeCollaborationCommunicationRouter);
 
 /**
  * @swagger
