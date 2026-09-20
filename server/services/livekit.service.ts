@@ -115,7 +115,7 @@ export class LiveKitService {
     try {
       if (isTestMode) {
         console.log(`[LiveKit Mock] Room created: ${roomName}`);
-        return { success: true, roomName };
+        return { success: true, roomName, createdAt: new Date().toISOString() };
       }
 
       const roomClient = this.initRoomClient();
@@ -282,7 +282,7 @@ export class LiveKitService {
   static async healthCheck(): Promise<{ healthy: boolean; error?: string }> {
     try {
       if (isTestMode) {
-        return { healthy: true };
+        return { healthy: true, status: "healthy" };
       }
 
       if (!LIVEKIT_URL || !LIVEKIT_API_KEY || !LIVEKIT_API_SECRET) {
