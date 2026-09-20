@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from "react";
-import { 
-  CreditCard, 
-  Search, 
-  Download, 
-  RefreshCw, 
-  DollarSign, 
-  ShieldAlert, 
-  CheckCircle2, 
-  XCircle, 
-  RotateCcw, 
-  Filter, 
-  Calendar, 
+import {
+  CreditCard,
+  Search,
+  Download,
+  RefreshCw,
+  DollarSign,
+  ShieldAlert,
+  CheckCircle2,
+  XCircle,
+  RotateCcw,
+  Filter,
+  Calendar,
   FileSpreadsheet,
   AlertTriangle,
   User,
@@ -19,6 +19,9 @@ import {
   Sparkles
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAnalytics } from "../../hooks/useAnalytics";
+import { useMonitoring } from "../../hooks/useMonitoring";
+import { auth } from "../../firebase";
 
 export interface PaymentItem {
   paymentId: string;
@@ -45,6 +48,11 @@ export const FinancialManagementModule: React.FC<FinancialManagementModuleProps>
   currentUserId = "admin-user",
   userRole = "SUPER_ADMIN"
 }) => {
+  // Phase 38-45 Hook Integration
+  const adminUserId = auth.currentUser?.uid || currentUserId;
+  const { trackEvent } = useAnalytics(adminUserId);
+  const { monitors, isLoading: monitorsLoading } = useMonitoring();
+
   const [payments, setPayments] = useState<PaymentItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -168,6 +176,17 @@ export const FinancialManagementModule: React.FC<FinancialManagementModuleProps>
   };
 
   useEffect(() => {
+    if (adminUserId) {
+      trackEvent('financial_management_accessed', {
+        timestamp: new Date().toISOString(),
+        userRole,
+        totalPayments: payments.length,
+        paymentProviders: Array.from(new Set(payments.map(p => p.provider))),
+      });
+    }
+  }, [adminUserId, trackEvent, userRole, payments.length]);
+
+  useEffect(() => {
     fetchPayments();
   }, [selectedProvider, selectedStatus, startDate, endDate]);
 
@@ -197,11 +216,26 @@ export const FinancialManagementModule: React.FC<FinancialManagementModuleProps>
         throw new Error(data.error || "Erro ao efetuar reembolso.");
       }
 
+      trackEvent('refund_executed', {
+        paymentId: selectedPaymentForRefund.paymentId,
+        amount: selectedPaymentForRefund.amount,
+        currency: selectedPaymentForRefund.currency,
+        provider: selectedPaymentForRefund.provider,
+        reason: refundReason,
+        timestamp: new Date().toISOString(),
+      });
+
       setActionSuccessMsg(`Reembolso efetuado com sucesso para a transação ${selectedPaymentForRefund.paymentId}.`);
       setSelectedPaymentForRefund(null);
       setRefundReason("");
       fetchPayments();
     } catch (err: any) {
+      trackEvent('refund_failed', {
+        paymentId: selectedPaymentForRefund.paymentId,
+        reason: refundReason,
+        error: err.message,
+        timestamp: new Date().toISOString(),
+      });
       alert(`Erro no reembolso: ${err.message}`);
     } finally {
       setProcessingRefund(false);
@@ -210,8 +244,16 @@ export const FinancialManagementModule: React.FC<FinancialManagementModuleProps>
 
   const handleExportCSV = async () => {
     try {
+      trackEvent('payments_csv_exported', {
+        totalRecords: payments.length,
+        timestamp: new Date().toISOString(),
+      });
       window.open("/api/admin/payments/export", "_blank");
     } catch (err: any) {
+      trackEvent('payments_csv_export_failed', {
+        error: err.message,
+        timestamp: new Date().toISOString(),
+      });
       alert("Erro ao exportar CSV: " + err.message);
     }
   };
