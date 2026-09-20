@@ -198,6 +198,20 @@ import { advancedServiceWorkerService } from "./server/services/advanced-service
 import { offlineDataSyncService } from "./server/services/offline-data-sync.service";
 import { mobilePerformanceOptimizationService } from "./server/services/mobile-performance-optimization.service";
 import { offlineFirstAnalyticsReportingService } from "./server/services/offline-first-analytics-reporting.service";
+import unitTestingFrameworkRouter from "./server/routes/unit-testing-framework.routes";
+import integrationTestingRouter from "./server/routes/integration-testing.routes";
+import e2eTestingRouter from "./server/routes/e2e-testing.routes";
+import performanceTestingRouter from "./server/routes/performance-testing.routes";
+import testCoverageQualityRouter from "./server/routes/test-coverage-quality.routes";
+import continuousTestingPipelineRouter from "./server/routes/continuous-testing-pipeline.routes";
+import testDocumentationBestPracticesRouter from "./server/routes/test-documentation-best-practices.routes";
+import { unitTestingFrameworkService } from "./server/services/unit-testing-framework.service";
+import { integrationTestingService } from "./server/services/integration-testing.service";
+import { e2eTestingService } from "./server/services/e2e-testing.service";
+import { performanceTestingService } from "./server/services/performance-testing.service";
+import { testCoverageQualityService } from "./server/services/test-coverage-quality.service";
+import { continuousTestingPipelineService } from "./server/services/continuous-testing-pipeline.service";
+import { testDocumentationBestPracticesService } from "./server/services/test-documentation-best-practices.service";
 
 const app = express();
 
@@ -456,6 +470,13 @@ app.use("/api/offline/service-worker", advancedServiceWorkerRouter);
 app.use("/api/offline/sync", offlineDataSyncRouter);
 app.use("/api/mobile/performance", mobilePerformanceOptimizationRouter);
 app.use("/api/offline/analytics", offlineFirstAnalyticsReportingRouter);
+app.use("/api/testing/unit", unitTestingFrameworkRouter);
+app.use("/api/testing/integration", integrationTestingRouter);
+app.use("/api/testing/e2e", e2eTestingRouter);
+app.use("/api/testing/performance", performanceTestingRouter);
+app.use("/api/testing/coverage", testCoverageQualityRouter);
+app.use("/api/testing/pipeline", continuousTestingPipelineRouter);
+app.use("/api/testing/documentation", testDocumentationBestPracticesRouter);
 
 /**
  * @swagger
