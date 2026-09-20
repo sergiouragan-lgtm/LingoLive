@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { getStripeClient } from "../../config/stripe";
-import { appBaseUrl, ENABLE_SANDBOX_FALLBACK } from "../../config/env";
+import { appBaseUrl, getSandboxFallbackEnabled } from "../../config/env";
 import { safeAddDoc, safeSetDoc, safeGetDoc, safeQueryDocs } from "../firestoreSafe.service";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -69,7 +69,7 @@ export async function createEbookCheckoutSession(
 ): Promise<{ url: string; sessionId: string }> {
   const stripe = getStripeClient();
   if (!stripe) {
-    if (!ENABLE_SANDBOX_FALLBACK) {
+    if (!getSandboxFallbackEnabled()) {
       throw new Error("Stripe checkout is unavailable: payment sandbox fallback is disabled");
     }
 

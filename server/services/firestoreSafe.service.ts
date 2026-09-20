@@ -1,5 +1,5 @@
 import { dbAdmin } from "../config/firebaseAdmin";
-import { ENABLE_SANDBOX_FALLBACK } from "../config/env";
+import { getSandboxFallbackEnabled } from "../config/env";
 
 // CORREÇÃO DE BUG CRÍTICO (encontrado pelo pipeline DevSecOps): este ficheiro
 // é o caminho central de leitura/escrita usado em quase todo o backend
@@ -19,7 +19,7 @@ const isRunningUnderTests = process.env.VITEST === "true" || process.env.NODE_EN
 const dbAdminUsable = () => dbAdmin && !isRunningUnderTests;
 
 export function shouldFallback(err: any): boolean {
-  if (ENABLE_SANDBOX_FALLBACK) return true;
+  if (getSandboxFallbackEnabled()) return true;
   const errMsg = err?.message || String(err || "");
   const errMsgLower = errMsg.toLowerCase();
   return (
@@ -78,7 +78,7 @@ export async function safeGetDoc(collectionName: string, docId: string) {
         throw e;
       }
     }
-  } else if (!ENABLE_SANDBOX_FALLBACK) {
+  } else if (!getSandboxFallbackEnabled()) {
     console.log(`[Storage Sandbox] dbAdmin not initialized, falling back for read on ${collectionName}/${docId}`);
   }
   const key = `${collectionName}_${docId}`;
@@ -125,7 +125,7 @@ export async function safeSetDoc(
         throw e;
       }
     }
-  } else if (!ENABLE_SANDBOX_FALLBACK) {
+  } else if (!getSandboxFallbackEnabled()) {
     console.log(`[Storage Sandbox] dbAdmin not initialized, falling back for write on ${collectionName}/${docId}`);
   }
   return true;
@@ -250,7 +250,7 @@ export async function safeAddDoc(collectionName: string, data: any) {
         throw e;
       }
     }
-  } else if (!ENABLE_SANDBOX_FALLBACK) {
+  } else if (!getSandboxFallbackEnabled()) {
     console.log(`[Storage Sandbox] dbAdmin not initialized, falling back for add to ${collectionName}`);
   }
 

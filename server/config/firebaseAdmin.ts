@@ -4,7 +4,7 @@ import { getFirestore } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 import path from "path";
 import fs from "fs";
-import { ENABLE_SANDBOX_FALLBACK } from "./env";
+import { getSandboxFallbackEnabled } from "./env";
 
 let dbAdmin: any = null;
 
@@ -67,7 +67,7 @@ try {
   console.log(`Firebase Admin initialized successfully for project: ${process.env.GOOGLE_CLOUD_PROJECT || process.env.GCP_PROJECT || firebaseProjectID || "default"}, database: ${firestoreDatabaseId || "(default)"}`);
 } catch (err: any) {
   console.warn(`[Firebase Initialization Warning] Failed to initialize Firebase Admin: ${err.message}`);
-  if (!ENABLE_SANDBOX_FALLBACK) {
+  if (!getSandboxFallbackEnabled()) {
     throw err;
   }
 }

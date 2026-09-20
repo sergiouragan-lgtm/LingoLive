@@ -4,7 +4,7 @@ import { ai } from "../config/gemini";
 import { Modality, LiveServerMessage } from "@google/genai";
 import { authAdmin, dbAdmin } from "../config/firebaseAdmin";
 import { resolveServerSideAgeGroup, buildAgeSafetyDirective, getSafetySettingsForAgeGroup } from "../services/childSafety.service";
-import { ENABLE_SANDBOX_FALLBACK } from "../config/env";
+import { getSandboxFallbackEnabled } from "../config/env";
 import { checkWsRateLimit } from "../middleware/rateLimit";
 import { buildTutorSessionContext, TutorSessionContext } from "../../src/features/tutor/tutorSessionContextBuilder";
 import { composeTutorSystemInstruction } from "../../src/features/tutor/tutorPromptComposer";
@@ -168,7 +168,7 @@ export function setupWebSocket(server: http.Server) {
           const decoded = await authAdmin.verifyIdToken(token);
           console.log(`LingoLive WS Auth Success for user: ${decoded.email || decoded.uid}`);
           userUid = decoded.uid || "guest-user";
-        } else if (ENABLE_SANDBOX_FALLBACK) {
+        } else if (getSandboxFallbackEnabled()) {
           console.warn("LingoLive WS Auth (Using Sandbox Mock User)");
           userUid = "sandbox-demo-user";
         } else {
@@ -176,7 +176,7 @@ export function setupWebSocket(server: http.Server) {
           return;
         }
       } catch (err: any) {
-        if (ENABLE_SANDBOX_FALLBACK) {
+        if (getSandboxFallbackEnabled()) {
           console.warn("LingoLive WS Auth Error (Sandbox Fallback Active):", err.message);
           userUid = "sandbox-demo-user";
         } else {
