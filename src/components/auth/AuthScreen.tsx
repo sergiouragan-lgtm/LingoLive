@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AppView } from '../../types';
 import { auth, db, handleFirestoreError, OperationType } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
 import { 
   signInWithEmailAndPassword, 
   GoogleAuthProvider, 
@@ -50,6 +51,9 @@ interface AuthScreenProps {
 }
 
 export const AuthScreen: React.FC<AuthScreenProps> = ({ setView }) => {
+  const userId = auth.currentUser?.uid || 'anonymous';
+  const { trackEvent } = useAnalytics(userId);
+
   // Session "Keep Session Active" checkbox state
   const [keepSession, setKeepSession] = useState(true);
 
@@ -222,6 +226,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ setView }) => {
         console.warn("Could not load user profile on login:", err);
       }
 
+      trackEvent('user_login_successful', {
+        email: userCredential.user.email,
+        uid: userCredential.user.uid,
+        method: 'email',
+      });
+
       handleAuthSuccessRedirect({
         uid: userCredential.user.uid,
         displayName: userName || loginEmail.split('@')[0],
@@ -230,6 +240,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ setView }) => {
       }, 'email');
 
     } catch (err: any) {
+      trackEvent('user_login_failed', {
+        email,
+        errorCode: err.code,
+        errorMessage: err.message,
+      });
+
       console.error('Login error:', err);
       let friendlyError = err.message;
       if (err.message?.includes('invalid-credential') || err.code === 'auth/invalid-credential') {
@@ -347,6 +363,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ setView }) => {
         handleFirestoreError(dbErr, OperationType.WRITE, `users/${userCredential.user.uid}`);
       }
 
+      trackEvent('user_signup_successful', {
+        email: userCredential.user.email,
+        uid: userCredential.user.uid,
+        displayName: name.trim(),
+        method: 'email',
+      });
+
       handleAuthSuccessRedirect({
         uid: userCredential.user.uid,
         displayName: name.trim(),
@@ -355,6 +378,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ setView }) => {
       }, 'email');
 
     } catch (err: any) {
+      trackEvent('user_signup_failed', {
+        email,
+        name,
+        errorCode: err.code,
+        errorMessage: err.message,
+      });
+
       console.error('Sign up error:', err);
       let friendlyError = err.message;
       if (err.code === 'auth/email-already-in-use') {
@@ -466,6 +496,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ setView }) => {
         handleFirestoreError(dbErr, OperationType.WRITE, `users/${userCredential.user.uid}`);
       }
 
+      trackEvent('user_login_successful', {
+        email: userCredential.user.email,
+        uid: userCredential.user.uid,
+        method: 'google',
+        role: 'Student',
+      });
+
       handleAuthSuccessRedirect({
         uid: userCredential.user.uid,
         displayName: userCredential.user.displayName || "Sérgio Silva",
@@ -474,6 +511,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ setView }) => {
       }, 'google');
 
     } catch (err: any) {
+      trackEvent('user_login_failed', {
+        method: 'google',
+        errorCode: err.code,
+        errorMessage: err.message,
+      });
       setError(err.message);
     } finally {
       setLoading(false);
