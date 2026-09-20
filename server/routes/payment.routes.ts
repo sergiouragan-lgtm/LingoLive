@@ -5,6 +5,7 @@ import { requireAuth } from "../middleware/requireAuth";
 import { paymentsLimiter } from "../middleware/rateLimit";
 import { SERVER_PLANS } from "../config/plans";
 import { dbAdmin } from "../config/firebaseAdmin";
+import { safeGetDoc, safeSetDoc } from "../services/firestoreSafe.service";
 
 const router = Router();
 
@@ -190,7 +191,7 @@ router.post("/create-bank-transfer-reference", express.json(), requireAuth, paym
 router.get("/subscription/details", requireAuth, async (req: any, res: any) => {
   try {
     const userId = req.user.uid;
-    const userDoc = await dbAdmin.collection("users").doc(userId).get();
+    const userDoc = await safeGetDoc("users", userId);
 
     if (!userDoc.exists) {
       return res.status(404).json({ error: "User not found" });
@@ -219,7 +220,7 @@ router.get("/subscription/details", requireAuth, async (req: any, res: any) => {
 router.post("/subscription/cancel", requireAuth, async (req: any, res: any) => {
   try {
     const userId = req.user.uid;
-    const userDoc = await dbAdmin.collection("users").doc(userId).get();
+    const userDoc = await safeGetDoc("users", userId);
 
     if (!userDoc.exists) {
       return res.status(404).json({ error: "User not found" });
@@ -252,8 +253,8 @@ router.post("/subscription/cancel", requireAuth, async (req: any, res: any) => {
       cancel_at_period_end: true
     });
 
-    // Update user record
-    await dbAdmin.collection("users").doc(userId).update({
+    // Update user record using safe method
+    await safeSetDoc("users", userId, {
       cancelAtPeriodEnd: true,
       updatedAt: new Date().toISOString()
     });
