@@ -16,6 +16,7 @@ import express from "express";
 import http from "http";
 import { createServer as createViteServer } from "vite";
 import rateLimit from "express-rate-limit";
+import cors from "cors";
 
 import { PORT, ENABLE_SANDBOX_FALLBACK } from "./server/config/env";
 import { dbAdmin, authAdmin, verifyFirebaseConnection } from "./server/config/firebaseAdmin";
@@ -127,6 +128,41 @@ app.use((req, res, next) => {
 
   next();
 });
+
+// CORS Middleware - Control cross-origin access
+// Prevents unauthorized cross-origin requests while allowing legitimate client access
+const corsOrigins = [
+  process.env.FRONTEND_URL || 'https://lingolive.com',
+  'https://www.lingolive.com',
+  'http://localhost:5173',  // Vite dev server
+  'http://localhost:3000',  // Alternative dev server
+];
+
+if (process.env.NODE_ENV !== 'production') {
+  // Allow all localhost variants in development
+  corsOrigins.push('http://127.0.0.1:5173', 'http://127.0.0.1:3000');
+}
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    // Check if origin is in whitelist
+    if (corsOrigins.some(allowed => allowed === origin || (process.env.NODE_ENV !== 'production' && origin.includes('localhost')))) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS policy'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset'],
+  maxAge: 3600, // 1 hour
+}));
 
 // Stripe Webhook needs express.raw BEFORE express.json() is applied globally
 // Mount paymentRouter containing Stripe webhook first
