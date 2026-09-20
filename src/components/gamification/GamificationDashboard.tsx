@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Trophy,
@@ -14,6 +14,9 @@ import {
   Lock,
 } from 'lucide-react';
 import { useRealtimeSync } from '@/hooks/useRealtimeSync';
+import { useAnalytics } from '@/hooks/useAnalytics';
+import { useNotifications } from '@/hooks/useNotifications';
+import { usePersonalization } from '@/hooks/usePersonalization';
 
 interface Achievement {
   id: string;
@@ -125,6 +128,11 @@ export const GamificationDashboard: React.FC<GamificationDashboardProps> = ({
   userId,
   userName,
 }) => {
+  // Phase 38-45 Hook Integration
+  const { trackEvent } = useAnalytics(userId);
+  const { notifications } = useNotifications(userId);
+  const { profile: personalizationProfile } = usePersonalization(userId);
+
   const [selectedAchievement, setSelectedAchievement] = useState<Achievement | null>(null);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
 
@@ -148,6 +156,19 @@ export const GamificationDashboard: React.FC<GamificationDashboardProps> = ({
     'leaderboards/global',
     (data) => data || []
   );
+
+  // Track gamification dashboard access (Phase 38-45 Analytics)
+  useEffect(() => {
+    if (userId && gamification) {
+      trackEvent('gamification_dashboard_accessed', {
+        userName,
+        totalXp: gamification.totalXp,
+        level: gamification.level,
+        achievements: gamification.achievements?.length || 0,
+        leaderboardRank: gamification.leaderboardRank,
+      });
+    }
+  }, [userId, userName, gamification, trackEvent]);
 
   const unlockedAchievements = useMemo(
     () => gamification?.achievements.filter((a) => a.unlockedAt) || [],
