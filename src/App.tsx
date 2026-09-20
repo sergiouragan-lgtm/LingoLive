@@ -1,62 +1,70 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, User, sendPasswordResetEmail } from 'firebase/auth';
 import { Scanner } from '@yudiel/react-qr-scanner';
 import { auth, db, handleFirestoreError, OperationType } from './firebase';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
-import AdminDashboard from "./components/core/AdminDashboard";
-import { MarketplacePlatform } from "./components/marketplace/MarketplacePlatform";
-import { AreaEscolarDashboard } from "./components/b2b/area-escolar/AreaEscolarDashboard";
-import { AreaProfessorDashboard } from "./components/b2b/area-escolar/AreaProfessorDashboard";
-import { AreaAlunoDashboard } from "./components/b2b/area-aluno/AreaAlunoDashboard";
-import { AreaPaisDashboard } from "./components/b2b/area-pais/AreaPaisDashboard";
-import EducatorDashboard from "./components/b2b/area-escolar/EducatorDashboard";
+
+// Core components (loaded immediately)
 import Dashboard from "./components/core/Dashboard";
-import { KidsDashboard } from "./components/core/kids/KidsDashboard";
-import { TeensDashboard } from "./components/core/teens/TeensDashboard";
-import { UserProfile } from "./components/core/UserProfile";
-import { LanguagesView } from "./components/learning/aprender/LanguagesView";
 import { AuthScreen } from "./components/auth/AuthScreen";
 import { WaitingVerificationScreen } from "./components/auth/WaitingVerificationScreen";
 import { SuspendedScreen } from "./components/auth/SuspendedScreen";
-import PracticeRoom from "./components/ai-tutor/conversacao/PracticeRoom";
-import { AssessmentView } from "./components/learning/AssessmentView";
-import FeedbackReportCard from "./components/growth/FeedbackReportCard";
-import { PaymentsView } from "./components/growth/PaymentsView";
-import { WelcomeScreen } from "./components/growth/WelcomeScreen";
-import { PaymentOnboardingScreen } from "./components/growth/PaymentOnboardingScreen";
-import { PaymentSuccessScreen } from "./components/growth/PaymentSuccessScreen";
-import { MarketingView } from "./components/growth/MarketingView";
-import SavedVocabDeck from "./components/learning/biblioteca/SavedVocabDeck";
-import LanguageQuiz from "./components/learning/quiz/LanguageQuiz";
-import LiveChatAluno from "./components/ai-tutor/LiveChatAluno";
-import { LiveSessionsView } from "./components/learning/LiveSessionsView";
-import SubscriptionCheckout from "./components/growth/assinaturas/SubscriptionCheckout";
-import { LearningPath } from "./components/learning/LearningPath";
-import { AdaptiveEngineDashboard } from "./components/learning/AdaptiveEngineDashboard";
-import { PronunciationModule } from "./components/learning/PronunciationModule";
-import { AssessmentModule } from "./components/learning/AssessmentModule";
-import { GamificationModule } from "./components/learning/GamificationModule";
-import { AssessmentEnginePage } from "./components/learning/AssessmentEnginePage";
-import { JogosModule } from "./components/learning/JogosModule";
-import { RankingModule } from "./components/learning/RankingModule";
-import { EducationalCMS } from "./components/learning/EducationalCMS";
-import { CertificationPlatform } from "./components/learning/CertificationPlatform";
-import { LearningAnalyticsPlatform } from "./components/learning/LearningAnalyticsPlatform";
-import { TeacherProfessionalPlatform } from "./components/learning/TeacherProfessionalPlatform";
-import { EbookCurationPlatform } from "./components/learning/ebook/EbookCurationPlatform";
-import { EbookAnalyticsDashboard } from "./components/learning/ebook/EbookAnalyticsDashboard";
-import { EbookRecommendations } from "./components/learning/ebook/EbookRecommendations";
-import { EbookNotificationSettings } from "./components/learning/ebook/EbookNotificationSettings";
-import { EbookAchievements } from "./components/learning/ebook/EbookAchievements";
-import { EbookAssignmentManager } from "./components/learning/ebook/EbookAssignmentManager";
-import { EbookFlashcards } from "./components/learning/ebook/EbookFlashcards";
-import { EbookStudentDashboard } from "./components/learning/ebook/EbookStudentDashboard";
-import { EbookReader } from "./components/learning/ebook/EbookReader";
-import { EbookCatalogue } from "./components/learning/ebook/EbookCatalogue";
-import { EbookMarketplace } from "./components/learning/ebook/EbookMarketplace";
-import { StudentReader } from "./components/learning/ebook/StudentReader";
-import { AIAssistant } from "./components/ai-tutor/AIAssistant";
-import { SubscriptionPlans } from "./components/growth/assinaturas/SubscriptionPlans";
+import { UserProfile } from "./components/core/UserProfile";
+import { Landing } from "./components/core/Landing";
+import { Onboarding } from "./components/core/Onboarding";
+
+// Lazy loaded feature modules
+const AdminDashboard = React.lazy(() => import("./components/core/AdminDashboard"));
+const MarketplacePlatform = React.lazy(() => import("./components/marketplace/MarketplacePlatform").then(m => ({ default: m.MarketplacePlatform })));
+const AreaEscolarDashboard = React.lazy(() => import("./components/b2b/area-escolar/AreaEscolarDashboard").then(m => ({ default: m.AreaEscolarDashboard })));
+const AreaProfessorDashboard = React.lazy(() => import("./components/b2b/area-escolar/AreaProfessorDashboard").then(m => ({ default: m.AreaProfessorDashboard })));
+const AreaAlunoDashboard = React.lazy(() => import("./components/b2b/area-aluno/AreaAlunoDashboard").then(m => ({ default: m.AreaAlunoDashboard })));
+const AreaPaisDashboard = React.lazy(() => import("./components/b2b/area-pais/AreaPaisDashboard").then(m => ({ default: m.AreaPaisDashboard })));
+const EducatorDashboard = React.lazy(() => import("./components/b2b/area-escolar/EducatorDashboard"));
+const KidsDashboard = React.lazy(() => import("./components/core/kids/KidsDashboard").then(m => ({ default: m.KidsDashboard })));
+const TeensDashboard = React.lazy(() => import("./components/core/teens/TeensDashboard").then(m => ({ default: m.TeensDashboard })));
+const LanguagesView = React.lazy(() => import("./components/learning/aprender/LanguagesView").then(m => ({ default: m.LanguagesView })));
+const PracticeRoom = React.lazy(() => import("./components/ai-tutor/conversacao/PracticeRoom"));
+const AssessmentView = React.lazy(() => import("./components/learning/AssessmentView").then(m => ({ default: m.AssessmentView })));
+const PaymentsView = React.lazy(() => import("./components/growth/PaymentsView").then(m => ({ default: m.PaymentsView })));
+const WelcomeScreen = React.lazy(() => import("./components/growth/WelcomeScreen").then(m => ({ default: m.WelcomeScreen })));
+const PaymentOnboardingScreen = React.lazy(() => import("./components/growth/PaymentOnboardingScreen").then(m => ({ default: m.PaymentOnboardingScreen })));
+const PaymentSuccessScreen = React.lazy(() => import("./components/growth/PaymentSuccessScreen").then(m => ({ default: m.PaymentSuccessScreen })));
+const MarketingView = React.lazy(() => import("./components/growth/MarketingView").then(m => ({ default: m.MarketingView })));
+const SavedVocabDeck = React.lazy(() => import("./components/learning/biblioteca/SavedVocabDeck"));
+const LanguageQuiz = React.lazy(() => import("./components/learning/quiz/LanguageQuiz"));
+const LiveChatAluno = React.lazy(() => import("./components/ai-tutor/LiveChatAluno"));
+const LiveSessionsView = React.lazy(() => import("./components/learning/LiveSessionsView").then(m => ({ default: m.LiveSessionsView })));
+const SubscriptionCheckout = React.lazy(() => import("./components/growth/assinaturas/SubscriptionCheckout"));
+const LearningPath = React.lazy(() => import("./components/learning/LearningPath").then(m => ({ default: m.LearningPath })));
+const AdaptiveEngineDashboard = React.lazy(() => import("./components/learning/AdaptiveEngineDashboard").then(m => ({ default: m.AdaptiveEngineDashboard })));
+const PronunciationModule = React.lazy(() => import("./components/learning/PronunciationModule").then(m => ({ default: m.PronunciationModule })));
+const AssessmentModule = React.lazy(() => import("./components/learning/AssessmentModule").then(m => ({ default: m.AssessmentModule })));
+const GamificationModule = React.lazy(() => import("./components/learning/GamificationModule").then(m => ({ default: m.GamificationModule })));
+const AssessmentEnginePage = React.lazy(() => import("./components/learning/AssessmentEnginePage").then(m => ({ default: m.AssessmentEnginePage })));
+const JogosModule = React.lazy(() => import("./components/learning/JogosModule").then(m => ({ default: m.JogosModule })));
+const RankingModule = React.lazy(() => import("./components/learning/RankingModule").then(m => ({ default: m.RankingModule })));
+const EducationalCMS = React.lazy(() => import("./components/learning/EducationalCMS").then(m => ({ default: m.EducationalCMS })));
+const CertificationPlatform = React.lazy(() => import("./components/learning/CertificationPlatform").then(m => ({ default: m.CertificationPlatform })));
+const LearningAnalyticsPlatform = React.lazy(() => import("./components/learning/LearningAnalyticsPlatform").then(m => ({ default: m.LearningAnalyticsPlatform })));
+const TeacherProfessionalPlatform = React.lazy(() => import("./components/learning/TeacherProfessionalPlatform").then(m => ({ default: m.TeacherProfessionalPlatform })));
+
+// E-book feature (large module, heavily lazy loaded)
+const EbookCurationPlatform = React.lazy(() => import("./components/learning/ebook/EbookCurationPlatform").then(m => ({ default: m.EbookCurationPlatform })));
+const EbookAnalyticsDashboard = React.lazy(() => import("./components/learning/ebook/EbookAnalyticsDashboard").then(m => ({ default: m.EbookAnalyticsDashboard })));
+const EbookRecommendations = React.lazy(() => import("./components/learning/ebook/EbookRecommendations").then(m => ({ default: m.EbookRecommendations })));
+const EbookNotificationSettings = React.lazy(() => import("./components/learning/ebook/EbookNotificationSettings").then(m => ({ default: m.EbookNotificationSettings })));
+const EbookAchievements = React.lazy(() => import("./components/learning/ebook/EbookAchievements").then(m => ({ default: m.EbookAchievements })));
+const EbookAssignmentManager = React.lazy(() => import("./components/learning/ebook/EbookAssignmentManager").then(m => ({ default: m.EbookAssignmentManager })));
+const EbookFlashcards = React.lazy(() => import("./components/learning/ebook/EbookFlashcards").then(m => ({ default: m.EbookFlashcards })));
+const EbookStudentDashboard = React.lazy(() => import("./components/learning/ebook/EbookStudentDashboard").then(m => ({ default: m.EbookStudentDashboard })));
+const EbookReader = React.lazy(() => import("./components/learning/ebook/EbookReader").then(m => ({ default: m.EbookReader })));
+const EbookCatalogue = React.lazy(() => import("./components/learning/ebook/EbookCatalogue").then(m => ({ default: m.EbookCatalogue })));
+const EbookMarketplace = React.lazy(() => import("./components/learning/ebook/EbookMarketplace").then(m => ({ default: m.EbookMarketplace })));
+const StudentReader = React.lazy(() => import("./components/learning/ebook/StudentReader").then(m => ({ default: m.StudentReader })));
+
+const AIAssistant = React.lazy(() => import("./components/ai-tutor/AIAssistant").then(m => ({ default: m.AIAssistant })));
+const SubscriptionPlans = React.lazy(() => import("./components/growth/assinaturas/SubscriptionPlans").then(m => ({ default: m.SubscriptionPlans })));
 import { LANGUAGES, SCENARIOS, VOICES } from "./data";
 import { Localization, Language, Proficiency, AgeGroup, Scenario, Voice, TranscriptItem, SavedWord, StreakData, Achievement, SchoolMetrics, ClassReport, PlatformFeatures, ServiceHealthStatus } from "./types";
 import { Sparkles, Bookmark, BookOpen, GraduationCap, Github, Gamepad2, Flame, UserCog, ShieldCheck, BarChart3, Lock, Eye, EyeOff, Settings, ArrowLeft, HelpCircle, Compass, Activity, Database, Menu, School, CheckCircle, Smartphone, Check, Languages, RefreshCw } from "lucide-react";
@@ -70,27 +78,40 @@ import { ToastContainer } from "./components/core/ToastContainer";
 import { LoadingFallback } from "./components/core/LoadingFallback";
 import { motion, AnimatePresence } from 'motion/react';
 
-import { SettingsView } from "./components/core/SettingsView";
-import { SchoolRegistration } from "./components/core/SchoolRegistration";
-import { B2BPayment } from "./components/core/B2BPayment";
-import { SchoolEnterprisePlatform } from "./components/b2b/area-escolar/SchoolEnterprisePlatform";
-import { CorporateEnterprisePlatform } from "./components/b2b/area-empresarial/CorporateEnterprisePlatform";
-import { BusinessDashboard } from "./components/b2b/business/BusinessDashboard";
-import { FinancialManagementModule } from "./components/admin/FinancialManagementModule";
-import { LiveClassesPlatform } from "./components/live/LiveClassesPlatform";
+// Lazy loaded settings & configuration modules
+const SettingsView = React.lazy(() => import("./components/core/SettingsView").then(m => ({ default: m.SettingsView })));
+const SchoolRegistration = React.lazy(() => import("./components/core/SchoolRegistration").then(m => ({ default: m.SchoolRegistration })));
+const B2BPayment = React.lazy(() => import("./components/core/B2BPayment").then(m => ({ default: m.B2BPayment })));
+const SchoolEnterprisePlatform = React.lazy(() => import("./components/b2b/area-escolar/SchoolEnterprisePlatform").then(m => ({ default: m.SchoolEnterprisePlatform })));
+const CorporateEnterprisePlatform = React.lazy(() => import("./components/b2b/area-empresarial/CorporateEnterprisePlatform").then(m => ({ default: m.CorporateEnterprisePlatform })));
+const BusinessDashboard = React.lazy(() => import("./components/b2b/business/BusinessDashboard").then(m => ({ default: m.BusinessDashboard })));
+const FinancialManagementModule = React.lazy(() => import("./components/admin/FinancialManagementModule").then(m => ({ default: m.FinancialManagementModule })));
+const LiveClassesPlatform = React.lazy(() => import("./components/live/LiveClassesPlatform").then(m => ({ default: m.LiveClassesPlatform })));
+const Activation = React.lazy(() => import("./components/core/Activation").then(m => ({ default: m.Activation })));
+const IntelligentProfile = React.lazy(() => import('./components/core/onboarding/IntelligentProfile'));
+const SaveToFirestore = React.lazy(() => import('./components/core/onboarding/SaveToFirestore'));
+const ConfirmCreation = React.lazy(() => import('./components/core/onboarding/ConfirmCreation'));
+const Payment = React.lazy(() => import('./components/core/onboarding/Payment'));
+const ActivateAccount = React.lazy(() => import('./components/core/onboarding/ActivateAccount'));
+const CreateDashboard = React.lazy(() => import('./components/core/onboarding/CreateDashboard'));
+const CoppaConsentFlow = React.lazy(() => import('./components/compliance/CoppaConsentFlow').then(m => ({ default: m.CoppaConsentFlow })));
+const PrivacyPolicy = React.lazy(() => import("./components/compliance/PrivacyPolicy").then(m => ({ default: m.PrivacyPolicy })));
+const InstallBanner = React.lazy(() => import("./components/core/InstallBanner").then(m => ({ default: m.InstallBanner })));
+const DailyGoalOverlay = React.lazy(() => import("./components/DailyGoalOverlay").then(m => ({ default: m.DailyGoalOverlay })));
+const AchievementUnlockedModal = React.lazy(() => import("./components/Achievements/AchievementUnlockedModal").then(m => ({ default: m.AchievementUnlockedModal })));
+const CreateClass = React.lazy(() => import("./components/b2b/area-escolar/CreateClass").then(m => ({ default: m.CreateClass })));
+const AddStudents = React.lazy(() => import("./components/b2b/area-escolar/AddStudents").then(m => ({ default: m.AddStudents })));
+const WelcomeTour = React.lazy(() => import("./components/core/WelcomeTour").then(m => ({ default: m.WelcomeTour })));
+const GlobalSearch = React.lazy(() => import("./components/core/GlobalSearch").then(m => ({ default: m.GlobalSearch })));
+const LearningProfileScreen = React.lazy(() => import("./components/growth/LearningProfileScreen").then(m => ({ default: m.LearningProfileScreen })));
+const AdminQRScanner = React.lazy(() => import("./components/core/AdminQRScanner").then(m => ({ default: m.AdminQRScanner })));
+const FeedbackReportCard = React.lazy(() => import("./components/growth/FeedbackReportCard"));
+
+// Core UI components (always loaded)
 import { Sidebar } from "./components/core/Sidebar";
 import { Topbar } from "./components/core/Topbar";
 import { checkAndNotifyStreakRisk } from "./services/streakNotification.service";
 import { notificationService } from "./services/notification.service";
-import { Landing } from "./components/core/Landing";
-import { Onboarding } from "./components/core/Onboarding";
-import { Activation } from "./components/core/Activation";
-import IntelligentProfile from './components/core/onboarding/IntelligentProfile';
-import SaveToFirestore from './components/core/onboarding/SaveToFirestore';
-import ConfirmCreation from './components/core/onboarding/ConfirmCreation';
-import Payment from './components/core/onboarding/Payment';
-import ActivateAccount from './components/core/onboarding/ActivateAccount';
-import CreateDashboard from './components/core/onboarding/CreateDashboard';
 import { auditEvent } from './analytics/middleware/AuditMiddleware';
 import { EVENT_NAMES } from './analytics/events/catalog';
 import { smartProfileEngine } from './services/SmartProfileEngine';
@@ -98,22 +119,32 @@ import { SmartProfile } from './profile/types';
 import { CentralEntryController } from './entryFlow/CentralEntryController';
 import { ThemeManager } from './application/branding/ThemeManager';
 import { useCoppaCompliance } from './hooks/useCoppaCompliance';
-import { CoppaConsentFlow } from './components/compliance/CoppaConsentFlow';
-import { PrivacyPolicy } from "./components/compliance/PrivacyPolicy";
-import { InstallBanner } from "./components/core/InstallBanner";
-import { DailyGoalOverlay } from "./components/DailyGoalOverlay";
-import { AchievementUnlockedModal } from "./components/Achievements/AchievementUnlockedModal";
-import { CreateClass } from "./components/b2b/area-escolar/CreateClass";
-import { AddStudents } from "./components/b2b/area-escolar/AddStudents";
-import { WelcomeTour } from "./components/core/WelcomeTour";
-import { GlobalSearch } from "./components/core/GlobalSearch";
-import { LearningProfileScreen } from "./components/growth/LearningProfileScreen";
-import { useDeviceOrientation } from "./hooks/useDeviceOrientation";
-import { AdminQRScanner } from "./components/core/AdminQRScanner";
 import { COUNTRY_DETAILS } from "./data/localizationData";
 import { recordLanguageExplored, recordQuizCompleted, recordSavedWordsCount, backupSavedWordsToFirestore, recordStreakProgress } from "./lib/AchievementsManager";
 import { getWordsFromDB, saveAllWordsToDB, getProgressFromDB, saveProgressToDB, savePendingSync, triggerManualSync, registerBackgroundSync } from "./utils/indexedDB";
 import { requestFullscreen, exitFullscreen, isFullscreenActive } from "./utils/fullscreen";
+import { useDeviceOrientation } from "./hooks/useDeviceOrientation";
+
+// Lazy loading fallback UI
+const LazyComponentFallback: React.FC = () => (
+  <div className="flex items-center justify-center h-screen bg-slate-50 dark:bg-slate-900">
+    <div className="space-y-4 text-center">
+      <div className="inline-flex items-center gap-2">
+        <div className="w-2 h-2 bg-indigo-600 rounded-full animate-pulse"></div>
+        <div className="w-2 h-2 bg-indigo-600 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+        <div className="w-2 h-2 bg-indigo-600 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+      </div>
+      <p className="text-sm text-gray-600 dark:text-gray-400">Carregando...</p>
+    </div>
+  </div>
+);
+
+// Wrapper component for lazy-loaded views with Suspense
+const LazyView: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <Suspense fallback={<LazyComponentFallback />}>
+    {children}
+  </Suspense>
+);
 
 function AppContent() {
   const { currentStep, setStep } = useOnboardingFlow();
@@ -1901,24 +1932,30 @@ function AppContent() {
         )}
 
         {view === "dashboard" && (role === "TEACHER" || role === "NATIVE_TEACHER") && (
-          <TeacherProfessionalPlatform activeView="dashboard" setView={setView} />
+          <LazyView>
+            <TeacherProfessionalPlatform activeView="dashboard" setView={setView} />
+          </LazyView>
         )}
 
         {view === "dashboard" && role !== "TEACHER" && role !== "NATIVE_TEACHER" && (
           <>
             {(selectedAgeGroup === "CHILD" || selectedAgeGroup === "Kids" || selectedAgeGroup === "Infancy") && (
-              <KidsDashboard
-                selectedAgeGroup={selectedAgeGroup}
-                onNavigate={(v) => setView(v as AppView)}
-                onStartActivity={handleStartPractice}
-              />
+              <LazyView>
+                <KidsDashboard
+                  selectedAgeGroup={selectedAgeGroup}
+                  onNavigate={(v) => setView(v as AppView)}
+                  onStartActivity={handleStartPractice}
+                />
+              </LazyView>
             )}
             {(selectedAgeGroup === "TEEN" || selectedAgeGroup === "Teens" || selectedAgeGroup === "PreTeens") && (
-              <TeensDashboard
-                selectedAgeGroup={selectedAgeGroup}
-                onNavigate={(v) => setView(v as AppView)}
-                onStartActivity={handleStartPractice}
-              />
+              <LazyView>
+                <TeensDashboard
+                  selectedAgeGroup={selectedAgeGroup}
+                  onNavigate={(v) => setView(v as AppView)}
+                  onStartActivity={handleStartPractice}
+                />
+              </LazyView>
             )}
             {(selectedAgeGroup === "ADULT" || selectedAgeGroup === "Adults" || selectedAgeGroup === "Adultos") && (
               <Dashboard
@@ -1962,13 +1999,15 @@ function AppContent() {
         )}
 
         {view === "languages" && (
-          <LanguagesView
-            selectedLanguage={selectedLanguage}
-            setSelectedLanguage={setSelectedLanguage}
-            userProfile={userProfile}
-            onUpdateLanguageAndVariant={handleUpdateLanguageAndVariant}
+          <LazyView>
+            <LanguagesView
+              selectedLanguage={selectedLanguage}
+              setSelectedLanguage={setSelectedLanguage}
+              userProfile={userProfile}
+              onUpdateLanguageAndVariant={handleUpdateLanguageAndVariant}
             localization={localization}
-          />
+            />
+          </LazyView>
         )}
 
         {(view === "profile" || view === "perfil") && (
@@ -2068,153 +2107,181 @@ function AppContent() {
         {view === "marketing" && <MarketingView />}
 
         {(view === "admin-dashboard" || view === "backup" || view === "logs" || view === "global-settings") && (
-          <AdminDashboard 
-            metrics={adminMetrics} 
-            features={features}
-            onToggleFeature={updateFeatureToggle}
-            healthStatus={healthStatus}
-            onRefreshHealth={refreshHealthStatus}
-            isCheckingHealth={isCheckingHealth}
-            initialTab={
-              view === "backup" ? "disaster-recovery" : 
-              view === "logs" ? "seguranca" : 
-              view === "global-settings" ? "features" : 
-              undefined
-            }
-          />
+          <LazyView>
+            <AdminDashboard
+              metrics={adminMetrics}
+              features={features}
+              onToggleFeature={updateFeatureToggle}
+              healthStatus={healthStatus}
+              onRefreshHealth={refreshHealthStatus}
+              isCheckingHealth={isCheckingHealth}
+              initialTab={
+                view === "backup" ? "disaster-recovery" :
+                view === "logs" ? "seguranca" :
+                view === "global-settings" ? "features" :
+                undefined
+              }
+            />
+          </LazyView>
         )}
 
         {view === "gestao-financeira" && (
-          <FinancialManagementModule currentUserId={user?.uid} userRole={role} />
+          <LazyView><FinancialManagementModule currentUserId={user?.uid} userRole={role} /></LazyView>
         )}
 
         {view === "educator-dashboard" && (features.educatorDashboard !== false || role === 'Admin') && (
-          <EducatorDashboard report={educatorReport} setView={setView} />
+          <LazyView><EducatorDashboard report={educatorReport} setView={setView} /></LazyView>
         )}
 
         {view === "assessment" && (
-          <AssessmentView
-            userId={user!.uid}
-            language={selectedLanguage.name}
-            setView={setView}
-          />
+          <LazyView>
+            <AssessmentView
+              userId={user!.uid}
+              language={selectedLanguage.name}
+              setView={setView}
+            />
+          </LazyView>
         )}
 
         {(view === "practice" || view === "ia-tutor") && features.practiceRoom !== false && (
-          <PracticeRoom
-            language={selectedLanguage}
-            proficiency={selectedProficiency}
-            ageGroup={selectedAgeGroup}
-            userAge={userProfile?.age}
-            scenario={selectedScenario}
-            voice={selectedVoice}
-            onEndSession={handleEndSession}
-            onExit={() => setView("dashboard")}
-            onSaveWord={handleSaveWord}
-            savedWords={savedWords}
-          />
+          <LazyView>
+            <PracticeRoom
+              language={selectedLanguage}
+              proficiency={selectedProficiency}
+              ageGroup={selectedAgeGroup}
+              userAge={userProfile?.age}
+              scenario={selectedScenario}
+              voice={selectedVoice}
+              onEndSession={handleEndSession}
+              onExit={() => setView("dashboard")}
+              onSaveWord={handleSaveWord}
+              savedWords={savedWords}
+            />
+          </LazyView>
         )}
 
         {view === "feedback" && (
-          <FeedbackReportCard
-            language={selectedLanguage}
-            proficiency={selectedProficiency}
-            scenario={selectedScenario}
-            transcript={sessionTranscript}
-            audioUrl={sessionAudioUrl}
-            ageGroup={selectedAgeGroup}
-            onRestart={() => setView("dashboard")}
-            onViewSavedVocab={() => setView("vocab")}
-          />
+          <LazyView>
+            <FeedbackReportCard
+              language={selectedLanguage}
+              proficiency={selectedProficiency}
+              scenario={selectedScenario}
+              transcript={sessionTranscript}
+              audioUrl={sessionAudioUrl}
+              ageGroup={selectedAgeGroup}
+              onRestart={() => setView("dashboard")}
+              onViewSavedVocab={() => setView("vocab")}
+            />
+          </LazyView>
         )}
 
         {view === "vocab" && (features.vocabDeck !== false || role === 'Admin') && (
-          <SavedVocabDeck
-            savedWords={savedWords}
-            onDeleteWord={handleDeleteWord}
-            onBack={() => setView("dashboard")}
-            languageName={selectedLanguage.name}
-            languageCode={selectedLanguage.code}
-            onAddWords={handleAddWords}
-            userAge={userProfile?.age}
-          />
+          <LazyView>
+            <SavedVocabDeck
+              savedWords={savedWords}
+              onDeleteWord={handleDeleteWord}
+              onBack={() => setView("dashboard")}
+              languageName={selectedLanguage.name}
+              languageCode={selectedLanguage.code}
+              onAddWords={handleAddWords}
+              userAge={userProfile?.age}
+            />
+          </LazyView>
         )}
 
         {view === "quiz" && (features.languageQuiz !== false || role === 'Admin') && (
-          <LanguageQuiz
-            currentLanguage={selectedLanguage}
-            savedWords={savedWords}
-            onAddWords={handleAddWords}
-            onBack={() => setView("dashboard")}
-            onCompleteQuiz={registerPracticeSession}
-          />
+          <LazyView>
+            <LanguageQuiz
+              currentLanguage={selectedLanguage}
+              savedWords={savedWords}
+              onAddWords={handleAddWords}
+              onBack={() => setView("dashboard")}
+              onCompleteQuiz={registerPracticeSession}
+            />
+          </LazyView>
         )}
 
         {view === "live-chat" && features.liveChat !== false && (
-          <LiveChatAluno />
+          <LazyView><LiveChatAluno /></LazyView>
         )}
 
         {view === "live-sessions" && (
-          <LiveSessionsView />
+          <LazyView><LiveSessionsView /></LazyView>
         )}
 
         {view === "learning-path" && (
-          <LearningPath
-            selectedLanguage={selectedLanguage}
-            selectedProficiency={selectedProficiency}
-            savedWords={savedWords}
-            onStartPractice={handleStartPractice}
-            setSelectedScenario={setSelectedScenario}
-            setView={setView}
-          />
+          <LazyView>
+            <LearningPath
+              selectedLanguage={selectedLanguage}
+              selectedProficiency={selectedProficiency}
+              savedWords={savedWords}
+              onStartPractice={handleStartPractice}
+              setSelectedScenario={setSelectedScenario}
+              setView={setView}
+            />
+          </LazyView>
         )}
 
         {view === "adaptive-learning" && (
-          <AdaptiveEngineDashboard
-            selectedLanguage={selectedLanguage}
-            onStartPractice={(targetView) => setView(targetView as any)}
-            onAddXp={(xp) => {
-              addToast(`Parabéns! Ganhou +${xp} XP no seu perfil adaptativo!`, "success");
-            }}
-          />
+          <LazyView>
+            <AdaptiveEngineDashboard
+              selectedLanguage={selectedLanguage}
+              onStartPractice={(targetView) => setView(targetView as any)}
+              onAddXp={(xp) => {
+                addToast(`Parabéns! Ganhou +${xp} XP no seu perfil adaptativo!`, "success");
+              }}
+            />
+          </LazyView>
         )}
 
         {view === "pronunciation" && (
-          <PronunciationModule
-            onAddXp={(xp) => {
-              addToast(`Parabéns! Ganhou +${xp} XP na avaliação de pronúncia!`, "success");
-            }}
-          />
+          <LazyView>
+            <PronunciationModule
+              onAddXp={(xp) => {
+                addToast(`Parabéns! Ganhou +${xp} XP na avaliação de pronúncia!`, "success");
+              }}
+            />
+          </LazyView>
         )}
 
-        {view === "gamification" && (          <GamificationModule />        )}
-        {view === "adaptive-engine" && (          <AssessmentEnginePage setView={setView} />        )}
+        {view === "gamification" && (
+          <LazyView><GamificationModule /></LazyView>
+        )}
+        {view === "adaptive-engine" && (
+          <LazyView><AssessmentEnginePage setView={setView} /></LazyView>
+        )}
         {view === "assessment-platform" && (
-          <AssessmentModule setView={setView}
-            onAddXp={(xp) => {
-              addToast(`Parabéns! Ganhou +${xp} XP no exame de certificação!`, "success");
-            }}
-          />
+          <LazyView>
+            <AssessmentModule setView={setView}
+              onAddXp={(xp) => {
+                addToast(`Parabéns! Ganhou +${xp} XP no exame de certificação!`, "success");
+              }}
+            />
+          </LazyView>
         )}
 
         {view === "jogos" && (
-          <JogosModule
-            onAddXp={(xp) => {
-              addToast(`Parabéns! Ganhaste +${xp} XP em jogos!`, "success");
-            }}
-          />
+          <LazyView>
+            <JogosModule
+              onAddXp={(xp) => {
+                addToast(`Parabéns! Ganhaste +${xp} XP em jogos!`, "success");
+              }}
+            />
+          </LazyView>
         )}
 
         {view === "ranking" && (
-          <RankingModule
-            onAddXp={(xp) => {
-              addToast(`Parabéns! Ganhaste +${xp} XP no ranking!`, "success");
-            }}
-          />
+          <LazyView>
+            <RankingModule
+              onAddXp={(xp) => {
+                addToast(`Parabéns! Ganhaste +${xp} XP no ranking!`, "success");
+              }}
+            />
+          </LazyView>
         )}
 
         {view === "cms" && (
-          <EducationalCMS />
+          <LazyView><EducationalCMS /></LazyView>
         )}
 
         {view === "certificados" && (
@@ -2226,58 +2293,68 @@ function AppContent() {
         )}
 
         {view === "ebook-studio" && (
-          <EbookCurationPlatform />
+          <LazyView><EbookCurationPlatform /></LazyView>
         )}
 
         {view === "ebook-curation" && (
-          <EbookCatalogue
-            onOpenReader={(id) => { setReaderEbookId(id); setReaderBackView("ebook-curation"); setView("ebook-student-reader"); }}
-          />
+          <LazyView>
+            <EbookCatalogue
+              onOpenReader={(id) => { setReaderEbookId(id); setReaderBackView("ebook-curation"); setView("ebook-student-reader"); }}
+            />
+          </LazyView>
         )}
 
         {view === "ebook-marketplace" && (
-          <EbookMarketplace
-            onOpenReader={(id) => { setReaderEbookId(id); setReaderBackView("ebook-marketplace"); setView("ebook-student-reader"); }}
-          />
+          <LazyView>
+            <EbookMarketplace
+              onOpenReader={(id) => { setReaderEbookId(id); setReaderBackView("ebook-marketplace"); setView("ebook-student-reader"); }}
+            />
+          </LazyView>
         )}
 
         {view === "ebook-student-reader" && readerEbookId && (
-          <StudentReader
-            ebookId={readerEbookId}
-            onBack={() => { setView(readerBackView); setReaderEbookId(null); }}
-            backLabel={{ "ebook-curation": "Catálogo", "ebook-marketplace": "Loja", "ebook-recommendations": "Recomendações", "ebook-assignments-student": "Tarefas", "ebook-student-dashboard": "Painel" }[readerBackView] ?? "Voltar"}
-          />
+          <LazyView>
+            <StudentReader
+              ebookId={readerEbookId}
+              onBack={() => { setView(readerBackView); setReaderEbookId(null); }}
+              backLabel={{ "ebook-curation": "Catálogo", "ebook-marketplace": "Loja", "ebook-recommendations": "Recomendações", "ebook-assignments-student": "Tarefas", "ebook-student-dashboard": "Painel" }[readerBackView] ?? "Voltar"}
+            />
+          </LazyView>
         )}
 
         {view === "ebook-analytics" && (
-          <EbookAnalyticsDashboard />
+          <LazyView><EbookAnalyticsDashboard /></LazyView>
         )}
 
         {view === "ebook-recommendations" && (
-          <EbookRecommendations onEnroll={(id) => { setReaderEbookId(id); setReaderBackView("ebook-recommendations"); setView("ebook-student-reader"); }} />
+          <LazyView>
+            <EbookRecommendations onEnroll={(id) => { setReaderEbookId(id); setReaderBackView("ebook-recommendations"); setView("ebook-student-reader"); }} />
+          </LazyView>
         )}
 
         {view === "ebook-notifications" && (
-          <EbookNotificationSettings />
+          <LazyView><EbookNotificationSettings /></LazyView>
         )}
 
         {view === "ebook-achievements" && (
-          <EbookAchievements />
+          <LazyView><EbookAchievements /></LazyView>
         )}
 
         {view === "ebook-assignments-teacher" && (
-          <EbookAssignmentManager mode="teacher" />
+          <LazyView><EbookAssignmentManager mode="teacher" /></LazyView>
         )}
 
         {view === "ebook-assignments-student" && (
-          <EbookAssignmentManager
-            mode="student"
-            onOpenEbook={(id) => { setReaderEbookId(id); setReaderBackView("ebook-assignments-student"); setView("ebook-student-reader"); }}
-          />
+          <LazyView>
+            <EbookAssignmentManager
+              mode="student"
+              onOpenEbook={(id) => { setReaderEbookId(id); setReaderBackView("ebook-assignments-student"); setView("ebook-student-reader"); }}
+            />
+          </LazyView>
         )}
 
         {view === "ebook-flashcards" && (
-          <EbookFlashcards />
+          <LazyView><EbookFlashcards /></LazyView>
         )}
 
         {view === "ebook-student-dashboard" && (
