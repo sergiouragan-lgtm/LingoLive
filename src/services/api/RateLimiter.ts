@@ -77,7 +77,6 @@ export class SlidingWindowRateLimiter {
       // Skip rate limiting in test mode to allow tests to run freely
       const isTestMode = process.env.VITEST === "true" || process.env.NODE_ENV === "test";
       if (isTestMode) {
-        console.log(`[RateLimiter] Skipping rate limit check in test mode for ${req.path}`);
         return next();
       }
 
