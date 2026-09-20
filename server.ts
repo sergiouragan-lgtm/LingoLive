@@ -302,6 +302,34 @@ import { complianceAuditTrailService } from "./server/services/compliance-audit-
 import { apiRateLimitingService } from "./server/services/api-rate-limiting.service";
 import { databaseOptimizationService } from "./server/services/database-optimization.service";
 import { userAnalyticsTrackingService } from "./server/services/user-analytics-tracking.service";
+import errorHandlingRecoveryRouter from "./server/routes/error-handling-recovery.routes";
+import featureFlaggingRouter from "./server/routes/feature-flagging.routes";
+import abTestingRouter from "./server/routes/a-b-testing.routes";
+import recommendationEngineRouter from "./server/routes/recommendation-engine.routes";
+import cacheManagementRouter from "./server/routes/cache-management.routes";
+import queueManagementRouter from "./server/routes/queue-management.routes";
+import batchProcessingRouter from "./server/routes/batch-processing.routes";
+import workflowEngineRouter from "./server/routes/workflow-engine.routes";
+import notificationServiceRouter from "./server/routes/notification-service.routes";
+import backupServiceRouter from "./server/routes/backup-service.routes";
+import monitoringRouter from "./server/routes/monitoring.routes";
+import alertingRouter from "./server/routes/alerting.routes";
+import schedulingRouter from "./server/routes/scheduling.routes";
+import versioningRouter from "./server/routes/versioning.routes";
+import { errorHandlingRecoveryService } from "./server/services/error-handling-recovery.service";
+import { featureFlaggingService } from "./server/services/feature-flagging.service";
+import { abTestingService } from "./server/services/a-b-testing.service";
+import { recommendationEngineService } from "./server/services/recommendation-engine.service";
+import { cacheManagementService } from "./server/services/cache-management.service";
+import { queueManagementService } from "./server/services/queue-management.service";
+import { batchProcessingService } from "./server/services/batch-processing.service";
+import { workflowEngineService } from "./server/services/workflow-engine.service";
+import { notificationService } from "./server/services/notification-service.service";
+import { backupService } from "./server/services/backup-service.service";
+import { monitoringService } from "./server/services/monitoring.service";
+import { alertingService } from "./server/services/alerting.service";
+import { schedulingService } from "./server/services/scheduling.service";
+import { versioningService } from "./server/services/versioning.service";
 
 const app = express();
 
@@ -612,6 +640,20 @@ app.use("/api/compliance", complianceAuditTrailRouter);
 app.use("/api/ratelimit", apiRateLimitingRouter);
 app.use("/api/database", databaseOptimizationRouter);
 app.use("/api/analytics/user", userAnalyticsTrackingRouter);
+app.use("/api/errors", errorHandlingRecoveryRouter);
+app.use("/api/features", featureFlaggingRouter);
+app.use("/api/abtesting", abTestingRouter);
+app.use("/api/recommendations/engine", recommendationEngineRouter);
+app.use("/api/cache/management", cacheManagementRouter);
+app.use("/api/queue/management", queueManagementRouter);
+app.use("/api/batch", batchProcessingRouter);
+app.use("/api/workflows", workflowEngineRouter);
+app.use("/api/notify", notificationServiceRouter);
+app.use("/api/backup/service", backupServiceRouter);
+app.use("/api/monitor", monitoringRouter);
+app.use("/api/alerts", alertingRouter);
+app.use("/api/schedule", schedulingRouter);
+app.use("/api/version", versioningRouter);
 
 /**
  * @swagger
