@@ -132,6 +132,16 @@ import { modelServingService } from "./server/services/model-serving.service";
 import { anomalyInterpretabilityService } from "./server/services/anomaly-interpretability.service";
 import { advancedBIIntegrationService } from "./server/services/advanced-bi-integrations.service";
 import { federatedLearningService } from "./server/services/federated-learning.service";
+import learningPathOptimizationRouter from "./server/routes/learning-path-optimization.routes";
+import personalizedRecommendationsRouter from "./server/routes/personalized-recommendations.routes";
+import realtimeLearningAnalyticsRouter from "./server/routes/realtime-learning-analytics.routes";
+import adaptiveAssessmentRouter from "./server/routes/adaptive-assessment.routes";
+import intelligentTutoringRouter from "./server/routes/intelligent-tutoring.routes";
+import { learningPathOptimizationService } from "./server/services/learning-path-optimization.service";
+import { personalizedRecommendationsService } from "./server/services/personalized-recommendations.service";
+import { realTimeLearningAnalyticsService } from "./server/services/realtime-learning-analytics.service";
+import { adaptiveAssessmentService } from "./server/services/adaptive-assessment.service";
+import { intelligentTutoringService } from "./server/services/intelligent-tutoring.service";
 
 const app = express();
 
@@ -357,6 +367,11 @@ app.use("/api/model-serving", modelServingRouter);
 app.use("/api/anomaly-interpretability", anomalyInterpretabilityRouter);
 app.use("/api/advanced-bi-integrations", advancedBIIntegrationRouter);
 app.use("/api/federated-learning", federatedLearningRouter);
+app.use("/api/learning-paths", learningPathOptimizationRouter);
+app.use("/api/recommendations", personalizedRecommendationsRouter);
+app.use("/api/learning-analytics", realtimeLearningAnalyticsRouter);
+app.use("/api/assessments", adaptiveAssessmentRouter);
+app.use("/api/tutoring", intelligentTutoringRouter);
 
 /**
  * @swagger
