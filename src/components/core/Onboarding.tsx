@@ -1,21 +1,21 @@
 import React, { useState, useEffect } from "react";
-import { db } from "../../firebase";
+import { db, auth } from "../../firebase";
 import { doc, setDoc, getDoc, serverTimestamp, writeBatch } from "firebase/firestore";
 import { IntelligentProfile } from "../../types/intelligentProfile";
 import { User } from "firebase/auth";
-import { 
-  Sparkles, 
-  ArrowRight, 
-  ArrowLeft, 
-  Check, 
-  Loader2, 
-  Globe, 
-  User as UserIcon, 
-  Compass, 
-  Trophy, 
-  BookOpen, 
-  Target, 
-  Clock, 
+import {
+  Sparkles,
+  ArrowRight,
+  ArrowLeft,
+  Check,
+  Loader2,
+  Globe,
+  User as UserIcon,
+  Compass,
+  Trophy,
+  BookOpen,
+  Target,
+  Clock,
   Calendar,
   Gamepad2,
   Smile,
@@ -28,6 +28,9 @@ import { motion, AnimatePresence } from "motion/react";
 import { useLocalization, useLanguageChanged } from "../../context/LocalizationContext";
 import type { Attribute, SmartProfile } from "../../profile/types";
 import { getDefaultInterfaceLanguageForCountry } from "../../data/regionalLanguageCatalog";
+import { useAnalytics } from "../../hooks/useAnalytics";
+import { usePersonalization } from "../../hooks/usePersonalization";
+import { useNotifications } from "../../hooks/useNotifications";
 
 interface OnboardingProps {
   user: User | null;
@@ -1536,6 +1539,12 @@ const translateLoaderText = (text: string, lang: string): string => {
 };
 
 export const Onboarding: React.FC<OnboardingProps> = ({ user, onComplete }) => {
+  // Phase 38-45 Hook Integration
+  const userId = auth.currentUser?.uid || user?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { updatePreferences } = usePersonalization(userId);
+  const { notifications } = useNotifications(userId);
+
   const { setLocalization, localization } = useLocalization();
   const [, setDummy] = useState({});
   useLanguageChanged(() => setDummy({}));
@@ -1552,6 +1561,15 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, onComplete }) => {
     if (browserLang.includes("br")) return "br";
     return "pt";
   });
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('onboarding_started', {
+        timestamp: new Date().toISOString(),
+        userEmail: user?.email || '',
+      });
+    }
+  }, [userId, trackEvent, user?.email]);
 
   // Synchronize state with context
   useEffect(() => {
@@ -2052,6 +2070,18 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, onComplete }) => {
         onboardingCompleted: true
       });
 
+      trackEvent('onboarding_completed_learner', {
+        role: role || 'Student',
+        language: learningLanguage || 'en',
+        proficiency: level || 'A1',
+        timestamp: new Date().toISOString(),
+      });
+      updatePreferences({
+        onboardingCompleted: true,
+        userRole: role || 'Student',
+        targetLanguage: learningLanguage || 'en',
+      });
+
       onComplete({
         ...savedProfile,
         ...userData,
@@ -2093,6 +2123,16 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, onComplete }) => {
       console.info("[ONBOARDING] Perfil não-aprendiz confirmado e gravado com sucesso", {
         userId: user.uid,
         onboardingCompleted: true
+      });
+
+      trackEvent('onboarding_completed_non_learner', {
+        role: role || 'Student',
+        age: age ? Number(age) : null,
+        timestamp: new Date().toISOString(),
+      });
+      updatePreferences({
+        onboardingCompleted: true,
+        userRole: role || 'Student',
       });
 
       onComplete({
