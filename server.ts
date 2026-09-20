@@ -63,6 +63,7 @@ import analyticsAdvancedRouter from "./server/routes/analytics-advanced.routes";
 import queueRouter from "./server/routes/queue.routes";
 import searchRouter from "./server/routes/search.routes";
 import notificationsRouter from "./server/routes/notifications.routes";
+import userPreferencesRouter from "./server/routes/userPreferences.routes";
 import { queueManager, JobType } from "./server/services/queue.service";
 import { processEmailJob } from "./server/services/jobProcessors/emailProcessor";
 import { processReportJob } from "./server/services/jobProcessors/reportProcessor";
@@ -70,6 +71,7 @@ import { processExportJob } from "./server/services/jobProcessors/exportProcesso
 import { processBatchNotificationJob } from "./server/services/jobProcessors/notificationProcessor";
 import { notificationsService } from "./server/services/notifications.service";
 import { notificationsGateway } from "./server/websocket/notifications.gateway";
+import { userPreferencesService } from "./server/services/userPreferences.service";
 
 const app = express();
 
@@ -264,6 +266,7 @@ app.use("/api/analytics", analyticsAdvancedRouter);
 app.use("/api/queue", queueRouter);
 app.use("/api/search", searchRouter);
 app.use("/api/notifications", notificationsRouter);
+app.use("/api/user-preferences", userPreferencesRouter);
 
 /**
  * @swagger
