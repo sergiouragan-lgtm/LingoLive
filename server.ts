@@ -250,6 +250,16 @@ import { apiDocumentationDeveloperExperienceService } from "./server/services/ap
 import { internationalizationLocalizationService } from "./server/services/internationalization-localization.service";
 import { advancedContentManagementService } from "./server/services/advanced-content-management.service";
 import { realtimeCollaborationCommunicationService } from "./server/services/realtime-collaboration-communication.service";
+import advancedPaymentRevenueRouter from "./server/routes/advanced-payment-revenue.routes";
+import advancedPersonalizationUXRouter from "./server/routes/advanced-personalization-ux.routes";
+import enterpriseB2BIntegrationRouter from "./server/routes/enterprise-b2b-integration.routes";
+import advancedSearchDiscoveryRouter from "./server/routes/advanced-search-discovery.routes";
+import advancedIntegrationEcosystemRouter from "./server/routes/advanced-integration-ecosystem.routes";
+import { advancedPaymentRevenueService } from "./server/services/advanced-payment-revenue.service";
+import { advancedPersonalizationUXService } from "./server/services/advanced-personalization-ux.service";
+import { enterpriseB2BIntegrationService } from "./server/services/enterprise-b2b-integration.service";
+import { advancedSearchDiscoveryService } from "./server/services/advanced-search-discovery.service";
+import { advancedIntegrationEcosystemService } from "./server/services/advanced-integration-ecosystem.service";
 
 const app = express();
 
@@ -534,6 +544,11 @@ app.use("/api/developer", apiDocumentationDeveloperExperienceRouter);
 app.use("/api/i18n", internationalizationLocalizationRouter);
 app.use("/api/content", advancedContentManagementRouter);
 app.use("/api/collaboration", realtimeCollaborationCommunicationRouter);
+app.use("/api/payment", advancedPaymentRevenueRouter);
+app.use("/api/personalization", advancedPersonalizationUXRouter);
+app.use("/api/enterprise", enterpriseB2BIntegrationRouter);
+app.use("/api/search", advancedSearchDiscoveryRouter);
+app.use("/api/integrations", advancedIntegrationEcosystemRouter);
 
 /**
  * @swagger
