@@ -272,7 +272,7 @@ class OfflineFirstAnalyticsReportingService {
           frequency: 'daily',
           avgUsageTime: events.length * 2, // estimate 2 min per event
           peakUsageHours: peakHours,
-          affectedFeatures: [...new Set(events.map((e) => e.eventName))],
+          affectedFeatures: [...new Set(events.map((e) => String(e.eventName)))],
           confidence: Math.min(100, (peakHours.length / 24) * 100) / 100,
           detectedAt: new Date(),
         };
