@@ -60,6 +60,7 @@ import ebookVocabularyRouter from "./server/routes/ebook.vocabulary.routes";
 import openaiTutorRouter from "./server/routes/openai-tutor.routes";
 import analyticsAdvancedRouter from "./server/routes/analytics-advanced.routes";
 import queueRouter from "./server/routes/queue.routes";
+import searchRouter from "./server/routes/search.routes";
 import { queueManager, JobType } from "./server/services/queue.service";
 import { processEmailJob } from "./server/services/jobProcessors/emailProcessor";
 import { processReportJob } from "./server/services/jobProcessors/reportProcessor";
@@ -257,6 +258,7 @@ app.use("/api/ebook/vocabulary", ebookVocabularyRouter);
 app.use("/api/ai-tutor", openaiTutorRouter);
 app.use("/api/analytics", analyticsAdvancedRouter);
 app.use("/api/queue", queueRouter);
+app.use("/api/search", searchRouter);
 
 /**
  * @swagger
