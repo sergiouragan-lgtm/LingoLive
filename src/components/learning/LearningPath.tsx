@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from "react";
-import { 
-  Sparkles, 
-  Map, 
-  BookMarked, 
-  CheckCircle2, 
-  Play, 
-  Compass, 
-  HelpCircle, 
-  ChevronRight, 
-  Award, 
-  Volume2, 
-  RefreshCw, 
-  Check, 
+import {
+  Sparkles,
+  Map,
+  BookMarked,
+  CheckCircle2,
+  Play,
+  Compass,
+  HelpCircle,
+  ChevronRight,
+  Award,
+  Volume2,
+  RefreshCw,
+  Check,
   AlertCircle,
   ThumbsUp,
   BrainCircuit,
@@ -24,6 +24,9 @@ import {
 import { Language, Proficiency, Scenario, SavedWord, FeedbackReport } from "../../types";
 import { SCENARIOS } from "../../data";
 import { auth } from "../../firebase";
+import { useAnalytics } from "../../hooks/useAnalytics";
+import { useRecommendations } from "../../hooks/useRecommendations";
+import { usePersonalization } from "../../hooks/usePersonalization";
 
 interface LearningPathProps {
   selectedLanguage: Language;
@@ -42,10 +45,16 @@ export const LearningPath: React.FC<LearningPathProps> = ({
   setSelectedScenario,
   setView
 }) => {
+  // Phase 38-45 Hook Integration
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { recommendations } = useRecommendations(userId);
+  const { profile: personalizationProfile } = usePersonalization(userId);
+
   // Try to load the latest real feedback report from localStorage
   const [latestFeedback, setLatestFeedback] = useState<FeedbackReport | null>(null);
   const [activeQuest, setActiveQuest] = useState<string | null>(null);
-  
+
   // Regional slang unlocking system states
   const [profile, setProfile] = useState<any>(null);
   const [currentXp, setCurrentXp] = useState<number>(500);
@@ -112,6 +121,18 @@ export const LearningPath: React.FC<LearningPathProps> = ({
       }
     }
   }, []);
+
+  // Track learning path access (Phase 38-45 Analytics)
+  useEffect(() => {
+    if (userId) {
+      trackEvent('learning_path_viewed', {
+        language: selectedLanguage?.name,
+        proficiency: selectedProficiency,
+        savedWords: savedWords?.length || 0,
+        xp: currentXp,
+      });
+    }
+  }, [userId, trackEvent, selectedLanguage, selectedProficiency, savedWords, currentXp]);
 
   // Set up the Sentence Builder Game using a grammar mistake (real or simulated)
   const initSentenceBuilder = () => {
