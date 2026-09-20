@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
+import 'ebook_reader_screen.dart';
+import 'vocabulary_practice_screen.dart';
+import 'live_classes_screen.dart';
+import '../models/sync_queue.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -12,11 +16,18 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   int _selectedIndex = 0;
 
-  final List<Widget> _screens = [
-    const _HomeTab(),
-    const _CoursesTab(),
-    const _ProfileTab(),
-  ];
+  late final List<Widget> _screens;
+
+  @override
+  void initState() {
+    super.initState();
+    _screens = [
+      const _HomeTab(),
+      const VocabularyPracticeScreen(),
+      const LiveClassesScreen(),
+      const _ProfileTab(),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +39,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       body: _screens[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
+        type: BottomNavigationBarType.fixed,
         onTap: (index) {
           setState(() {
             _selectedIndex = index;
@@ -35,7 +47,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         },
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.school), label: 'Cursos'),
+          BottomNavigationBarItem(icon: Icon(Icons.vocabulary), label: 'Palavras'),
+          BottomNavigationBarItem(icon: Icon(Icons.videocam), label: 'Aulas'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
         ],
       ),
@@ -46,8 +59,66 @@ class _DashboardScreenState extends State<DashboardScreen> {
 class _HomeTab extends StatelessWidget {
   const _HomeTab();
 
+  List<EbookModel> _generateSampleEbooks() {
+    return [
+      EbookModel(
+        id: '1',
+        title: 'English for Beginners',
+        author: 'Sarah Johnson',
+        description: 'Perfect introduction to English language',
+        price: 9.99,
+        language: 'English',
+        level: 'A1',
+        pageCount: 150,
+        format: 'pdf',
+        fileSize: 5242880,
+        coverUrl: 'https://via.placeholder.com/150',
+        rating: 4.5,
+        reviewCount: 234,
+        publishedDate: DateTime.now().subtract(const Duration(days: 90)),
+        skills: ['vocabulary', 'listening'],
+      ),
+      EbookModel(
+        id: '2',
+        title: 'Intermediate Grammar Guide',
+        author: 'John Smith',
+        description: 'Complete grammar reference for intermediate learners',
+        price: 14.99,
+        language: 'English',
+        level: 'B1',
+        pageCount: 320,
+        format: 'pdf',
+        fileSize: 8388608,
+        coverUrl: 'https://via.placeholder.com/150',
+        rating: 4.8,
+        reviewCount: 456,
+        publishedDate: DateTime.now().subtract(const Duration(days: 60)),
+        skills: ['grammar', 'writing'],
+      ),
+      EbookModel(
+        id: '3',
+        title: 'Advanced Conversation',
+        author: 'Emily Brown',
+        description: 'Master conversational English for business',
+        price: 19.99,
+        language: 'English',
+        level: 'C1',
+        pageCount: 280,
+        format: 'epub',
+        fileSize: 4194304,
+        coverUrl: 'https://via.placeholder.com/150',
+        rating: 4.6,
+        reviewCount: 189,
+        publishedDate: DateTime.now().subtract(const Duration(days: 30)),
+        skills: ['speaking', 'listening'],
+      ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
+    final ebooks = _generateSampleEbooks();
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -83,6 +154,102 @@ class _HomeTab extends StatelessWidget {
                   ),
                 ],
               ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'E-books Recomendados',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 280,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: ebooks.length,
+              itemBuilder: (context, index) {
+                final ebook = ebooks[index];
+                return Container(
+                  width: 200,
+                  margin: const EdgeInsets.only(right: 12),
+                  child: Card(
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                EbookReaderScreen(ebook: ebook),
+                          ),
+                        );
+                      },
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            height: 140,
+                            color: Colors.grey[300],
+                            child: Center(
+                              child: Icon(
+                                Icons.book,
+                                size: 48,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  ebook.title,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleSmall,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  ebook.author,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall,
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.star,
+                                        size: 14, color: Colors.orange),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '${ebook.rating}',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall,
+                                    ),
+                                    const Spacer(),
+                                    Text(
+                                      '€${ebook.price}',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
           const SizedBox(height: 24),

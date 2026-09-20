@@ -1,8 +1,12 @@
-import dotenv from "dotenv";
-dotenv.config();
+// Environment variables are already loaded by server/config/preload.ts
+// Do not call dotenv.config() again here to avoid overriding test variables
 
 // Enable sandbox fallback ONLY in development/demo environments, disabled in production
-export const ENABLE_SANDBOX_FALLBACK = process.env.NODE_ENV !== "production" && process.env.ENABLE_SANDBOX_FALLBACK === "true";
+// Function instead of constant to ensure evaluation happens at runtime, after preload.ts loads env vars
+export const getSandboxFallbackEnabled = () => process.env.NODE_ENV !== "production" && process.env.ENABLE_SANDBOX_FALLBACK === "true";
+
+// Keep constant for backward compatibility if other modules import it
+export const ENABLE_SANDBOX_FALLBACK = getSandboxFallbackEnabled();
 export const appBaseUrl = (() => {
   let url = process.env.APP_BASE_URL || "https://ais-dev-xmdxh67v3yosfwweey4e65-221304552169.europe-west2.run.app";
   if (!url.startsWith('http')) {

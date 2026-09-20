@@ -1,6 +1,6 @@
 import { Response, NextFunction } from "express";
 import { authAdmin } from "../config/firebaseAdmin";
-import { ENABLE_SANDBOX_FALLBACK } from "../config/env";
+import { getSandboxFallbackEnabled } from "../config/env";
 
 export async function requireAuth(req: any, res: Response, next: NextFunction) {
   try {
@@ -8,9 +8,10 @@ export async function requireAuth(req: any, res: Response, next: NextFunction) {
     const token = authHeader.startsWith("Bearer ")
       ? authHeader.substring(7)
       : null;
+    const sandboxEnabled = getSandboxFallbackEnabled();
 
     if (!token) {
-      if (ENABLE_SANDBOX_FALLBACK) {
+      if (sandboxEnabled) {
         req.user = { uid: "sandbox-demo-user", email: "sandbox@example.com", role: "super_admin" };
         return next();
       }
@@ -21,14 +22,14 @@ export async function requireAuth(req: any, res: Response, next: NextFunction) {
       const decoded = await authAdmin.verifyIdToken(token);
       req.user = decoded;
       return next();
-    } else if (ENABLE_SANDBOX_FALLBACK) {
+    } else if (sandboxEnabled) {
       req.user = { uid: "sandbox-demo-user", email: "sandbox@example.com", role: "super_admin" };
       return next();
     } else {
       return res.status(500).json({ error: "Firebase Authentication service is not initialized." });
     }
   } catch (error: any) {
-    if (ENABLE_SANDBOX_FALLBACK) {
+    if (getSandboxFallbackEnabled()) {
       req.user = { uid: "sandbox-demo-user", email: "sandbox@example.com", role: "super_admin" };
       return next();
     }

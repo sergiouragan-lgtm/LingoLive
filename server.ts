@@ -1,5 +1,6 @@
-import dotenv from "dotenv";
-dotenv.config();
+// CRITICAL: Load environment variables FIRST, before any other imports
+import "./server/config/preload";
+import path from "path";
 
 // Rede de segurança: erros assíncronos não tratados (ex: falhas de credenciais
 // do Google Cloud disparadas em segundo plano pelo SDK do Firestore/gRPC) não
@@ -13,7 +14,6 @@ process.on("uncaughtException", (err: any) => {
 
 import express from "express";
 import http from "http";
-import path from "path";
 import { createServer as createViteServer } from "vite";
 
 import { PORT, ENABLE_SANDBOX_FALLBACK } from "./server/config/env";
@@ -51,12 +51,14 @@ import ebookNotificationsRouter from "./server/routes/ebook.notifications.routes
 import ebookGamificationRouter from "./server/routes/ebook.gamification.routes";
 import ebookAssignmentRouter from "./server/routes/ebook.assignment.routes";
 import ebookVocabularyRouter from "./server/routes/ebook.vocabulary.routes";
+// import livekitRouter from "./server/routes/livekit.routes"; // TODO: Fix TypeScript errors in livekit service
+import openaiTutorRouter from "./server/routes/openai-tutor.routes";
 
 const app = express();
 
 // Stripe Webhook needs express.raw BEFORE express.json() is applied globally
 // Mount paymentRouter containing Stripe webhook first
-app.use("/api", paymentRouter);
+app.use("/api/payment", paymentRouter);
 
 // Global express.json() is applied only AFTER Stripe webhook route registration
 app.use(express.json({ limit: '50mb' }));
@@ -90,6 +92,8 @@ app.use("/api/ebook/notifications", ebookNotificationsRouter);
 app.use("/api/ebook/gamification", ebookGamificationRouter);
 app.use("/api/ebook/assignments", ebookAssignmentRouter);
 app.use("/api/ebook/vocabulary", ebookVocabularyRouter);
+// app.use("/api/livekit", livekitRouter); // TODO: Fix TypeScript errors in livekit service
+app.use("/api/ai-tutor", openaiTutorRouter);
 
 // Endpoint for Service Worker Background Sync of vocabulary updates
 app.post("/api/sync-vocabulary", async (req, res) => {

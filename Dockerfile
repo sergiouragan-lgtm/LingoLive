@@ -1,44 +1,42 @@
-# LingoLIVE IA — Dockerfile de Produção (Multi-Stage)
-#
-# Stage 1 (builder): instala TODAS as dependências (incluindo dev) e compila
-# o frontend (Vite) + backend (esbuild) para dist/.
-# Stage 2 (runtime): imagem final enxuta, só com dependências de produção e
-# os artefactos já compilados — reduz superfície de ataque e tamanho da imagem.
+# Multi-stage Docker build for LingoLive Server
+# Stage 1: Build
+FROM node:20-alpine AS builder
 
-FROM node:22-slim AS builder
 WORKDIR /app
 
+# Install dependencies
 COPY package.json package-lock.json ./
 RUN npm ci
 
+# Copy source and build
 COPY . .
 RUN npm run build
+RUN npm run type-check
 
-# ---------------------------------------------------------------------------
+# Stage 2: Runtime
+FROM node:20-alpine
 
-FROM node:22-slim AS runtime
 WORKDIR /app
+
+# Security: non-root user
+RUN addgroup -g 1001 nodejs && \
+    adduser -S nodejs -u 1001
+
+# Copy built assets from builder
+COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
+COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nodejs:nodejs /app/package*.json ./
+
+# Set environment
 ENV NODE_ENV=production
-
-# Utilizador não-root (boas práticas de segurança de contentores — evita que
-# um processo comprometido dentro do contentor tenha privilégios de root).
-RUN groupadd --system lingolive && useradd --system --gid lingolive lingolive
-
-COPY package.json package-lock.json ./
-RUN npm ci --omit=dev && npm cache clean --force
-
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/firebase-applet-config.json ./firebase-applet-config.json
-
-USER lingolive
-
-EXPOSE 8080
 ENV PORT=8080
 
-# Healthcheck nativo do contentor — permite ao Cloud Run e a orquestradores
-# genéricos (Kubernetes, Docker Swarm) detetar automaticamente um contentor
-# não saudável sem depender só do endpoint externo.
-HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:'+(process.env.PORT||8080)+'/api/service-health/public',(r)=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
+USER nodejs
 
-CMD ["node", "dist/server.cjs"]
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:8080/api/service-health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
+
+CMD ["node", "dist/server.js"]

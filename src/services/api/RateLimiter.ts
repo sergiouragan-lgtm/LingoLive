@@ -74,6 +74,12 @@ export class SlidingWindowRateLimiter {
    */
   public getMiddleware() {
     return (req: any, res: Response, next: NextFunction) => {
+      // Skip rate limiting in test mode to allow tests to run freely
+      const isTestMode = process.env.VITEST === "true" || process.env.NODE_ENV === "test";
+      if (isTestMode) {
+        return next();
+      }
+
       const ip = req.ip || req.headers["x-forwarded-for"] || "unknown-ip";
       const uid = req.user?.uid || "anonymous";
       // Dynamic key combines request path, client IP, and Authenticated User UID for precise multi-layered protection

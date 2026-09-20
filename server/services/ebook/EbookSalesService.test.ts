@@ -12,6 +12,7 @@ vi.mock("../../config/stripe", () => ({
 vi.mock("../../config/env", () => ({
   appBaseUrl: "https://lingolive.example",
   ENABLE_SANDBOX_FALLBACK: false,
+  getSandboxFallbackEnabled: () => false,
 }));
 
 vi.mock("../firestoreSafe.service", () => ({
