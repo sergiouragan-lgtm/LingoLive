@@ -212,6 +212,20 @@ import { performanceTestingService } from "./server/services/performance-testing
 import { testCoverageQualityService } from "./server/services/test-coverage-quality.service";
 import { continuousTestingPipelineService } from "./server/services/continuous-testing-pipeline.service";
 import { testDocumentationBestPracticesService } from "./server/services/test-documentation-best-practices.service";
+import applicationPerformanceMonitoringRouter from "./server/routes/application-performance-monitoring.routes";
+import loggingAggregationRouter from "./server/routes/logging-aggregation.routes";
+import metricsTimeseriesRouter from "./server/routes/metrics-timeseries.routes";
+import distributedTracingRouter from "./server/routes/distributed-tracing.routes";
+import alertingNotificationsRouter from "./server/routes/alerting-notifications.routes";
+import healthChecksUptimeRouter from "./server/routes/health-checks-uptime.routes";
+import performanceOptimizationRouter from "./server/routes/performance-optimization.routes";
+import { applicationPerformanceMonitoringService } from "./server/services/application-performance-monitoring.service";
+import { loggingAggregationService } from "./server/services/logging-aggregation.service";
+import { metricsTimeseriesService } from "./server/services/metrics-timeseries.service";
+import { distributedTracingService } from "./server/services/distributed-tracing.service";
+import { alertingNotificationsService } from "./server/services/alerting-notifications.service";
+import { healthChecksUptimeService } from "./server/services/health-checks-uptime.service";
+import { performanceOptimizationService } from "./server/services/performance-optimization.service";
 
 const app = express();
 
@@ -477,6 +491,13 @@ app.use("/api/testing/performance", performanceTestingRouter);
 app.use("/api/testing/coverage", testCoverageQualityRouter);
 app.use("/api/testing/pipeline", continuousTestingPipelineRouter);
 app.use("/api/testing/documentation", testDocumentationBestPracticesRouter);
+app.use("/api/monitoring/apm", applicationPerformanceMonitoringRouter);
+app.use("/api/monitoring/logging", loggingAggregationRouter);
+app.use("/api/monitoring/metrics", metricsTimeseriesRouter);
+app.use("/api/monitoring/tracing", distributedTracingRouter);
+app.use("/api/monitoring/alerting", alertingNotificationsRouter);
+app.use("/api/monitoring/health", healthChecksUptimeRouter);
+app.use("/api/monitoring/optimization", performanceOptimizationRouter);
 
 /**
  * @swagger
