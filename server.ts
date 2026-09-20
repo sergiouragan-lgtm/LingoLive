@@ -260,6 +260,16 @@ import { advancedPersonalizationUXService } from "./server/services/advanced-per
 import { enterpriseB2BIntegrationService } from "./server/services/enterprise-b2b-integration.service";
 import { advancedSearchDiscoveryService } from "./server/services/advanced-search-discovery.service";
 import { advancedIntegrationEcosystemService } from "./server/services/advanced-integration-ecosystem.service";
+import advancedAnalyticsReportingRouter from "./server/routes/advanced-analytics-reporting.routes";
+import qualityAssuranceReleaseManagementRouter from "./server/routes/quality-assurance-release-management.routes";
+import advancedPerformanceOptimizationRouter from "./server/routes/advanced-performance-optimization.routes";
+import advancedDataGovernanceRouter from "./server/routes/advanced-data-governance.routes";
+import customerSuccessSupportRouter from "./server/routes/customer-success-support.routes";
+import { advancedAnalyticsReportingService } from "./server/services/advanced-analytics-reporting.service";
+import { qualityAssuranceReleaseManagementService } from "./server/services/quality-assurance-release-management.service";
+import { advancedPerformanceOptimizationService } from "./server/services/advanced-performance-optimization.service";
+import { advancedDataGovernanceService } from "./server/services/advanced-data-governance.service";
+import { customerSuccessSupportService } from "./server/services/customer-success-support.service";
 
 const app = express();
 
@@ -549,6 +559,11 @@ app.use("/api/personalization", advancedPersonalizationUXRouter);
 app.use("/api/enterprise", enterpriseB2BIntegrationRouter);
 app.use("/api/search", advancedSearchDiscoveryRouter);
 app.use("/api/integrations", advancedIntegrationEcosystemRouter);
+app.use("/api/analytics", advancedAnalyticsReportingRouter);
+app.use("/api/qa", qualityAssuranceReleaseManagementRouter);
+app.use("/api/optimization", advancedPerformanceOptimizationRouter);
+app.use("/api/governance", advancedDataGovernanceRouter);
+app.use("/api/support", customerSuccessSupportRouter);
 
 /**
  * @swagger
