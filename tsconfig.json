@@ -30,6 +30,9 @@
     "server/routes/livekit.routes.ts",
     "server/routes/__tests__/livekit.routes.test.ts",
     "src/services/realtime.service.ts",
+    "**/__tests__/**",
+    "**/*.test.ts",
+    "**/*.test.tsx",
     "node_modules/**"
   ]
 }

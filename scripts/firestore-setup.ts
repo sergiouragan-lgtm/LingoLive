@@ -6,12 +6,12 @@ import * as path from 'path';
 const serviceAccountPath = process.env.FIREBASE_ADMIN_KEY_PATH || './firebase-key.json';
 const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf-8'));
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
+(admin as any).initializeApp({
+  credential: (admin as any).credential.cert(serviceAccount),
   projectId: process.env.FIREBASE_PROJECT_ID,
 });
 
-const db = admin.firestore();
+const db = (admin as any).firestore();
 
 interface CollectionSchema {
   name: string;
@@ -216,7 +216,7 @@ async function setupCollections() {
       const docRef = db.collection(collection.name).doc('_schema');
       await docRef.set(
         {
-          created: admin.firestore.FieldValue.serverTimestamp(),
+          created: (admin as any).firestore.FieldValue.serverTimestamp(),
           description: `${collection.name} collection`,
         },
         { merge: true }
