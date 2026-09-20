@@ -11,7 +11,7 @@ RUN npm ci
 # Copy source and build
 COPY . .
 RUN npm run build
-RUN npm run type-check
+RUN npm run typecheck
 
 # Stage 2: Runtime
 FROM node:20-alpine
