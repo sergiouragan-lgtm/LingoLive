@@ -122,6 +122,16 @@ import { mlModelsService } from "./server/services/ml-models.service";
 import { realtimeDashboardService } from "./server/services/realtime-dashboard.service";
 import { biIntegrationService } from "./server/services/bi-integration.service";
 import { recommendationsService } from "./server/services/recommendations.service";
+import deepLearningRouter from "./server/routes/deep-learning.routes";
+import modelServingRouter from "./server/routes/model-serving.routes";
+import anomalyInterpretabilityRouter from "./server/routes/anomaly-interpretability.routes";
+import advancedBIIntegrationRouter from "./server/routes/advanced-bi-integrations.routes";
+import federatedLearningRouter from "./server/routes/federated-learning.routes";
+import { deepLearningService } from "./server/services/deep-learning.service";
+import { modelServingService } from "./server/services/model-serving.service";
+import { anomalyInterpretabilityService } from "./server/services/anomaly-interpretability.service";
+import { advancedBIIntegrationService } from "./server/services/advanced-bi-integrations.service";
+import { federatedLearningService } from "./server/services/federated-learning.service";
 
 const app = express();
 
@@ -342,6 +352,11 @@ app.use("/api/ml-models", mlModelsRouter);
 app.use("/api/realtime-dashboard", realtimeDashboardRouter);
 app.use("/api/bi-integration", biIntegrationRouter);
 app.use("/api/recommendations", recommendationsRouter);
+app.use("/api/deep-learning", deepLearningRouter);
+app.use("/api/model-serving", modelServingRouter);
+app.use("/api/anomaly-interpretability", anomalyInterpretabilityRouter);
+app.use("/api/advanced-bi-integrations", advancedBIIntegrationRouter);
+app.use("/api/federated-learning", federatedLearningRouter);
 
 /**
  * @swagger
