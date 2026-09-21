@@ -1,7 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { AppView } from "../../types";
 import { Shield, ArrowLeft, Lock, FileText, CheckCircle2, Eye, Trash2, Globe, Heart, AlertCircle, FileCheck, Mail } from "lucide-react";
 import { motion } from "motion/react";
+import { auth } from "../../firebase";
+import { useAnalytics } from "../../hooks/useAnalytics";
+import { useMonitoring } from "../../hooks/useMonitoring";
 
 interface PrivacyPolicyProps {
   setView: (view: AppView) => void;
@@ -12,12 +15,56 @@ export function PrivacyPolicy({ setView, previousView = "landing" }: PrivacyPoli
   const [activeTab, setActiveTab] = useState<"general" | "gdpr" | "lgpd" | "cookies">("general");
   const [deletionEmail, setDeletionEmail] = useState("");
   const [deletionStatus, setDeletionStatus] = useState<"idle" | "success" | "error">("idle");
+  const userId = auth.currentUser?.uid || "";
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent("privacy_policy_viewed", {
+        previousView: previousView,
+        complianceType: "privacy"
+      });
+    }
+  }, [userId, previousView, trackEvent]);
+
+  const handleTabChange = (tabId: string) => {
+    if (userId) {
+      trackEvent("privacy_policy_tab_changed", {
+        tabId: tabId,
+        previousTab: activeTab
+      });
+    }
+    setActiveTab(tabId as any);
+  };
+
+  const handleBackClick = () => {
+    if (userId) {
+      trackEvent("privacy_policy_back_clicked", {
+        activeTab: activeTab,
+        returnTo: previousView
+      });
+    }
+    setView(previousView);
+  };
 
   const handleRequestDeletion = (e: React.FormEvent) => {
     e.preventDefault();
     if (!deletionEmail || !deletionEmail.includes("@")) {
+      if (userId) {
+        trackEvent("privacy_data_deletion_requested_invalid", {
+          status: "invalid_email",
+          email: deletionEmail
+        });
+      }
       setDeletionStatus("error");
       return;
+    }
+    if (userId) {
+      trackEvent("privacy_data_deletion_requested", {
+        status: "success",
+        email: deletionEmail
+      });
     }
     // Simulate deletion request storage / event dispatch
     setDeletionStatus("success");
@@ -34,7 +81,7 @@ export function PrivacyPolicy({ setView, previousView = "landing" }: PrivacyPoli
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setView(previousView)}
+              onClick={handleBackClick}
               className="p-2 rounded-lg hover:bg-slate-900 text-slate-400 hover:text-white transition-all flex items-center gap-2 text-sm font-semibold cursor-pointer border border-slate-900 hover:border-slate-800"
               id="privacy-policy-back-btn"
             >
@@ -87,7 +134,7 @@ export function PrivacyPolicy({ setView, previousView = "landing" }: PrivacyPoli
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => handleTabChange(tab.id as string)}
                 className={`py-3 px-4 rounded-xl border font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 cursor-pointer ${
                   isActive
                     ? "border-indigo-500 bg-indigo-500/10 text-white shadow-lg shadow-indigo-500/5 ring-1 ring-indigo-500"
