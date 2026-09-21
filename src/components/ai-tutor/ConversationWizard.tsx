@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { 
-  Sparkles, 
-  Play, 
-  Volume2, 
-  Briefcase, 
-  Coffee, 
-  Map as MapIcon, 
-  MessageCircle, 
-  Activity, 
+import {
+  Sparkles,
+  Play,
+  Volume2,
+  Briefcase,
+  Coffee,
+  Map as MapIcon,
+  MessageCircle,
+  Activity,
   Hotel,
-  Check, 
+  Check,
   Loader2,
   Mic,
   AlertTriangle
@@ -17,6 +17,8 @@ import {
 import { doc, getDoc } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "../../firebase";
 import { useToast } from "../../context/ToastContext";
+import { useAnalytics } from "../../hooks/useAnalytics";
+import { useMonitoring } from "../../hooks/useMonitoring";
 import { Language, Proficiency, AgeGroup, Scenario, Voice } from "../../types";
 import { SCENARIOS, VOICES } from "../../data";
 import { SmartProfile } from "../../profile/types";
@@ -151,6 +153,9 @@ export const ConversationWizard: React.FC<ConversationWizardProps> = ({
   onStartSession
 }) => {
   const { addToast } = useToast();
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [loadingProfile, setLoadingProfile] = useState<boolean>(!propSmartProfile && Boolean(userId));
   const [studentAge, setStudentAge] = useState<number | null>(null);
   const [fetchedProfile, setFetchedProfile] = useState<SmartProfile | Partial<SmartProfile> | null>(null);
@@ -179,6 +184,15 @@ export const ConversationWizard: React.FC<ConversationWizardProps> = ({
   const [scenario, setScenario] = useState<Scenario>(SCENARIOS[0]);
   const [voice, setVoice] = useState<Voice>(VOICES[0]);
   const [isPlayingPreview, setIsPlayingPreview] = useState<string | null>(null);
+
+  // Lifecycle tracking
+  useEffect(() => {
+    if (userId) {
+      trackEvent('conversation_wizard_accessed', {
+        hasSmartProfile: !!propSmartProfile,
+      });
+    }
+  }, [userId, trackEvent, propSmartProfile]);
 
   // Load profile from Firestore if not supplied or missing fields
   useEffect(() => {
@@ -369,6 +383,16 @@ export const ConversationWizard: React.FC<ConversationWizardProps> = ({
 
     if (typeof window !== "undefined") {
       localStorage.setItem("lingolive_last_tutor_language", language.code);
+    }
+
+    if (userId) {
+      trackEvent('conversation_wizard_session_started', {
+        language: language.code,
+        proficiency,
+        ageGroup,
+        scenario: scenario.id,
+        voice: voice.name,
+      });
     }
 
     onStartSession({
