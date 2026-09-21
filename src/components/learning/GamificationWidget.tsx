@@ -1,8 +1,11 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Sparkles, Trophy, AlertTriangle, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { UserGamificationState } from '../../types/gamification';
 import { useLocalization } from '../../context/LocalizationContext';
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 interface GamificationWidgetProps {
   data?: UserGamificationState | null;
@@ -12,6 +15,19 @@ interface GamificationWidgetProps {
 
 export const GamificationWidget: React.FC<GamificationWidgetProps> = ({ data, isLoading, isError }) => {
   const { translateMessage } = useLocalization();
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId && data) {
+      trackEvent('gamification_widget_displayed', {
+        xp: data.xp ?? 0,
+        level: data.level ?? 1,
+        widgetType: 'gamification_stats'
+      });
+    }
+  }, [userId, data, trackEvent]);
 
   if (isLoading) {
     return (
