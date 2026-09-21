@@ -7,7 +7,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { db, auth } from '../../../firebase';
 import {
-  collection, doc, query, onSnapshot, Timestamp
+  collection, doc, query, onSnapshot, Timestamp, writeBatch
 } from 'firebase/firestore';
 import { CloudFunctionService } from '../../../services/CloudFunctionService';
 

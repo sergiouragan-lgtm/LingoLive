@@ -223,7 +223,7 @@ export const ClassroomManager: React.FC<ClassroomManagerProps> = ({
         const response = await CloudFunctionService.updateClassroom(editingId, {
           name: formData.name,
           teacherUid: formData.teacherUid,
-          schoolId
+          classroomId: editingId
         });
 
         if (!response.success) {

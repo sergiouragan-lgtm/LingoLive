@@ -7,7 +7,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { db, auth } from '../../../firebase';
 import {
-  collection, doc, query, onSnapshot, Timestamp
+  collection, doc, query, onSnapshot, Timestamp, writeBatch
 } from 'firebase/firestore';
 import { CloudFunctionService } from '../../../services/CloudFunctionService';
 
@@ -159,8 +159,7 @@ export const TeacherManager: React.FC<TeacherManagerProps> = ({
 
     setLoading(true);
     try {
-      const teacherPayload: Partial<any> = {
-        schoolId,
+      const basePayload = {
         name: formData.name,
         email: formData.email,
         languages: formData.subjects
@@ -174,7 +173,7 @@ export const TeacherManager: React.FC<TeacherManagerProps> = ({
         const response = await CloudFunctionService.updateTeacher(
           schoolId,
           editingId,
-          teacherPayload
+          basePayload
         );
 
         if (!response.success) {
@@ -185,7 +184,10 @@ export const TeacherManager: React.FC<TeacherManagerProps> = ({
         // Create new teacher via Cloud Function
         const response = await CloudFunctionService.createTeacher(
           schoolId,
-          teacherPayload
+          {
+            schoolId,
+            ...basePayload
+          }
         );
 
         if (!response.success) {
