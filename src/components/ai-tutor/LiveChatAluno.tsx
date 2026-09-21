@@ -5,9 +5,14 @@ import { Clock, Sparkles, Volume2 } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../firebase';
 import { useLocalization } from '../../context/LocalizationContext';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 export default function LiveChatAluno() {
   const { localization } = useLocalization();
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
   const [mensagem, setMensagem] = useState('');
   const [messages, setMessages] = useState<{ id: string, text: string, audioBase64?: string }[]>([]);
   const [status, setStatus] = useState('Pronto para falar');
@@ -16,6 +21,15 @@ export default function LiveChatAluno() {
   const [isBetaExpired, setIsBetaExpired] = useState(() => {
     return localStorage.getItem("lingolive_beta_expired_chat") === "true";
   });
+
+  // Lifecycle tracking
+  useEffect(() => {
+    if (userId) {
+      trackEvent('live_chat_aluno_accessed', {
+        localization,
+      });
+    }
+  }, [userId, trackEvent, localization]);
 
   // Persist beta expiration
   useEffect(() => {
@@ -45,11 +59,19 @@ export default function LiveChatAluno() {
     setCarregando(true);
     setStatus('A IA está a pensar...');
 
+    if (userId) {
+      trackEvent('live_chat_message_sent', {
+        messageLength: mensagem.length,
+        messagesCount: messages.length,
+        elapsedSeconds: tempoDecorrido,
+      });
+    }
+
     try {
       const idToken = await auth.currentUser?.getIdToken();
       const response = await fetch('/api/ia-live', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           ...(idToken ? { 'Authorization': `Bearer ${idToken}` } : {})
         },
@@ -65,7 +87,7 @@ export default function LiveChatAluno() {
 
       if (response.ok) {
         setStatus(`IA disse: "${dados.respostaAI}"`);
-        
+
         const newMessage = {
           id: Date.now().toString(),
           text: dados.respostaAI,
@@ -73,7 +95,14 @@ export default function LiveChatAluno() {
         };
 
         setMessages(prev => [...prev, newMessage]);
-        
+
+        if (userId) {
+          trackEvent('ai_response_received', {
+            responseLength: dados.respostaAI.length,
+            hasAudio: !!dados.audioBase64,
+          });
+        }
+
         // REPRODUÇÃO DE ÁUDIO
         if (dados.audioBase64) {
           const audio = new Audio(`data:audio/mp3;base64,${dados.audioBase64}`);
@@ -81,12 +110,23 @@ export default function LiveChatAluno() {
         }
       } else {
         setStatus('Erro ao obter resposta.');
+        if (userId) {
+          trackEvent('ai_response_failed', {
+            statusCode: response.status,
+          });
+        }
       }
     } catch (error) {
       console.error('Erro no pipeline de voz:', error);
       setStatus('Erro de conexão.');
+      if (userId) {
+        trackEvent('live_chat_error', {
+          errorMessage: String(error),
+        });
+      }
     } finally {
       setCarregando(false);
+      setMensagem('');
     }
   };
 

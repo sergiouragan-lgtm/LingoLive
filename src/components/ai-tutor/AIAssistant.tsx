@@ -1,16 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MessageSquare, Sparkles, Send, Minus, Maximize2 } from 'lucide-react';
 import { useLocalization } from '../../context/LocalizationContext';
 import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 export const AIAssistant: React.FC<{ userId?: string }> = () => {
   const { localization } = useLocalization();
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [messages, setMessages] = useState<{ role: 'user' | 'assistant', text: string }[]>([
     { role: 'assistant', text: 'Olá! Sou o seu Professor Virtual. Como posso ajudar você hoje? Posso traduzir frases ou explicar conceitos.' }
   ]);
   const [input, setInput] = useState('');
   const [isMinimized, setIsMinimized] = useState(true);
   const [loading, setLoading] = useState(false);
+
+  // Lifecycle tracking
+  useEffect(() => {
+    if (userId && !isMinimized) {
+      trackEvent('ai_assistant_opened', {
+        initialMessagesCount: messages.length,
+      });
+    }
+  }, [isMinimized, userId, trackEvent, messages.length]);
 
   // Dynamic user profile loading
   const profile = (() => {
@@ -26,28 +41,37 @@ export const AIAssistant: React.FC<{ userId?: string }> = () => {
 
   const handleSend = async (task: 'explain' | 'translate' | 'correct' | 'example' | 'chat' | 'roleplay' | 'lesson' = 'chat') => {
     if (!input.trim() && task === 'chat') return;
-    
+
     const userMessage = { role: 'user' as const, text: input || 'Ajude-me' };
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
     setInput('');
     setLoading(true);
 
+    if (userId) {
+      trackEvent('ai_assistant_message_sent', {
+        task,
+        messageLength: userMessage.text.length,
+        messagesCount: newMessages.length,
+        level: profile?.level || 'A1',
+      });
+    }
+
     try {
       const idToken = await auth.currentUser?.getIdToken();
       if (!idToken) throw new Error('AUTH_REQUIRED');
       const response = await fetch('/api/learning-interaction', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           ...(idToken ? { 'Authorization': `Bearer ${idToken}` } : {})
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           message: userMessage.text,
           task: task,
           context: {
-            level: profile?.level || 'A1', 
-            languageLearning: [profile?.learningLanguage || 'English'], 
+            level: profile?.level || 'A1',
+            languageLearning: [profile?.learningLanguage || 'English'],
             languageNative: profile?.nativeLanguage || 'Portuguese',
             localization: localization,
             age: profile?.age || 25,
@@ -65,8 +89,20 @@ export const AIAssistant: React.FC<{ userId?: string }> = () => {
         throw new Error(data.error || 'LEARNING_INTERACTION_FAILED');
       }
       setMessages(prev => [...prev, { role: 'assistant' as const, text: data.response }]);
+      if (userId) {
+        trackEvent('ai_assistant_response_received', {
+          task,
+          responseLength: data.response.length,
+        });
+      }
     } catch (err) {
       setMessages(prev => [...prev, { role: 'assistant', text: 'Desculpe, não consegui processar isso agora.' }]);
+      if (userId) {
+        trackEvent('ai_assistant_error', {
+          task,
+          errorMessage: String(err),
+        });
+      }
     } finally {
       setLoading(false);
     }
