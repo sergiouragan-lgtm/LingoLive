@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Coins, Flame, Gamepad2, ShoppingBag, UserCog, ClipboardList, 
-  Sparkles, CheckCircle, Lock, Compass, GraduationCap, ShieldCheck, 
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
+import {
+  Coins, Flame, Gamepad2, ShoppingBag, UserCog, ClipboardList,
+  Sparkles, CheckCircle, Lock, Compass, GraduationCap, ShieldCheck,
   Eye, Volume2, Gem, Type, ArrowRight, Play, RotateCw, Check, XCircle
 } from 'lucide-react';
 import { gamificationService } from '../../services/gamification';
@@ -15,7 +18,9 @@ interface JogosModuleProps {
 
 export const JogosModule: React.FC<JogosModuleProps> = ({ onAddXp }) => {
   const { addToast } = useToast();
-  const userId = 'student-test-user'; // fallback or active user id
+  const userId = auth.currentUser?.uid || 'student-test-user'; // fallback or active user id
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
 
   // Gamification state
   const [gameState, setGameState] = useState<UserGamificationState | null>(null);
@@ -54,14 +59,28 @@ export const JogosModule: React.FC<JogosModuleProps> = ({ onAddXp }) => {
 
   useEffect(() => {
     loadGamificationData();
-  }, []);
+    if (userId && userId !== 'student-test-user') {
+      trackEvent('jogos_module_viewed', {
+        moduleName: 'Jogos Module',
+        moduleType: 'games_system'
+      });
+    }
+  }, [userId, trackEvent]);
 
   // Sync / Action Helpers
   const handleXpAward = async (amount: number, reason: string) => {
     if (!gameState) return;
     const res = await gamificationService.addXp(userId, amount, reason);
     if (onAddXp) onAddXp(amount);
-    
+
+    if (userId && userId !== 'student-test-user') {
+      trackEvent('xp_awarded', {
+        amount,
+        reason,
+        gamesModuleType: 'games_system'
+      });
+    }
+
     // Refresh state
     await loadGamificationData();
   };
@@ -75,6 +94,13 @@ export const JogosModule: React.FC<JogosModuleProps> = ({ onAddXp }) => {
 
   // --- GAME 1: WORD MATCH ENGINE ---
   const startWordMatch = () => {
+    if (userId && userId !== 'student-test-user') {
+      trackEvent('word_match_game_started', {
+        gameType: 'word_match',
+        gamesModuleType: 'games_system'
+      });
+    }
+
     const rawPairs = [
       { pt: 'Bom dia', en: 'Good morning' },
       { pt: 'Obrigado', en: 'Thank you' },

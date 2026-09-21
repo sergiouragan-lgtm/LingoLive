@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Trophy, Flame, Shield, Award, Sparkles, ClipboardList, Mic, CircleDollarSign, 
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
+import {
+  Trophy, Flame, Shield, Award, Sparkles, ClipboardList, Mic, CircleDollarSign,
   ChevronRight, Calendar, Users, Star, ArrowUpRight, Check, Compass, GraduationCap, ShieldCheck, Gamepad2, Volume2, Gem, Eye
 } from 'lucide-react';
 import { gamificationService } from '../../services/gamification';
@@ -14,7 +17,9 @@ interface RankingModuleProps {
 
 export const RankingModule: React.FC<RankingModuleProps> = ({ onAddXp }) => {
   const { addToast } = useToast();
-  const userId = 'student-test-user';
+  const userId = auth.currentUser?.uid || 'student-test-user';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
 
   // State
   const [activeLeague, setActiveLeague] = useState<'bronze' | 'silver' | 'gold' | 'diamond'>('bronze');
@@ -48,7 +53,14 @@ export const RankingModule: React.FC<RankingModuleProps> = ({ onAddXp }) => {
 
   useEffect(() => {
     loadRankingData();
-  }, [activeLeague]);
+    if (userId && userId !== 'student-test-user') {
+      trackEvent('ranking_module_viewed', {
+        moduleName: 'Arena de Campeões',
+        moduleType: 'ranking_system',
+        activeLeague
+      });
+    }
+  }, [activeLeague, userId, trackEvent]);
 
   // Claim achievement reward
   const handleClaimAchievement = async (achId: string) => {
@@ -60,10 +72,19 @@ export const RankingModule: React.FC<RankingModuleProps> = ({ onAddXp }) => {
     // Simulate claiming
     state.xp += ach.rewardXp;
     state.coins += ach.rewardCoins;
-    
+
     // Set progress super high so we don't claim again, or mark as claimed
     state.achievementsProgress[`${achId}_claimed`] = 1;
     await gamificationService['repository'].saveUserState(state);
+
+    if (userId && userId !== 'student-test-user') {
+      trackEvent('achievement_claimed', {
+        achievementId: achId,
+        rewardXp: ach.rewardXp,
+        rewardCoins: ach.rewardCoins,
+        rankingModuleType: 'ranking_system'
+      });
+    }
 
     if (onAddXp) onAddXp(ach.rewardXp);
     addToast(`Recompensa coletada! +${ach.rewardXp} XP e +${ach.rewardCoins} Moedas!`, 'success');
