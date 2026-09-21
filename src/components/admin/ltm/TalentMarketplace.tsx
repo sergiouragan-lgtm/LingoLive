@@ -1,5 +1,8 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Briefcase, UserCheck, Star } from "lucide-react";
+import { auth } from "../../../firebase";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useMonitoring } from "../../../hooks/useMonitoring";
 
 export interface JobOpportunity {
     id: string;
@@ -9,6 +12,19 @@ export interface JobOpportunity {
 }
 
 export const TalentMarketplace = () => {
+    const userId = auth.currentUser?.uid || "";
+    const { trackEvent } = useAnalytics(userId);
+    const { monitors } = useMonitoring();
+
+    useEffect(() => {
+        if (userId) {
+            trackEvent("talent_marketplace_viewed", {
+                dashboardType: "talent_jobs",
+                adminSection: "ltm"
+            });
+        }
+    }, [userId, trackEvent]);
+
     return (
         <div className="p-8 space-y-6">
             <h1 className="text-3xl font-black text-slate-900">Talent Marketplace</h1>

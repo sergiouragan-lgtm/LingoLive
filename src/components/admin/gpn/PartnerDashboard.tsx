@@ -1,8 +1,24 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { motion } from "motion/react";
 import { Building2, UserPlus, BarChart, ShieldCheck } from "lucide-react";
+import { auth } from "../../../firebase";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useMonitoring } from "../../../hooks/useMonitoring";
 
 export const PartnerDashboard = () => {
+  const userId = auth.currentUser?.uid || "";
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent("partner_dashboard_viewed", {
+        dashboardType: "partnership_network",
+        adminSection: "gpn"
+      });
+    }
+  }, [userId, trackEvent]);
+
   return (
     <motion.div
       initial={{ opacity: 0 }}

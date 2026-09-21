@@ -1,8 +1,24 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { motion } from "motion/react";
 import { CheckCircle, ShieldCheck } from "lucide-react";
+import { auth } from "../../../firebase";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useMonitoring } from "../../../hooks/useMonitoring";
 
 export const TrustCenter = () => {
+  const userId = auth.currentUser?.uid || "";
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent("trust_center_viewed", {
+        dashboardType: "platform_trust",
+        adminSection: "sicp"
+      });
+    }
+  }, [userId, trackEvent]);
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
