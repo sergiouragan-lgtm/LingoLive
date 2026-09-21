@@ -1,6 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { User, Users, GraduationCap, School, BookOpen } from 'lucide-react';
 import { motion } from 'motion/react';
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 interface RoleSelectionProps {
   onSelect: (role: string) => void;
@@ -19,6 +22,35 @@ const ROLES = [
 ];
 
 export const RoleSelection: React.FC<RoleSelectionProps> = ({ onSelect, onBack, currentRole }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('role_selection_viewed', {
+        currentRole,
+      });
+    }
+  }, [userId, trackEvent, currentRole]);
+
+  const handleSelectRole = (roleId: string) => {
+    if (userId) {
+      trackEvent('role_selected', {
+        roleId,
+        roleName: ROLES.find(r => r.id === roleId)?.label || 'unknown',
+      });
+    }
+    onSelect(roleId);
+  };
+
+  const handleBackClick = () => {
+    if (userId) {
+      trackEvent('role_selection_back_clicked', {});
+    }
+    onBack();
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
@@ -36,7 +68,7 @@ export const RoleSelection: React.FC<RoleSelectionProps> = ({ onSelect, onBack, 
           <button
             key={role.id}
             type="button"
-            onClick={() => onSelect(role.id)}
+            onClick={() => handleSelectRole(role.id)}
             className={`p-4 rounded-xl border flex flex-col items-center gap-3 transition-all ${
               currentRole === role.id
                 ? 'bg-indigo-500/20 border-indigo-500 text-indigo-300'
@@ -52,7 +84,7 @@ export const RoleSelection: React.FC<RoleSelectionProps> = ({ onSelect, onBack, 
       <div className="flex items-center gap-3 pt-4">
         <button
           type="button"
-          onClick={onBack}
+          onClick={handleBackClick}
           className="flex-1 py-3 border border-slate-700 hover:bg-slate-800 text-slate-300 rounded-xl text-xs font-semibold cursor-pointer transition-colors"
         >
           Voltar
