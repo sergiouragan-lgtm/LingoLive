@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Users,
@@ -14,6 +14,9 @@ import {
   CheckCircle2,
   AlertCircle,
 } from 'lucide-react';
+import { auth } from '../../../firebase';
+import { useAnalytics } from '../../../hooks/useAnalytics';
+import { useMonitoring } from '../../../hooks/useMonitoring';
 import { useRealtimeSync } from '@/hooks/useRealtimeSync';
 
 interface Teacher {
@@ -63,10 +66,24 @@ interface SchoolPortalProps {
 type TabType = 'teachers' | 'classes' | 'students' | 'analytics' | 'settings';
 
 export const SchoolPortal: React.FC<SchoolPortalProps> = ({ schoolId, schoolName, role }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [activeTab, setActiveTab] = useState<TabType>('teachers');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterOpen, setFilterOpen] = useState(false);
   const [selectedLevel, setSelectedLevel] = useState<string>('');
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('school_portal_accessed', {
+        schoolId,
+        schoolName,
+        userRole: role,
+      });
+    }
+  }, [userId, trackEvent, schoolId, schoolName, role]);
 
   const { data: teachers, isLoading: teachersLoading } = useRealtimeSync<Teacher[]>(
     `schools/${schoolId}/teachers`,
@@ -133,8 +150,23 @@ export const SchoolPortal: React.FC<SchoolPortalProps> = ({ schoolId, schoolName
       link.href = url;
       link.download = `school-report-${Date.now()}.${format === 'pdf' ? 'pdf' : 'csv'}`;
       link.click();
+
+      if (userId) {
+        trackEvent('school_portal_report_exported', {
+          format,
+          exportType: 'enrollment',
+          fileSize: blob.size,
+          userRole: role,
+        });
+      }
     } catch (error) {
       console.error('Export failed:', error);
+      if (userId) {
+        trackEvent('school_portal_export_failed', {
+          format,
+          userRole: role,
+        });
+      }
     }
   };
 
@@ -149,7 +181,16 @@ export const SchoolPortal: React.FC<SchoolPortalProps> = ({ schoolId, schoolName
               <p className="text-sm text-gray-500 dark:text-gray-400">Portal de Gestão Escolar</p>
             </div>
             {role === 'admin' && (
-              <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 flex items-center gap-2">
+              <button
+                onClick={() => {
+                  if (userId) {
+                    trackEvent('school_portal_add_resource_clicked', {
+                      resourceType: 'general',
+                    });
+                  }
+                }}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 flex items-center gap-2"
+              >
                 <Plus className="w-4 h-4" />
                 Adicionar Recurso
               </button>
@@ -212,7 +253,15 @@ export const SchoolPortal: React.FC<SchoolPortalProps> = ({ schoolId, schoolName
             {(['teachers', 'classes', 'students', 'analytics', 'settings'] as const).map((tab) => (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab)}
+                onClick={() => {
+                  setActiveTab(tab);
+                  if (userId) {
+                    trackEvent('school_portal_tab_clicked', {
+                      tabName: tab,
+                      userRole: role,
+                    });
+                  }
+                }}
                 className={`whitespace-nowrap pb-2 px-3 font-medium text-sm transition-colors ${
                   activeTab === tab
                     ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400'
@@ -246,12 +295,28 @@ export const SchoolPortal: React.FC<SchoolPortalProps> = ({ schoolId, schoolName
                   type="text"
                   placeholder="Buscar professores..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    if (userId && e.target.value) {
+                      trackEvent('school_portal_search_performed', {
+                        searchTab: 'teachers',
+                        searchQuery: e.target.value,
+                        resultsCount: filteredTeachers.length,
+                      });
+                    }
+                  }}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-indigo-500"
                 />
               </div>
               {role === 'admin' && (
-                <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    if (userId) {
+                      trackEvent('school_portal_add_teacher_clicked', {});
+                    }
+                  }}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 flex items-center gap-2"
+                >
                   <Plus className="w-4 h-4" />
                   Novo Professor
                 </button>
@@ -332,12 +397,29 @@ export const SchoolPortal: React.FC<SchoolPortalProps> = ({ schoolId, schoolName
                   type="text"
                   placeholder="Buscar turmas..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    if (userId && e.target.value) {
+                      trackEvent('school_portal_search_performed', {
+                        searchTab: 'classes',
+                        searchQuery: e.target.value,
+                        resultsCount: filteredClasses.length,
+                      });
+                    }
+                  }}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-indigo-500"
                 />
               </div>
               <button
-                onClick={() => setFilterOpen(!filterOpen)}
+                onClick={() => {
+                  setFilterOpen(!filterOpen);
+                  if (userId) {
+                    trackEvent('school_portal_filter_toggled', {
+                      tab: 'classes',
+                      filterOpen: !filterOpen,
+                    });
+                  }
+                }}
                 className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 text-gray-700 dark:text-gray-300"
               >
                 <Filter className="w-4 h-4" />
@@ -358,7 +440,15 @@ export const SchoolPortal: React.FC<SchoolPortalProps> = ({ schoolId, schoolName
                     </label>
                     <select
                       value={selectedLevel}
-                      onChange={(e) => setSelectedLevel(e.target.value)}
+                      onChange={(e) => {
+                        setSelectedLevel(e.target.value);
+                        if (userId) {
+                          trackEvent('school_portal_level_filter_changed', {
+                            selectedLevel: e.target.value,
+                            matchingClasses: e.target.value ? filteredClasses.filter(c => c.level === e.target.value).length : filteredClasses.length,
+                          });
+                        }
+                      }}
                       className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:border-indigo-500"
                     >
                       <option value="">Todos os níveis</option>
