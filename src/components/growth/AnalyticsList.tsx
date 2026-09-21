@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../../firebase';
+import { db, auth, handleFirestoreError, OperationType } from '../../firebase';
 import { BarChart3 } from 'lucide-react';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 interface Analytic {
     id: string;
@@ -13,8 +15,17 @@ interface Analytic {
 }
 
 export default function AnalyticsList() {
+    const userId = auth.currentUser?.uid || '';
+    const { trackEvent } = useAnalytics(userId);
+    const { monitors } = useMonitoring();
     const [analytics, setAnalytics] = useState<Analytic[]>([]);
     const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (userId) {
+            trackEvent('analytics_list_viewed', { initialLoad: true });
+        }
+    }, [userId, trackEvent]);
 
     useEffect(() => {
         const q = query(collection(db, 'analytics'), orderBy('timestamp', 'desc'), limit(10));
@@ -22,9 +33,15 @@ export default function AnalyticsList() {
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Analytic));
             setAnalytics(data);
             setError(null);
+            if (userId) {
+                trackEvent('analytics_list_data_loaded', { analyticsCount: data.length });
+            }
         }, (err) => {
             console.error("Firestore error:", err);
             setError("Sem permissão para carregar os dados.");
+            if (userId) {
+                trackEvent('analytics_list_load_error', {});
+            }
             try {
                 handleFirestoreError(err, OperationType.LIST, 'analytics');
             } catch (handledErr) {
@@ -32,7 +49,7 @@ export default function AnalyticsList() {
             }
         });
         return unsubscribe;
-    }, []);
+    }, [userId, trackEvent]);
 
     return (
         <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
