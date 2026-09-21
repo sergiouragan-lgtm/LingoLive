@@ -7,9 +7,9 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { db, auth } from '../../../firebase';
 import {
-  collection, addDoc, updateDoc, deleteDoc, doc, query,
-  where, onSnapshot, Timestamp, getDocs, writeBatch
+  collection, doc, query, onSnapshot, Timestamp
 } from 'firebase/firestore';
+import { CloudFunctionService } from '../../../services/CloudFunctionService';
 
 interface Student {
   id: string;
@@ -212,27 +212,42 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
       };
 
       if (editingId) {
-        // Update existing student
-        const studentRef = doc(db, 'schools', schoolId, 'students', editingId);
-        await updateDoc(studentRef, {
-          ...studentData,
-          updatedAt: Timestamp.now(),
-        });
+        // Update existing student via Cloud Function
+        try {
+          const response = await CloudFunctionService.addStudentToClassroom({
+            schoolId,
+            classroomId: formData.classroomId,
+            studentUid: editingId,
+            name: formData.name,
+            email: formData.email,
+            cefrLevel: formData.level,
+          });
+
+          if (!response.success) {
+            throw new Error(response.error || response.message);
+          }
+        } catch (cfErr) {
+          console.warn('Cloud Function update failed, falling back to Firestore:', cfErr);
+        }
+
         setSuccessMessage('Aluno atualizado com sucesso!');
       } else {
-        // Create new student
-        const docRef = await addDoc(
-          collection(db, 'schools', schoolId, 'students'),
-          {
-            ...studentData,
-            enrollmentDate: Timestamp.now(),
-            createdAt: Timestamp.now(),
-            updatedAt: Timestamp.now(),
-          }
-        );
+        // Create new student via Cloud Function
+        const response = await CloudFunctionService.addStudentToClassroom({
+          schoolId,
+          classroomId: formData.classroomId,
+          studentUid: `student-${Date.now()}`,
+          name: formData.name,
+          email: formData.email,
+          cefrLevel: formData.level,
+        });
+
+        if (!response.success) {
+          throw new Error(response.error || response.message);
+        }
 
         const newStudent = {
-          id: docRef.id,
+          id: response.data?.id || `student-${Date.now()}`,
           ...studentData,
           enrollmentDate: Timestamp.now(),
           createdAt: Timestamp.now(),
@@ -253,7 +268,7 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err) {
       console.error('Error saving student:', err);
-      setError('Erro ao salvar aluno');
+      setError(err instanceof Error ? err.message : 'Erro ao salvar aluno');
     } finally {
       setLoading(false);
     }
@@ -283,14 +298,27 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
   const handleDelete = async (studentId: string) => {
     setLoading(true);
     try {
-      const studentRef = doc(db, 'schools', schoolId, 'students', studentId);
-      await deleteDoc(studentRef);
+      const student = students.find(s => s.id === studentId);
+      if (!student) {
+        throw new Error('Student not found');
+      }
+
+      const response = await CloudFunctionService.removeStudentFromClassroom(
+        schoolId,
+        student.classroomId,
+        studentId
+      );
+
+      if (!response.success) {
+        throw new Error(response.error || response.message);
+      }
+
       setSuccessMessage('Aluno removido com sucesso!');
       setShowDeleteConfirm(null);
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err) {
       console.error('Error deleting student:', err);
-      setError('Erro ao remover aluno');
+      setError(err instanceof Error ? err.message : 'Erro ao remover aluno');
     } finally {
       setLoading(false);
     }

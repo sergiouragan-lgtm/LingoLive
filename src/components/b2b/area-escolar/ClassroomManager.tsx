@@ -10,6 +10,7 @@ import {
   collection, addDoc, updateDoc, deleteDoc, doc, query,
   where, onSnapshot, Timestamp, getDocs, writeBatch
 } from 'firebase/firestore';
+import { CloudFunctionService } from '../../../services/CloudFunctionService';
 
 // Types
 interface Classroom {
@@ -217,62 +218,41 @@ export const ClassroomManager: React.FC<ClassroomManagerProps> = ({
 
     setLoading(true);
     try {
-      const classroomData = {
-        name: formData.name,
-        grade: formData.grade,
-        section: formData.section,
-        language: formData.language,
-        level: formData.level,
-        teacherUid: formData.teacherUid,
-        capacity: formData.capacity,
-        enrolledCount: editingId ? undefined : 0,
-        schedule: {
-          startTime: formData.startTime,
-          endTime: formData.endTime,
-          days: formData.days,
-          room: formData.room
-        },
-        curriculum: {
-          primaryLanguage: formData.language,
-          topics: formData.topics.split(',').map(t => t.trim()).filter(t => t),
-          materials: []
-        },
-        updatedAt: Timestamp.now(),
-        ...(editingId ? {} : { createdAt: Timestamp.now() })
-      };
-
       if (editingId) {
-        // Update
-        await updateDoc(doc(db, 'schools', schoolId, 'classrooms', editingId), classroomData);
+        // Update via Cloud Function
+        const response = await CloudFunctionService.updateClassroom(editingId, {
+          name: formData.name,
+          teacherUid: formData.teacherUid,
+          schoolId
+        });
+
+        if (!response.success) {
+          throw new Error(response.message || 'Erro ao atualizar turma');
+        }
+
         setSuccessMessage(`Turma ${formData.name} atualizada com sucesso!`);
         setEditingId(null);
       } else {
-        // Create
-        const docRef = await addDoc(
-          collection(db, 'schools', schoolId, 'classrooms'),
-          classroomData
-        );
+        // Create via Cloud Function
+        const response = await CloudFunctionService.createClassroom({
+          schoolId,
+          name: formData.name,
+          teacherUid: formData.teacherUid
+        });
 
-        // Notify teacher via email
-        try {
-          const teacher = teachers.find(t => t.uid === formData.teacherUid);
-          if (teacher) {
-            // In production, call Cloud Function to send email
-            console.log(`Email sent to ${teacher.email}: New classroom ${formData.name}`);
-          }
-        } catch (err) {
-          console.error('Error notifying teacher:', err);
+        if (!response.success) {
+          throw new Error(response.message || 'Erro ao criar turma');
         }
 
         setSuccessMessage(`Turma ${formData.name} criada com sucesso!`);
-        onClassroomCreated?.(classroomData as unknown as Classroom);
+        onClassroomCreated?.(response.data as unknown as Classroom);
       }
 
       setFormData(initialFormData);
       setShowForm(false);
     } catch (err) {
       console.error('Error saving classroom:', err);
-      setError('Erro ao salvar turma. Tente novamente.');
+      setError(err instanceof Error ? err.message : 'Erro ao salvar turma. Tente novamente.');
     } finally {
       setLoading(false);
     }

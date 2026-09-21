@@ -7,9 +7,9 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { db, auth } from '../../../firebase';
 import {
-  collection, addDoc, updateDoc, deleteDoc, doc, query,
-  where, onSnapshot, Timestamp, getDocs, writeBatch
+  collection, doc, query, onSnapshot, Timestamp
 } from 'firebase/firestore';
+import { CloudFunctionService } from '../../../services/CloudFunctionService';
 
 interface Teacher {
   id: string;
@@ -159,51 +159,57 @@ export const TeacherManager: React.FC<TeacherManagerProps> = ({
 
     setLoading(true);
     try {
-      const subjectsArray = formData.subjects
-        .split(',')
-        .map(s => s.trim())
-        .filter(s => s);
-
-      const specializationsArray = formData.specializations
-        .split(',')
-        .map(s => s.trim())
-        .filter(s => s);
-
-      const teacherData = {
+      const teacherPayload: Partial<any> = {
+        schoolId,
         name: formData.name,
         email: formData.email,
-        phone: formData.phone,
-        subjects: subjectsArray,
-        certifications: formData.certifications,
-        yearsOfExperience: formData.yearsOfExperience,
-        status: formData.status,
-        hireDate: formData.hireDate,
-        specializations: specializationsArray,
-        bio: formData.bio,
+        languages: formData.subjects
+          .split(',')
+          .map(s => s.trim())
+          .filter(s => s),
       };
 
       if (editingId) {
-        // Update existing teacher
-        const teacherRef = doc(db, 'schools', schoolId, 'teachers', editingId);
-        await updateDoc(teacherRef, {
-          ...teacherData,
-          updatedAt: Timestamp.now(),
-        });
-        setSuccessMessage('Professor atualizado com sucesso!');
-      } else {
-        // Create new teacher
-        const docRef = await addDoc(
-          collection(db, 'schools', schoolId, 'teachers'),
-          {
-            ...teacherData,
-            createdAt: Timestamp.now(),
-            updatedAt: Timestamp.now(),
-          }
+        // Update existing teacher via Cloud Function
+        const response = await CloudFunctionService.updateTeacher(
+          schoolId,
+          editingId,
+          teacherPayload
         );
 
+        if (!response.success) {
+          throw new Error(response.error || response.message);
+        }
+        setSuccessMessage('Professor atualizado com sucesso!');
+      } else {
+        // Create new teacher via Cloud Function
+        const response = await CloudFunctionService.createTeacher(
+          schoolId,
+          teacherPayload
+        );
+
+        if (!response.success) {
+          throw new Error(response.error || response.message);
+        }
+
         const newTeacher = {
-          id: docRef.id,
-          ...teacherData,
+          id: response.data?.id || `teacher-${Date.now()}`,
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          subjects: formData.subjects
+            .split(',')
+            .map(s => s.trim())
+            .filter(s => s),
+          certifications: formData.certifications,
+          yearsOfExperience: formData.yearsOfExperience,
+          status: formData.status,
+          hireDate: formData.hireDate,
+          specializations: formData.specializations
+            .split(',')
+            .map(s => s.trim())
+            .filter(s => s),
+          bio: formData.bio,
           createdAt: Timestamp.now(),
           updatedAt: Timestamp.now(),
         } as Teacher;
@@ -222,7 +228,7 @@ export const TeacherManager: React.FC<TeacherManagerProps> = ({
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err) {
       console.error('Error saving teacher:', err);
-      setError('Erro ao salvar professor');
+      setError(err instanceof Error ? err.message : 'Erro ao salvar professor');
     } finally {
       setLoading(false);
     }
@@ -250,14 +256,21 @@ export const TeacherManager: React.FC<TeacherManagerProps> = ({
   const handleDelete = async (teacherId: string) => {
     setLoading(true);
     try {
-      const teacherRef = doc(db, 'schools', schoolId, 'teachers', teacherId);
-      await deleteDoc(teacherRef);
+      const response = await CloudFunctionService.deleteTeacher(
+        schoolId,
+        teacherId
+      );
+
+      if (!response.success) {
+        throw new Error(response.error || response.message);
+      }
+
       setSuccessMessage('Professor removido com sucesso!');
       setShowDeleteConfirm(null);
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err) {
       console.error('Error deleting teacher:', err);
-      setError('Erro ao remover professor');
+      setError(err instanceof Error ? err.message : 'Erro ao remover professor');
     } finally {
       setLoading(false);
     }
