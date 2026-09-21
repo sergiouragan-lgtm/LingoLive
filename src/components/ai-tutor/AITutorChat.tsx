@@ -1,6 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Send, Mic, Square, MessageCircle, BookOpen, Lightbulb, CheckCircle2 } from 'lucide-react';
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 import { useRealtimeSync } from '@/hooks/useRealtimeSync';
 
 interface Message {
@@ -44,6 +47,10 @@ export const AITutorChat: React.FC<AITutorChatProps> = ({
   sessionId,
   onClose,
 }) => {
+  const authUserId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(authUserId);
+  const { monitors } = useMonitoring();
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -53,6 +60,17 @@ export const AITutorChat: React.FC<AITutorChatProps> = ({
   const chunksRef = useRef<Blob[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [session, setSession] = useState<TutorSession | null>(null);
+
+  // Track chat session opened
+  useEffect(() => {
+    if (authUserId) {
+      trackEvent('ai_tutor_chat_session_opened', {
+        language,
+        level,
+        sessionId: sessionId || 'new',
+      });
+    }
+  }, [authUserId, trackEvent, language, level, sessionId]);
 
   // Use the hook with collection path and handle the returned array
   const { data: sessions } = useRealtimeSync<TutorSession>(
@@ -127,6 +145,16 @@ export const AITutorChat: React.FC<AITutorChatProps> = ({
       const { transcribed, feedback, confidence } = await response.json();
       setTranscript(transcribed);
 
+      // Track pronunciation check
+      if (authUserId) {
+        trackEvent('ai_tutor_pronunciation_checked', {
+          language,
+          level,
+          confidence: confidence || 0,
+          transcribedLength: transcribed?.length || 0,
+        });
+      }
+
       const feedbackMessage: Message = {
         id: Date.now().toString(),
         role: 'tutor',
@@ -178,6 +206,17 @@ export const AITutorChat: React.FC<AITutorChatProps> = ({
 
       const { reply, type, metadata, suggestions } = await response.json();
 
+      // Track message sent
+      if (authUserId) {
+        trackEvent('ai_tutor_message_sent', {
+          language,
+          level,
+          messageLength: text.length,
+          messageType: type || 'text',
+          hasSuggestions: !!suggestions && suggestions.length > 0,
+        });
+      }
+
       const tutorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'tutor',
@@ -219,6 +258,18 @@ export const AITutorChat: React.FC<AITutorChatProps> = ({
     return (await (window as any).auth?.currentUser?.getIdToken?.()) || '';
   };
 
+  const handleClose = useCallback(() => {
+    if (authUserId) {
+      trackEvent('ai_tutor_chat_closed', {
+        language,
+        level,
+        messageCount: messages.length,
+        sessionDuration: session ? Date.now() - session.startedAt : 0,
+      });
+    }
+    onClose?.();
+  }, [authUserId, trackEvent, language, level, messages.length, session, onClose]);
+
   return (
     <div className="flex flex-col h-full bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-800">
       {/* Header */}
@@ -237,7 +288,7 @@ export const AITutorChat: React.FC<AITutorChatProps> = ({
           </div>
           {onClose && (
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
             >
               ✕
