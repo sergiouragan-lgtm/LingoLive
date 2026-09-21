@@ -8,6 +8,8 @@ import { motion, AnimatePresence } from "motion/react";
 import { auth, db } from "../../../firebase";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { useToast } from "../../../context/ToastContext";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useMonitoring } from "../../../hooks/useMonitoring";
 
 interface Ebook {
   id: string;
@@ -53,6 +55,9 @@ export const EbooksMarketplace: React.FC<{
 }> = ({ setView }) => {
   const { addToast } = useToast();
   const user = auth.currentUser;
+  const userId = user?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTab, setSelectedTab] = useState<"browse" | "purchases" | "wishlist">("browse");
@@ -201,6 +206,40 @@ export const EbooksMarketplace: React.FC<{
     return () => unsubscribe();
   }, [user]);
 
+  // Track marketplace viewed
+  useEffect(() => {
+    if (userId) {
+      trackEvent('ebook_marketplace_viewed', {
+        availableEbooksCount: 5,
+      });
+    }
+  }, [userId, trackEvent]);
+
+  // Track tab changes
+  useEffect(() => {
+    if (userId) {
+      trackEvent('ebook_marketplace_tab_changed', {
+        tab: selectedTab,
+        purchasesCount: userPurchases.length,
+        wishlistCount: wishlist.length,
+      });
+    }
+  }, [selectedTab, userId, trackEvent, userPurchases.length, wishlist.length]);
+
+  // Track filter/search changes
+  useEffect(() => {
+    if (userId && (searchQuery || Object.values(filters).some(f => (Array.isArray(f) ? f.length > 0 : f !== 0 && f[0] !== 0)))) {
+      trackEvent('ebook_marketplace_filters_applied', {
+        searchQuery: searchQuery.length > 0 ? 'yes' : 'no',
+        levelFilters: filters.level.length,
+        languageFilters: filters.language.length,
+        minRating: filters.minRating,
+        skillFilters: filters.skills.length,
+        sortBy,
+      });
+    }
+  }, [searchQuery, filters, sortBy, userId, trackEvent]);
+
   // Filter and sort ebooks
   const filteredEbooks = useMemo(() => {
     let result = ebooksData.filter(book => {
@@ -266,12 +305,35 @@ export const EbooksMarketplace: React.FC<{
 
     if (isPurchased) {
       addToast(`Você já possui "${book.title}". Acesse na aba Minhas Compras.`, "info");
+      if (userId) {
+        trackEvent('ebook_purchase_attempted_already_owned', {
+          ebookId: book.id,
+          title: book.title,
+        });
+      }
       return;
+    }
+
+    if (userId) {
+      trackEvent('ebook_purchase_initiated', {
+        ebookId: book.id,
+        title: book.title,
+        price: book.price,
+        level: book.level,
+        language: book.language,
+      });
     }
 
     addToast(`Processando compra de "${book.title}"...`, "info");
     setTimeout(() => {
       addToast(`Livro adquirido com sucesso! Comece a ler agora.`, "success");
+      if (userId) {
+        trackEvent('ebook_purchase_completed', {
+          ebookId: book.id,
+          title: book.title,
+          price: book.price,
+        });
+      }
       // In production: call payment API to create Stripe charge
     }, 1500);
   };
@@ -280,9 +342,19 @@ export const EbooksMarketplace: React.FC<{
     if (wishlist.includes(bookId)) {
       setWishlist(wishlist.filter(id => id !== bookId));
       addToast("Removido da lista de desejos", "success");
+      if (userId) {
+        trackEvent('ebook_wishlist_removed', {
+          ebookId: bookId,
+        });
+      }
     } else {
       setWishlist([...wishlist, bookId]);
       addToast("Adicionado à lista de desejos", "success");
+      if (userId) {
+        trackEvent('ebook_wishlist_added', {
+          ebookId: bookId,
+        });
+      }
     }
   };
 
