@@ -1,19 +1,22 @@
 import React, { useState, useEffect, useRef } from "react";
-import { 
-  Search, 
-  X, 
-  BookOpen, 
-  Mic, 
-  Compass, 
-  User, 
-  Settings, 
-  GraduationCap, 
-  Bookmark, 
-  ArrowRight, 
+import {
+  Search,
+  X,
+  BookOpen,
+  Mic,
+  Compass,
+  User,
+  Settings,
+  GraduationCap,
+  Bookmark,
+  ArrowRight,
   Calendar,
   Sparkles
 } from "lucide-react";
 import { SavedWord, Language } from "../../types";
+import { auth } from "../../firebase";
+import { useAnalytics } from "../../hooks/useAnalytics";
+import { useMonitoring } from "../../hooks/useMonitoring";
 
 interface GlobalSearchProps {
   savedWords?: SavedWord[];
@@ -38,6 +41,9 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
   setView,
   variant = "topbar"
 }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -181,8 +187,49 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
   }
 
   const handleClear = () => {
+    if (userId && query) {
+      trackEvent('global_search_cleared', {
+        queryLength: query.length,
+        variant: variant,
+        searchType: 'manual_clear'
+      });
+    }
     setQuery("");
     inputRef.current?.focus();
+  };
+
+  const handleSearchOpen = () => {
+    if (userId) {
+      trackEvent('global_search_opened', {
+        variant: variant,
+        hasQuery: !!query,
+        currentQueryLength: query.length
+      });
+    }
+    setIsOpen(true);
+  };
+
+  const handleQueryChange = (newQuery: string) => {
+    if (userId && newQuery.trim() !== '') {
+      trackEvent('global_search_query_entered', {
+        queryLength: newQuery.length,
+        variant: variant,
+        trimmedQuery: newQuery.trim().substring(0, 50)
+      });
+    }
+    setQuery(newQuery);
+    setIsOpen(true);
+  };
+
+  const handleResultClick = (resultType: string, resultTitle: string) => {
+    if (userId) {
+      trackEvent('global_search_result_clicked', {
+        resultType: resultType,
+        resultTitle: resultTitle.substring(0, 100),
+        queryUsed: query,
+        variant: variant
+      });
+    }
   };
 
   const isSidebar = variant === "sidebar";
@@ -204,11 +251,8 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
           }`}
           placeholder={isSidebar ? "Pesquisar páginas, aulas, professores..." : "Buscar vocabulário, sessões ou áreas... (Ctrl+K)"}
           value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setIsOpen(true);
-          }}
-          onFocus={() => setIsOpen(true)}
+          onChange={(e) => handleQueryChange(e.target.value)}
+          onFocus={handleSearchOpen}
         />
         {query && (
           <button
@@ -263,7 +307,10 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
               return (
                 <div
                   key={index}
-                  onClick={item.action}
+                  onClick={() => {
+                    handleResultClick(item.type, item.title);
+                    item.action();
+                  }}
                   className="px-4 py-3 hover:bg-slate-50/80 cursor-pointer transition-all flex items-start gap-3.5 group"
                 >
                   <div className={`p-2 rounded-xl shrink-0 ${bgClass}`}>
