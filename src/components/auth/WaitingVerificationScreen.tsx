@@ -1,16 +1,18 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { db, auth } from "../../firebase";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { signOut, User } from "firebase/auth";
-import { 
-  Mail, 
-  CheckCircle2, 
-  RefreshCw, 
-  LogOut, 
-  Sparkles, 
-  ShieldAlert 
+import {
+  Mail,
+  CheckCircle2,
+  RefreshCw,
+  LogOut,
+  Sparkles,
+  ShieldAlert
 } from "lucide-react";
 import { motion } from "motion/react";
+import { useAnalytics } from "../../hooks/useAnalytics";
+import { useMonitoring } from "../../hooks/useMonitoring";
 
 interface WaitingVerificationScreenProps {
   user: User;
@@ -18,19 +20,33 @@ interface WaitingVerificationScreenProps {
   onVerified: (updatedProfile: any) => void;
 }
 
-export const WaitingVerificationScreen: React.FC<WaitingVerificationScreenProps> = ({ 
-  user, 
-  userProfile, 
-  onVerified 
+export const WaitingVerificationScreen: React.FC<WaitingVerificationScreenProps> = ({
+  user,
+  userProfile,
+  onVerified
 }) => {
+  const { trackEvent } = useAnalytics(user.uid);
+  const { monitors } = useMonitoring();
+
   const [isVerifying, setIsVerifying] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+  // Lifecycle tracking
+  useEffect(() => {
+    trackEvent('waiting_verification_screen_accessed', {
+      userEmail: user.email || '',
+    });
+  }, [user.uid, trackEvent, user.email]);
 
   const handleSimulateVerification = async () => {
     setIsVerifying(true);
     setMessage(null);
     try {
+      trackEvent('email_verification_initiated', {
+        userEmail: user.email || '',
+      });
+
       // 1. Simulate API delay
       await new Promise(resolve => setTimeout(resolve, 1500));
 
@@ -53,10 +69,17 @@ export const WaitingVerificationScreen: React.FC<WaitingVerificationScreenProps>
       const cacheKey = `lingolive_user_sub_${user.uid}`;
       localStorage.setItem(cacheKey, JSON.stringify(updatedProfile));
 
+      trackEvent('email_verified', {
+        userEmail: user.email || '',
+      });
+
       // 4. Fire callback to reload app state
       onVerified(updatedProfile);
     } catch (err: any) {
       console.error("Verification error:", err);
+      trackEvent('email_verification_error', {
+        errorMessage: String(err),
+      });
       setMessage({ type: 'error', text: "Erro ao verificar e-mail. Por favor, tente novamente." });
     } finally {
       setIsVerifying(false);
@@ -67,9 +90,21 @@ export const WaitingVerificationScreen: React.FC<WaitingVerificationScreenProps>
     setIsResending(true);
     setMessage(null);
     try {
+      trackEvent('verification_email_resend_initiated', {
+        userEmail: user.email || '',
+      });
+
       await new Promise(resolve => setTimeout(resolve, 1200));
+
+      trackEvent('verification_email_resent', {
+        userEmail: user.email || '',
+      });
+
       setMessage({ type: 'success', text: "E-mail de verificação reenviado com sucesso para " + user.email });
     } catch (err) {
+      trackEvent('verification_email_resend_error', {
+        errorMessage: String(err),
+      });
       setMessage({ type: 'error', text: "Não foi possível reenviar o e-mail no momento." });
     } finally {
       setIsResending(false);

@@ -1,10 +1,28 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useToast } from '../../context/ToastContext';
 import { Trophy, CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 export const ToastContainer: React.FC = () => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
   const { toasts, removeToast } = useToast();
+
+  useEffect(() => {
+    toasts.forEach(toast => {
+      if (userId) {
+        trackEvent('toast_displayed', {
+          type: toast.type,
+          title: toast.title,
+          messageLength: toast.message.length
+        });
+      }
+    });
+  }, [toasts, userId, trackEvent]);
 
   const getToastStyle = (type: string) => {
     switch (type) {
@@ -64,8 +82,16 @@ export const ToastContainer: React.FC = () => {
                   {toast.message}
                 </p>
               </div>
-              <button 
-                onClick={() => removeToast(toast.id)} 
+              <button
+                onClick={() => {
+                  if (userId) {
+                    trackEvent('toast_dismissed', {
+                      type: toast.type,
+                      title: toast.title
+                    });
+                  }
+                  removeToast(toast.id);
+                }}
                 className="text-slate-400 hover:text-slate-600 shrink-0 self-start p-0.5 rounded-full hover:bg-slate-100 transition-colors"
                 aria-label="Close notification"
               >

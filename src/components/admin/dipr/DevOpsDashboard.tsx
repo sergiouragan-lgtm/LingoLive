@@ -1,9 +1,25 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { motion } from "motion/react";
 import { Server, Activity, GitCommit, AlertTriangle } from "lucide-react";
 import { DevOpsPipeline } from "./DevOpsPipeline";
+import { auth } from "../../../firebase";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useMonitoring } from "../../../hooks/useMonitoring";
 
 export const DevOpsDashboard = () => {
+  const userId = auth.currentUser?.uid || "";
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent("devops_dashboard_viewed", {
+        dashboardType: "infrastructure_reliability",
+        adminSection: "dipr"
+      });
+    }
+  }, [userId, trackEvent]);
+
   return (
     <motion.div
       initial={{ opacity: 0 }}

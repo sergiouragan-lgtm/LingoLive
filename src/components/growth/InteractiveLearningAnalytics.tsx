@@ -1,33 +1,69 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  AreaChart, Area, 
-  BarChart, Bar, 
-  LineChart, Line, 
-  XAxis, YAxis, 
-  CartesianGrid, Tooltip, 
-  ResponsiveContainer, Legend 
+import {
+  AreaChart, Area,
+  BarChart, Bar,
+  LineChart, Line,
+  XAxis, YAxis,
+  CartesianGrid, Tooltip,
+  ResponsiveContainer, Legend
 } from 'recharts';
-import { 
-  BarChart3, 
-  TrendingUp, 
-  Calendar, 
-  Award, 
-  Clock, 
-  CheckCircle2, 
+import {
+  BarChart3,
+  TrendingUp,
+  Calendar,
+  Award,
+  Clock,
+  CheckCircle2,
   HelpCircle,
   Sliders,
   Sparkles
 } from 'lucide-react';
 import { StreakData } from '../../types';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
+import { auth } from '../../firebase';
 
 interface InteractiveLearningAnalyticsProps {
   streakData: StreakData;
 }
 
 export const InteractiveLearningAnalytics: React.FC<InteractiveLearningAnalyticsProps> = ({ streakData }) => {
+  // Phase 38-45 Hook Integration
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [viewMode, setViewMode] = useState<'daily' | 'weekly'>('daily');
   const [chartStyle, setChartStyle] = useState<'area' | 'bar' | 'line'>('area');
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('learning_analytics_viewed', {
+        timestamp: new Date().toISOString(),
+        streakLength: streakData?.currentStreak || 0,
+        totalPracticeMinutes: streakData?.history?.length ? streakData.history.length * 20 : 0,
+      });
+    }
+  }, [userId, trackEvent, streakData?.currentStreak, streakData?.history?.length]);
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('analytics_view_mode_changed', {
+        viewMode,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }, [viewMode, userId, trackEvent]);
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('analytics_chart_style_changed', {
+        chartStyle,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }, [chartStyle, userId, trackEvent]);
 
   // Load the user's daily goal from localStorage, defaulting to 30 mins
   const dailyGoal = useMemo(() => {

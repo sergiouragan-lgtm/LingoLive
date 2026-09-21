@@ -1,27 +1,30 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Database, 
-  Layers, 
-  TrendingUp, 
-  Play, 
-  Search, 
-  RefreshCw, 
-  CheckCircle, 
-  ShieldAlert, 
-  AlertTriangle, 
-  Terminal, 
-  FileCode, 
-  FileText, 
-  Sparkles, 
-  GitBranch, 
-  EyeOff, 
-  Activity, 
+import {
+  Database,
+  Layers,
+  TrendingUp,
+  Play,
+  Search,
+  RefreshCw,
+  CheckCircle,
+  ShieldAlert,
+  AlertTriangle,
+  Terminal,
+  FileCode,
+  FileText,
+  Sparkles,
+  GitBranch,
+  EyeOff,
+  Activity,
   ArrowRight,
   TrendingDown,
   Lock,
   Cpu,
   Bookmark
 } from 'lucide-react';
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 interface WarehouseTable {
   name: string;
@@ -34,6 +37,9 @@ interface WarehouseTable {
 }
 
 export default function DataWarehouseDashboard() {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
   const [activeTab, setActiveTab] = useState<'lineage' | 'schemas' | 'pipelines' | 'gdpr' | 'ai-train'>('lineage');
   const [searchQuery, setSearchQuery] = useState('');
   const [syncRunning, setSyncRunning] = useState(false);
@@ -57,11 +63,23 @@ export default function DataWarehouseDashboard() {
   ];
 
   useEffect(() => {
+    if (userId) {
+      trackEvent('data_warehouse_dashboard_viewed', {
+        activeTab,
+        hasSearchQuery: !!searchQuery
+      });
+    }
+  }, [userId, trackEvent, activeTab, searchQuery]);
+
+  useEffect(() => {
     setLogs(initialLogs.map(l => `[${new Date().toLocaleTimeString()}] ${l}`));
   }, []);
 
   const triggerPipelineSync = async () => {
     setSyncRunning(true);
+    if (userId) {
+      trackEvent('warehouse_pipeline_sync_initiated', {});
+    }
     setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] 🚀 INGESTION: Running Firestore exported raw snapshot sync...`]);
     await new Promise(resolve => setTimeout(resolve, 1500));
     setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] 📦 Row Count Verified: 15.4k staging entries compiled to Silver layer.`]);
@@ -70,6 +88,11 @@ export default function DataWarehouseDashboard() {
     await new Promise(resolve => setTimeout(resolve, 800));
     setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ✅ DBT Build Complete. Gold dimensional tables fully materialised.`]);
     setSyncRunning(false);
+    if (userId) {
+      trackEvent('warehouse_pipeline_sync_completed', {
+        rowsProcessed: 15400
+      });
+    }
   };
 
   const dbtModelSql = `{{ config(

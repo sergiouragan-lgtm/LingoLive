@@ -4,6 +4,9 @@ import { Lightbulb, X, Sparkles, RefreshCw, GraduationCap, Briefcase, Smile, Hea
 import { EDUCATIONAL_CURIOSITIES, CuriosityTip } from "../../data";
 import { Language } from "../../types";
 import { useAppTheme } from "../../context/ThemeContext";
+import { auth } from "../../firebase";
+import { useAnalytics } from "../../hooks/useAnalytics";
+import { useMonitoring } from "../../hooks/useMonitoring";
 
 interface DailyTipProps {
   selectedLanguage: Language;
@@ -42,7 +45,10 @@ const getLocalDayOfYear = (date: Date): number => {
 
 export const DailyTip: React.FC<DailyTipProps> = ({ selectedLanguage }) => {
   const { theme } = useAppTheme();
-  
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [isDismissed, setIsDismissed] = useState<boolean>(false);
 
   const languageCode = selectedLanguage?.code?.toLowerCase() || "en";
@@ -62,6 +68,18 @@ export const DailyTip: React.FC<DailyTipProps> = ({ selectedLanguage }) => {
     }
   }, [languageCode]);
 
+  // Track when tip is displayed
+  useEffect(() => {
+    if (userId && !isDismissed && list.length > 0) {
+      trackEvent('daily_tip_displayed', {
+        tipIndex: currentIndex,
+        language: selectedLanguage.name,
+        theme: theme,
+        totalTips: list.length
+      });
+    }
+  }, [userId, currentIndex, isDismissed, selectedLanguage, theme, list.length, trackEvent]);
+
   if (list.length === 0) return null;
 
   const tip = list[currentIndex];
@@ -73,11 +91,26 @@ export const DailyTip: React.FC<DailyTipProps> = ({ selectedLanguage }) => {
   const displayText = isKid && tip.kidText ? tip.kidText : tip.text;
 
   const handleNextTip = () => {
-    setCurrentIndex((prev) => (prev + 1) % list.length);
+    const nextIndex = (currentIndex + 1) % list.length;
+    setCurrentIndex(nextIndex);
+    if (userId) {
+      trackEvent('daily_tip_next_viewed', {
+        tipIndex: nextIndex,
+        language: selectedLanguage.name,
+        theme: theme
+      });
+    }
   };
 
   const handleDismiss = () => {
     setIsDismissed(true);
+    if (userId) {
+      trackEvent('daily_tip_dismissed', {
+        tipIndex: currentIndex,
+        language: selectedLanguage.name,
+        theme: theme
+      });
+    }
   };
 
   return (

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   MessageSquare,
@@ -15,6 +15,9 @@ import {
   Eye,
   EyeOff,
 } from 'lucide-react';
+import { auth } from '../../../firebase';
+import { useAnalytics } from '../../../hooks/useAnalytics';
+import { useMonitoring } from '../../../hooks/useMonitoring';
 import { useRealtimeSync } from '@/hooks/useRealtimeSync';
 
 interface ChildProgress {
@@ -82,18 +85,33 @@ export const SchoolParentPortal: React.FC<SchoolParentPortalProps> = ({
   parentId,
   childrenIds,
 }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [activeTab, setActiveTab] = useState<TabType>('progress');
   const [selectedChildId, setSelectedChildId] = useState(childrenIds[0]);
   const [messageInput, setMessageInput] = useState('');
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>('');
   const [showNotificationDetails, setShowNotificationDetails] = useState<string | null>(null);
 
-  const { data: childrenProgress, loading: progressLoading } = useRealtimeSync<ChildProgress[]>(
+  useEffect(() => {
+    if (userId) {
+      trackEvent('parent_portal_view_accessed', {
+        schoolId,
+        parentId,
+        childrenCount: childrenIds.length,
+        initialTab: 'progress',
+      });
+    }
+  }, [userId, trackEvent, schoolId, parentId, childrenIds.length]);
+
+  const { data: childrenProgress, isLoading: progressLoading } = useRealtimeSync<ChildProgress[]>(
     `schools/${schoolId}/children-progress/${parentId}`,
     (data) => data || []
   );
 
-  const { data: messages, loading: messagesLoading } = useRealtimeSync<Message[]>(
+  const { data: messages, isLoading: messagesLoading } = useRealtimeSync<Message[]>(
     `schools/${schoolId}/messages/${parentId}`,
     (data) => data || []
   );
@@ -133,9 +151,23 @@ export const SchoolParentPortal: React.FC<SchoolParentPortalProps> = ({
         }),
       });
 
+      if (userId) {
+        trackEvent('parent_message_sent', {
+          recipientTeacherId: selectedTeacherId,
+          relatedChildId: selectedChildId,
+          messageLength: messageInput.length,
+        });
+      }
+
       setMessageInput('');
     } catch (error) {
       console.error('Failed to send message:', error);
+      if (userId) {
+        trackEvent('parent_message_send_failed', {
+          recipientTeacherId: selectedTeacherId,
+          relatedChildId: selectedChildId,
+        });
+      }
     }
   };
 
@@ -155,8 +187,22 @@ export const SchoolParentPortal: React.FC<SchoolParentPortalProps> = ({
       link.href = url;
       link.download = `report-${reportId}.pdf`;
       link.click();
+
+      if (userId) {
+        trackEvent('parent_report_downloaded', {
+          reportId,
+          childId: selectedChildId,
+          reportSize: blob.size,
+        });
+      }
     } catch (error) {
       console.error('Download failed:', error);
+      if (userId) {
+        trackEvent('parent_report_download_failed', {
+          reportId,
+          childId: selectedChildId,
+        });
+      }
     }
   };
 
@@ -191,7 +237,17 @@ export const SchoolParentPortal: React.FC<SchoolParentPortalProps> = ({
             {childrenProgress?.map((child) => (
               <button
                 key={child.id}
-                onClick={() => setSelectedChildId(child.id)}
+                onClick={() => {
+                  setSelectedChildId(child.id);
+                  if (userId) {
+                    trackEvent('parent_child_selected', {
+                      childId: child.id,
+                      childName: child.name,
+                      childLevel: child.level,
+                      overallProgress: child.overallProgress,
+                    });
+                  }
+                }}
                 className={`px-4 py-2 rounded-lg whitespace-nowrap transition-all ${
                   selectedChildId === child.id
                     ? 'bg-indigo-600 text-white'
@@ -213,7 +269,16 @@ export const SchoolParentPortal: React.FC<SchoolParentPortalProps> = ({
             (tab) => (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab)}
+                onClick={() => {
+                  setActiveTab(tab);
+                  if (userId) {
+                    trackEvent('parent_portal_tab_clicked', {
+                      tabName: tab,
+                      unreadMessageCount: unreadMessages.length,
+                      unreadNotificationCount: unreadNotifications.length,
+                    });
+                  }
+                }}
                 className={`pb-2 px-4 font-medium text-sm transition-colors relative ${
                   activeTab === tab
                     ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400'
@@ -413,7 +478,16 @@ export const SchoolParentPortal: React.FC<SchoolParentPortalProps> = ({
                       messages.map((msg) => (
                         <button
                           key={msg.id}
-                          onClick={() => setSelectedTeacherId(msg.senderId)}
+                          onClick={() => {
+                            setSelectedTeacherId(msg.senderId);
+                            if (userId) {
+                              trackEvent('parent_message_thread_opened', {
+                                teacherId: msg.senderId,
+                                teacherName: msg.senderName,
+                                teacherRole: msg.senderRole,
+                              });
+                            }
+                          }}
                           className={`w-full text-left p-3 rounded-lg transition-colors ${
                             selectedTeacherId === msg.senderId
                               ? 'bg-indigo-100 dark:bg-indigo-900/30 border-l-2 border-indigo-600 dark:border-indigo-400'
@@ -611,11 +685,20 @@ export const SchoolParentPortal: React.FC<SchoolParentPortalProps> = ({
                       key={notification.id}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      onClick={() =>
+                      onClick={() => {
+                        const isExpanding = showNotificationDetails !== notification.id;
                         setShowNotificationDetails(
-                          showNotificationDetails === notification.id ? null : notification.id
-                        )
-                      }
+                          isExpanding ? notification.id : null
+                        );
+                        if (userId) {
+                          trackEvent('parent_notification_toggled', {
+                            notificationId: notification.id,
+                            notificationType: notification.type,
+                            expanded: isExpanding,
+                            childId: notification.childId,
+                          });
+                        }
+                      }}
                       className="bg-white dark:bg-gray-800 border-l-4 border-indigo-600 dark:border-indigo-400 rounded-lg p-4 cursor-pointer hover:shadow-md transition-shadow"
                     >
                       <div className="flex items-start justify-between">
@@ -660,7 +743,16 @@ export const SchoolParentPortal: React.FC<SchoolParentPortalProps> = ({
                         Receber atualizações de progresso
                       </p>
                     </div>
-                    <button className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+                    <button
+                      className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                      onClick={() => {
+                        if (userId) {
+                          trackEvent('parent_email_notifications_clicked', {
+                            setting: 'email_notifications',
+                          });
+                        }
+                      }}
+                    >
                       <Eye className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                     </button>
                   </div>
@@ -672,7 +764,16 @@ export const SchoolParentPortal: React.FC<SchoolParentPortalProps> = ({
                         Controlar quem pode ver informações dos seus filhos
                       </p>
                     </div>
-                    <button className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+                    <button
+                      className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                      onClick={() => {
+                        if (userId) {
+                          trackEvent('parent_data_visibility_clicked', {
+                            setting: 'data_visibility',
+                          });
+                        }
+                      }}
+                    >
                       <Settings className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                     </button>
                   </div>

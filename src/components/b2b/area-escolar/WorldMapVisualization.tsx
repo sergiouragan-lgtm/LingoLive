@@ -1,8 +1,11 @@
-import React, { useState, useMemo } from 'react';
-import { 
-  Globe, Users, BookOpen, MapPin, Sparkles, 
-  TrendingUp, Award, ArrowRight, CheckCircle2, Search, Filter 
+import React, { useState, useMemo, useEffect } from 'react';
+import {
+  Globe, Users, BookOpen, MapPin, Sparkles,
+  TrendingUp, Award, ArrowRight, CheckCircle2, Search, Filter
 } from 'lucide-react';
+import { auth } from '../../../firebase';
+import { useAnalytics } from '../../../hooks/useAnalytics';
+import { useMonitoring } from '../../../hooks/useMonitoring';
 
 interface CountryData {
   id: string;
@@ -193,9 +196,24 @@ interface GeographicIntelligenceMapProps {
 }
 
 export function GeographicIntelligenceMap({ onCountrySelect, selectedCountryName }: GeographicIntelligenceMapProps) {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [selectedLanguage, setSelectedLanguage] = useState<string>('all');
   const [selectedCountry, setSelectedCountry] = useState<CountryData | null>(null);
   const [hoveredCountry, setHoveredCountry] = useState<CountryData | null>(null);
+
+  // Track view access
+  useEffect(() => {
+    if (userId) {
+      trackEvent('geographic_intelligence_map_accessed', {
+        initialLanguageFilter: 'all',
+        totalCountriesAvailable: countriesData.length,
+        totalActiveStudents: countriesData.reduce((sum, c) => sum + c.studentsCount, 0),
+      });
+    }
+  }, [userId, trackEvent]);
 
   // Set default country on load
   React.useEffect(() => {
@@ -286,10 +304,16 @@ export function GeographicIntelligenceMap({ onCountrySelect, selectedCountryName
                       setSelectedCountry(match || null);
                     }
                   }
+                  if (userId) {
+                    trackEvent('geographic_language_filter_changed', {
+                      selectedLanguage: lang,
+                      countriesMatching: lang === 'all' ? countriesData.length : countriesData.filter(c => c.languages.some(l => l.name === lang)).length,
+                    });
+                  }
                 }}
                 className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                  (selectedLanguage === lang) 
-                    ? 'bg-white text-indigo-600 shadow-xs' 
+                  (selectedLanguage === lang)
+                    ? 'bg-white text-indigo-600 shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -436,12 +460,23 @@ export function GeographicIntelligenceMap({ onCountrySelect, selectedCountryName
                 const opacityStyle = matchesLanguage ? 'opacity-100 scale-100' : 'opacity-30 scale-75';
 
                 return (
-                  <g 
+                  <g
                     key={country.id}
                     className={`cursor-pointer transition-all duration-300 ${opacityStyle}`}
                     onClick={() => {
                       setSelectedCountry(country);
                       onCountrySelect?.(country.name);
+                      if (userId) {
+                        trackEvent('geographic_country_selected', {
+                          countryId: country.id,
+                          countryName: country.name,
+                          studentCount: country.studentsCount,
+                          avgGrade: country.avgGrade,
+                          avgAttendance: country.avgAttendance,
+                          languagesOffered: country.languages.length,
+                          currentLanguageFilter: selectedLanguage,
+                        });
+                      }
                     }}
                     onMouseEnter={() => setHoveredCountry(country)}
                     onMouseLeave={() => setHoveredCountry(null)}
@@ -614,6 +649,14 @@ export function GeographicIntelligenceMap({ onCountrySelect, selectedCountryName
             <button
               onClick={() => {
                 alert(`Exportando dossiê de distribuição demográfica de alunos (${selectedCountry?.name || 'Geral'})...`);
+                if (userId) {
+                  trackEvent('geographic_data_export_clicked', {
+                    exportScope: selectedCountry ? 'single_country' : 'all_countries',
+                    selectedCountry: selectedCountry?.name || 'All',
+                    languageFilter: selectedLanguage,
+                    exportTimestamp: new Date().toISOString(),
+                  });
+                }
               }}
               className="w-full flex items-center justify-center gap-2 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold transition-all"
             >

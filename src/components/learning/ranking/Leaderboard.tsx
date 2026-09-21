@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Trophy, Globe, Flag, MapPin, GraduationCap, Users, UserCheck, Flame } from 'lucide-react';
 import { collection, query, where, orderBy, limit, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { db, auth } from '../../../firebase';
+import { useAnalytics } from '../../../hooks/useAnalytics';
+import { useMonitoring } from '../../../hooks/useMonitoring';
 
 type FilterScope = 'mundial' | 'pais' | 'provincia' | 'escola' | 'turma' | 'amigos';
 
@@ -24,11 +26,24 @@ interface LeaderboardProps {
 }
 
 export const Leaderboard: React.FC<LeaderboardProps> = ({ userId: propUserId, userProfile: propUserProfile }) => {
+  const userId = propUserId || auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [activeFilter, setActiveFilter] = useState<FilterScope>('mundial');
   const [rankings, setRankings] = useState<RankingUser[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
   const currentUid = propUserId || auth.currentUser?.uid;
+
+  // Lifecycle tracking
+  useEffect(() => {
+    if (userId) {
+      trackEvent('leaderboard_accessed', {
+        initialFilter: 'mundial',
+      });
+    }
+  }, [userId, trackEvent]);
 
   useEffect(() => {
     let activeUnsubscribes: (() => void)[] = [];
@@ -266,7 +281,15 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ userId: propUserId, us
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveFilter(tab.id)}
+              onClick={() => {
+                if (userId) {
+                  trackEvent('leaderboard_filter_changed', {
+                    newFilter: tab.id,
+                    previousFilter: activeFilter,
+                  });
+                }
+                setActiveFilter(tab.id);
+              }}
               className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl font-bold whitespace-nowrap transition cursor-pointer ${
                 isActive
                   ? 'bg-indigo-600 text-white shadow-sm'

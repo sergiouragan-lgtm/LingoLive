@@ -1,14 +1,31 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Award, Star, Trophy, Target } from 'lucide-react';
 import { Achievement } from '../../../types';
+import { auth } from '../../../firebase';
+import { useAnalytics } from '../../../hooks/useAnalytics';
+import { useMonitoring } from '../../../hooks/useMonitoring';
 
 interface MedalShowcaseProps {
   achievements: Achievement[];
 }
 
 export const MedalShowcase: React.FC<MedalShowcaseProps> = ({ achievements }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   // Filter only unlocked achievements
   const unlocked = achievements.filter(a => a.unlockedAt);
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('medal_showcase_viewed', {
+        totalAchievements: achievements.length,
+        unlockedAchievements: unlocked.length,
+        showcaseType: 'achievements'
+      });
+    }
+  }, [userId, achievements.length, unlocked.length, trackEvent]);
 
   return (
     <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">

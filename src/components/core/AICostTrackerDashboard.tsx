@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { db } from '../../firebase';
+import { db, auth } from '../../firebase';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 interface TokenUsage {
   id: string;
@@ -12,7 +14,18 @@ interface TokenUsage {
 }
 
 export default function AICostTrackerDashboard() {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
   const [data, setData] = useState<TokenUsage[]>([]);
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('ai_cost_tracker_dashboard_viewed', {
+        recordsLoaded: data.length
+      });
+    }
+  }, [userId, trackEvent, data.length]);
 
   useEffect(() => {
     const q = query(collection(db, 'ai_token_usage'), orderBy('timestamp', 'desc'));

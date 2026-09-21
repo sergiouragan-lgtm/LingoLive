@@ -1,0 +1,307 @@
+import fs from 'fs';
+import path from 'path';
+
+// Complete OpenAPI 3.0 specification for LingoLive phases 38-45
+const openAPISpec = {
+  openapi: '3.0.0',
+  info: {
+    title: 'LingoLive API',
+    version: '2.0.0',
+    description: 'Complete API specification for LingoLive platform - Phases 38-45',
+    contact: {
+      name: 'LingoLive Support',
+      email: 'support@lingolive.com',
+    },
+    license: {
+      name: 'MIT',
+      url: 'https://opensource.org/licenses/MIT',
+    },
+  },
+  servers: [
+    {
+      url: 'http://localhost:3000/api',
+      description: 'Development Server',
+    },
+    {
+      url: 'https://api.lingolive.com',
+      description: 'Production Server',
+    },
+    {
+      url: 'https://staging-api.lingolive.com',
+      description: 'Staging Server',
+    },
+  ],
+  paths: {
+    '/workflows': {
+      get: {
+        tags: ['Workflows'],
+        summary: 'List all workflows',
+        operationId: 'listWorkflows',
+        parameters: [
+          { name: 'userId', in: 'query', required: true, schema: { type: 'string' } },
+        ],
+        responses: {
+          200: {
+            description: 'List of workflows',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'array',
+                  items: { $ref: '#/components/schemas/Workflow' },
+                },
+              },
+            },
+          },
+        },
+        security: [{ bearerAuth: [] }],
+      },
+      post: {
+        tags: ['Workflows'],
+        summary: 'Create a new workflow',
+        operationId: 'createWorkflow',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/WorkflowCreate' },
+            },
+          },
+        },
+        responses: {
+          201: {
+            description: 'Workflow created',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/Workflow' },
+              },
+            },
+          },
+        },
+        security: [{ bearerAuth: [] }],
+      },
+    },
+    '/features': {
+      get: {
+        tags: ['Feature Flags'],
+        summary: 'List feature flags',
+        operationId: 'listFeatureFlags',
+        responses: {
+          200: {
+            description: 'List of feature flags',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'array',
+                  items: { $ref: '#/components/schemas/FeatureFlag' },
+                },
+              },
+            },
+          },
+        },
+        security: [{ bearerAuth: [] }],
+      },
+      post: {
+        tags: ['Feature Flags'],
+        summary: 'Create feature flag',
+        operationId: 'createFeatureFlag',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/FeatureFlagCreate' },
+            },
+          },
+        },
+        responses: {
+          201: {
+            description: 'Feature flag created',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/FeatureFlag' },
+              },
+            },
+          },
+        },
+        security: [{ bearerAuth: [] }],
+      },
+    },
+    '/cache/{key}': {
+      get: {
+        tags: ['Caching'],
+        summary: 'Get cached value',
+        operationId: 'getCacheValue',
+        parameters: [{ name: 'key', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: {
+          200: {
+            description: 'Cached value',
+            content: { 'application/json': { schema: { type: 'object' } } },
+          },
+          404: { description: 'Cache key not found' },
+        },
+        security: [{ bearerAuth: [] }],
+      },
+    },
+    '/notifications/user/{userId}': {
+      get: {
+        tags: ['Notifications'],
+        summary: 'Get user notifications',
+        operationId: 'getUserNotifications',
+        parameters: [
+          { name: 'userId', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: {
+          200: {
+            description: 'User notifications',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'array',
+                  items: { $ref: '#/components/schemas/Notification' },
+                },
+              },
+            },
+          },
+        },
+        security: [{ bearerAuth: [] }],
+      },
+    },
+    '/monitoring/dashboard': {
+      get: {
+        tags: ['Monitoring'],
+        summary: 'Get monitoring dashboard',
+        operationId: 'getMonitoringDashboard',
+        responses: {
+          200: {
+            description: 'Dashboard data',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/MonitoringDashboard' },
+              },
+            },
+          },
+        },
+        security: [{ bearerAuth: [] }],
+      },
+    },
+    '/service-health': {
+      get: {
+        tags: ['Health'],
+        summary: 'Get service health status',
+        operationId: 'getServiceHealth',
+        responses: {
+          200: {
+            description: 'Service health',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ServiceHealth' },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+  components: {
+    schemas: {
+      Workflow: {
+        type: 'object',
+        properties: {
+          workflowId: { type: 'string', format: 'uuid' },
+          userId: { type: 'string' },
+          name: { type: 'string' },
+          enabled: { type: 'boolean' },
+          createdAt: { type: 'string', format: 'date-time' },
+        },
+      },
+      WorkflowCreate: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+        },
+        required: ['name'],
+      },
+      FeatureFlag: {
+        type: 'object',
+        properties: {
+          flagId: { type: 'string', format: 'uuid' },
+          name: { type: 'string' },
+          enabled: { type: 'boolean' },
+          rollout: { type: 'number', minimum: 0, maximum: 100 },
+          createdAt: { type: 'string', format: 'date-time' },
+        },
+      },
+      FeatureFlagCreate: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          rollout: { type: 'number', minimum: 0, maximum: 100, default: 100 },
+        },
+        required: ['name'],
+      },
+      Notification: {
+        type: 'object',
+        properties: {
+          notificationId: { type: 'string', format: 'uuid' },
+          userId: { type: 'string' },
+          title: { type: 'string' },
+          message: { type: 'string' },
+          read: { type: 'boolean' },
+          createdAt: { type: 'string', format: 'date-time' },
+        },
+      },
+      MonitoringDashboard: {
+        type: 'object',
+        properties: {
+          timestamp: { type: 'string', format: 'date-time' },
+          metrics: { type: 'array', items: { type: 'object' } },
+        },
+      },
+      ServiceHealth: {
+        type: 'object',
+        properties: {
+          status: { type: 'string', enum: ['healthy', 'degraded', 'unhealthy'] },
+          timestamp: { type: 'string', format: 'date-time' },
+        },
+      },
+      Error: {
+        type: 'object',
+        properties: {
+          code: { type: 'string' },
+          message: { type: 'string' },
+        },
+      },
+    },
+    securitySchemes: {
+      bearerAuth: {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        description: 'Firebase ID token',
+      },
+    },
+  },
+  security: [{ bearerAuth: [] }],
+  tags: [
+    { name: 'Workflows', description: 'Workflow automation (Phase 38)' },
+    { name: 'Caching', description: 'Distributed caching (Phase 39)' },
+    { name: 'Feature Flags', description: 'Feature flag management (Phase 42)' },
+    { name: 'Notifications', description: 'Notification management (Phase 43)' },
+    { name: 'Monitoring', description: 'System monitoring (Phase 44)' },
+    { name: 'Health', description: 'Service health checks' },
+  ],
+};
+
+function saveOpenAPISpec(outputPath = './public/openapi.json') {
+  const outputDir = path.dirname(outputPath);
+
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
+  }
+
+  fs.writeFileSync(outputPath, JSON.stringify(openAPISpec, null, 2));
+  console.log(`✅ OpenAPI specification saved to ${outputPath}`);
+  console.log(`📊 API Documentation available at: /api/docs`);
+  console.log(`🔗 Swagger UI: /api/docs/swagger`);
+}
+
+saveOpenAPISpec();

@@ -1,5 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
+import { auth } from "../../../firebase";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useMonitoring } from "../../../hooks/useMonitoring";
 import { Users, Building, Shield, Activity, DollarSign, Brain, Server, Briefcase, Sparkles, Globe, Store, Code, Key, Zap, Settings, Megaphone, Target, TrendingUp } from "lucide-react";
 import { ExecutiveAICommandCenter } from "./ExecutiveAICommandCenter";
 import { SecurityDashboard } from "../sicp/SecurityDashboard";
@@ -31,7 +34,48 @@ const StatCard = ({ title, value, icon: Icon, color }: any) => (
 );
 
 export const GlobalAdminDashboard = () => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [activeView, setActiveView] = useState<'dashboard' | 'security' | 'devops' | 'ltm' | 'glp' | 'alig' | 'glic' | 'geos' | 'gem' | 'gef' | 'gpn' | 'gctf' | 'gdie' | 'gfmi' | 'gmgi' | 'gcxi'>('dashboard');
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('global_admin_dashboard_viewed', {
+        dashboardName: 'Control Center Enterprise',
+        dashboardType: 'global_admin_system'
+      });
+    }
+  }, [userId, trackEvent]);
+
+  const handleViewChange = (view: typeof activeView) => {
+    setActiveView(view);
+    if (userId) {
+      trackEvent('admin_view_changed', {
+        viewId: view,
+        dashboardType: 'global_admin_system',
+        viewNames: {
+          dashboard: 'Dashboard',
+          security: 'Segurança',
+          devops: 'DevOps',
+          ltm: 'Marketplace',
+          glp: 'Passaporte',
+          alig: 'ALIG',
+          glic: 'GLIC',
+          geos: 'GEOS',
+          gem: 'GEM',
+          gef: 'GEF',
+          gpn: 'GPN',
+          gctf: 'GCTF',
+          gdie: 'GDIE',
+          gfmi: 'GFMI',
+          gmgi: 'GMGI',
+          gcxi: 'GCXI'
+        }
+      });
+    }
+  };
 
   return (
     <motion.div
@@ -42,22 +86,22 @@ export const GlobalAdminDashboard = () => {
       <div className="flex items-center justify-between">
         <h1 className="text-4xl font-black text-slate-900">Control Center Enterprise</h1>
         <div className="flex gap-2">
-            <button onClick={() => setActiveView('dashboard')} className={`px-4 py-2 rounded-lg font-bold text-sm ${activeView === 'dashboard' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>Dashboard</button>
-            <button onClick={() => setActiveView('security')} className={`px-4 py-2 rounded-lg font-bold text-sm ${activeView === 'security' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>Segurança</button>
-            <button onClick={() => setActiveView('devops')} className={`px-4 py-2 rounded-lg font-bold text-sm ${activeView === 'devops' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>DevOps</button>
-            <button onClick={() => setActiveView('ltm')} className={`px-4 py-2 rounded-lg font-bold text-sm ${activeView === 'ltm' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>Marketplace</button>
-            <button onClick={() => setActiveView('glp')} className={`px-4 py-2 rounded-lg font-bold text-sm ${activeView === 'glp' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>Passaporte</button>
-            <button onClick={() => setActiveView('alig')} className={`px-4 py-2 rounded-lg font-bold text-sm ${activeView === 'alig' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>ALIG</button>
-            <button onClick={() => setActiveView('glic')} className={`px-4 py-2 rounded-lg font-bold text-sm ${activeView === 'glic' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>GLIC</button>
-            <button onClick={() => setActiveView('geos')} className={`px-4 py-2 rounded-lg font-bold text-sm ${activeView === 'geos' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>GEOS</button>
-            <button onClick={() => setActiveView('gem')} className={`px-4 py-2 rounded-lg font-bold text-sm ${activeView === 'gem' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>GEM</button>
-            <button onClick={() => setActiveView('gef')} className={`px-4 py-2 rounded-lg font-bold text-sm ${activeView === 'gef' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>GEF</button>
-            <button onClick={() => setActiveView('gpn')} className={`px-4 py-2 rounded-lg font-bold text-sm ${activeView === 'gpn' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>GPN</button>
-            <button onClick={() => setActiveView('gctf')} className={`px-4 py-2 rounded-lg font-bold text-sm ${activeView === 'gctf' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>GCTF</button>
-            <button onClick={() => setActiveView('gdie')} className={`px-4 py-2 rounded-lg font-bold text-sm ${activeView === 'gdie' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>GDIE</button>
-            <button onClick={() => setActiveView('gfmi')} className={`px-4 py-2 rounded-lg font-bold text-sm ${activeView === 'gfmi' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>GFMI</button>
-            <button onClick={() => setActiveView('gmgi')} className={`px-4 py-2 rounded-lg font-bold text-sm ${activeView === 'gmgi' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>GMGI</button>
-            <button onClick={() => setActiveView('gcxi')} className={`px-4 py-2 rounded-lg font-bold text-sm ${activeView === 'gcxi' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>GCXI</button>
+            <button onClick={() => handleViewChange('dashboard')} className={`px-4 py-2 rounded-lg font-bold text-sm ${activeView === 'dashboard' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>Dashboard</button>
+            <button onClick={() => handleViewChange('security')} className={`px-4 py-2 rounded-lg font-bold text-sm ${activeView === 'security' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>Segurança</button>
+            <button onClick={() => handleViewChange('devops')} className={`px-4 py-2 rounded-lg font-bold text-sm ${activeView === 'devops' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>DevOps</button>
+            <button onClick={() => handleViewChange('ltm')} className={`px-4 py-2 rounded-lg font-bold text-sm ${activeView === 'ltm' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>Marketplace</button>
+            <button onClick={() => handleViewChange('glp')} className={`px-4 py-2 rounded-lg font-bold text-sm ${activeView === 'glp' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>Passaporte</button>
+            <button onClick={() => handleViewChange('alig')} className={`px-4 py-2 rounded-lg font-bold text-sm ${activeView === 'alig' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>ALIG</button>
+            <button onClick={() => handleViewChange('glic')} className={`px-4 py-2 rounded-lg font-bold text-sm ${activeView === 'glic' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>GLIC</button>
+            <button onClick={() => handleViewChange('geos')} className={`px-4 py-2 rounded-lg font-bold text-sm ${activeView === 'geos' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>GEOS</button>
+            <button onClick={() => handleViewChange('gem')} className={`px-4 py-2 rounded-lg font-bold text-sm ${activeView === 'gem' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>GEM</button>
+            <button onClick={() => handleViewChange('gef')} className={`px-4 py-2 rounded-lg font-bold text-sm ${activeView === 'gef' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>GEF</button>
+            <button onClick={() => handleViewChange('gpn')} className={`px-4 py-2 rounded-lg font-bold text-sm ${activeView === 'gpn' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>GPN</button>
+            <button onClick={() => handleViewChange('gctf')} className={`px-4 py-2 rounded-lg font-bold text-sm ${activeView === 'gctf' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>GCTF</button>
+            <button onClick={() => handleViewChange('gdie')} className={`px-4 py-2 rounded-lg font-bold text-sm ${activeView === 'gdie' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>GDIE</button>
+            <button onClick={() => handleViewChange('gfmi')} className={`px-4 py-2 rounded-lg font-bold text-sm ${activeView === 'gfmi' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>GFMI</button>
+            <button onClick={() => handleViewChange('gmgi')} className={`px-4 py-2 rounded-lg font-bold text-sm ${activeView === 'gmgi' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>GMGI</button>
+            <button onClick={() => handleViewChange('gcxi')} className={`px-4 py-2 rounded-lg font-bold text-sm ${activeView === 'gcxi' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>GCXI</button>
         </div>
         <div className="bg-emerald-100 text-emerald-800 px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2">
             <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>

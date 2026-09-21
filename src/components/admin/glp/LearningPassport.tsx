@@ -1,8 +1,24 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { motion } from "motion/react";
 import { Award, Languages, Brain } from "lucide-react";
+import { auth } from "../../../firebase";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useMonitoring } from "../../../hooks/useMonitoring";
 
 export const LearningPassport = () => {
+  const userId = auth.currentUser?.uid || "";
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent("learning_passport_viewed", {
+        dashboardType: "learning_credentials",
+        adminSection: "glp"
+      });
+    }
+  }, [userId, trackEvent]);
+
   return (
     <motion.div
       initial={{ opacity: 0 }}

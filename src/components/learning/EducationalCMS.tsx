@@ -1,19 +1,23 @@
 import React, { useState, useEffect } from "react";
-import { 
-  Database, Plus, Search, Filter, CheckCircle, XCircle, Clock, 
-  ArrowLeft, History, Globe, FileText, Image, Video, Volume2, 
-  BookOpen, User, Sparkles, RefreshCw, FileCode, Trash2, Play, 
+import {
+  Database, Plus, Search, Filter, CheckCircle, XCircle, Clock,
+  ArrowLeft, History, Globe, FileText, Image, Video, Volume2,
+  BookOpen, User, Sparkles, RefreshCw, FileCode, Trash2, Play,
   Check, Settings, Layers, Send, Lock, ChevronRight, Eye, AlertCircle
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { db, auth, storage } from "../../firebase";
 import { deleteObject, getDownloadURL, ref, uploadBytes } from "firebase/storage";
-import { 
-  collection, doc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, 
-  query, where, orderBy, limit, Timestamp 
+import {
+  collection, doc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
+  query, where, orderBy, limit, Timestamp
 } from "firebase/firestore";
 import { useToast } from "../../context/ToastContext";
 import { useUserRole } from "../../context/UserRoleContext";
+import { useAnalytics } from "../../hooks/useAnalytics";
+import { useMonitoring } from "../../hooks/useMonitoring";
+import { usePersonalization } from "../../hooks/usePersonalization";
+import { useRecommendations } from "../../hooks/useRecommendations";
 
 // Type definitions for Educational CMS
 interface Course {
@@ -106,6 +110,12 @@ export const EducationalCMS: React.FC = () => {
   const { addToast } = useToast();
   const user = auth.currentUser;
 
+  const userId = user?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+  const { profile } = usePersonalization(userId);
+  const { recommendations } = useRecommendations(userId);
+
   // Active sub-tab in CMS
   const [activeTab, setActiveTab] = useState<"dashboard" | "courses" | "media" | "exercises" | "workflow">("dashboard");
 
@@ -166,6 +176,26 @@ export const EducationalCMS: React.FC = () => {
   // Determine if current user can write content
   const isTeacher = role === "TEACHER" || role === "teacher" || role === "Educator";
   const isAdminUser = role === "SUPER_ADMIN" || role === "PLATFORM_ADMIN" || role === "SCHOOL_ADMIN" || role === "school_admin" || role === "Admin" || user?.email === "sergio.uragan@gmail.com";
+
+  // Track component lifecycle
+  useEffect(() => {
+    if (userId) {
+      trackEvent('cms_accessed', {
+        userRole: role,
+        isTeacher: isTeacher,
+        isAdmin: isAdminUser,
+      });
+    }
+  }, [userId, trackEvent, role]);
+
+  // Track tab changes
+  useEffect(() => {
+    if (userId) {
+      trackEvent('cms_tab_changed', {
+        activeTab,
+      });
+    }
+  }, [activeTab, userId, trackEvent]);
 
   // Load content from persistent collections. Empty collections remain empty.
   useEffect(() => {
@@ -371,6 +401,24 @@ export const EducationalCMS: React.FC = () => {
     });
 
     await handleSave("courses", courseId, updatedCourse, isNew ? "Curso criado com sucesso" : "Curso atualizado com sucesso");
+
+    if (userId) {
+      trackEvent(isNew ? 'course_created' : 'course_updated', {
+        courseId,
+        title: updatedCourse.title,
+        language: updatedCourse.language,
+        cefrLevel: updatedCourse.cefrLevel,
+        status: updatedCourse.status,
+        version: updatedCourse.version,
+      });
+      if (updatedCourse.status === "In Review") {
+        trackEvent('course_submitted_for_review', {
+          courseId,
+          title: updatedCourse.title,
+        });
+      }
+    }
+
     setIsCourseModalOpen(false);
   };
 
@@ -450,6 +498,12 @@ export const EducationalCMS: React.FC = () => {
     } catch (e) {
       addToast("Curso removido localmente", "info");
     }
+
+    if (userId) {
+      trackEvent('course_deleted', {
+        courseId,
+      });
+    }
   };
 
   // Lessons operations
@@ -513,6 +567,16 @@ export const EducationalCMS: React.FC = () => {
     });
 
     await handleSave("lessons", lessonId, updatedLesson, isNew ? "Lição adicionada com sucesso" : "Lição atualizada com sucesso");
+
+    if (userId) {
+      trackEvent(isNew ? 'lesson_created' : 'lesson_updated', {
+        lessonId,
+        courseId: updatedLesson.courseId,
+        title: updatedLesson.title,
+        status: updatedLesson.status,
+      });
+    }
+
     setIsLessonModalOpen(false);
   };
 
@@ -586,6 +650,17 @@ export const EducationalCMS: React.FC = () => {
       const updatedMedia = [newMedia, ...mediaAssets];
       setMediaAssets(updatedMedia);
       updateCache({ courses, lessons, mediaAssets: updatedMedia, exercises, approvalRequests, versionLogs });
+
+      if (userId) {
+        trackEvent('media_uploaded', {
+          mediaId: newMedia.id,
+          title: newMedia.title,
+          type: newMedia.type,
+          fileName: newMedia.fileName,
+          size: newMedia.size,
+        });
+      }
+
       addToast(`Recurso real enviado, analisado e catalogado: ${newMedia.title}`, "success");
       setSelectedMediaFile(null);
       setMediaForm({ type: "pdf" });
@@ -643,6 +718,16 @@ export const EducationalCMS: React.FC = () => {
           versionLogs
         });
 
+        if (userId) {
+          trackEvent('exercises_generated_by_ai', {
+            count: newExercises.length,
+            language: aiGenLanguage,
+            level: aiGenLevel,
+            topic: aiGenTopic,
+            type: aiGenType,
+          });
+        }
+
         addToast(`Sucesso! ${newExercises.length} exercícios reais foram validados e guardados como rascunho.`, "success");
       } else {
         addToast("A API do Gemini retornou uma resposta sem exercícios formatados.", "error");
@@ -692,6 +777,17 @@ export const EducationalCMS: React.FC = () => {
     });
 
     await handleSave("exercises", exId, newEx, "Exercício pedagógico criado");
+
+    if (userId) {
+      trackEvent('exercise_created', {
+        exerciseId: exId,
+        type: newEx.type,
+        difficulty: newEx.difficulty,
+        language: newEx.language,
+        topic: newEx.topic,
+      });
+    }
+
     setIsExerciseModalOpen(false);
     setExerciseForm({ type: "multiple-choice", options: ["", "", "", ""], tags: [] });
   };
@@ -749,6 +845,17 @@ export const EducationalCMS: React.FC = () => {
       status: targetStatus,
       updatedAt: timestamp
     }, `Status do curso alterado para: ${targetStatus}`);
+
+    if (userId) {
+      trackEvent(approve ? 'content_approved' : 'content_rejected', {
+        requestId: req.id,
+        entityId: req.entityId,
+        entityType: req.entityType,
+        entityTitle: req.entityTitle,
+        comments: reviewComment,
+        newStatus: targetStatus,
+      });
+    }
   };
 
   // Searching filters

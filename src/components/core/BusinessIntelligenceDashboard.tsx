@@ -1,28 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  BarChart2, 
-  TrendingUp, 
-  Users, 
-  DollarSign, 
-  Percent, 
-  Building2, 
-  BrainCircuit, 
-  Calendar, 
-  Search, 
-  Download, 
-  RefreshCw, 
-  ChevronRight, 
-  ArrowUpRight, 
-  ArrowDownRight, 
-  PieChart, 
-  Database, 
-  ShieldCheck, 
-  Sparkles, 
-  LineChart, 
+import {
+  BarChart2,
+  TrendingUp,
+  Users,
+  DollarSign,
+  Percent,
+  Building2,
+  BrainCircuit,
+  Calendar,
+  Search,
+  Download,
+  RefreshCw,
+  ChevronRight,
+  ArrowUpRight,
+  ArrowDownRight,
+  PieChart,
+  Database,
+  ShieldCheck,
+  Sparkles,
+  LineChart,
   Filter,
   FileCode,
   Gauge
 } from 'lucide-react';
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 interface MetricCard {
   label: string;
@@ -42,6 +45,9 @@ interface SchoolBIItem {
 }
 
 export default function BusinessIntelligenceDashboard() {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
   const [activeSubTab, setActiveSubTab] = useState<'exec' | 'financial' | 'learning' | 'ai' | 'retention'>('exec');
   const [timeframe, setTimeframe] = useState<'30d' | '90d' | '12m'>('30d');
   const [loading, setLoading] = useState(false);
@@ -64,11 +70,23 @@ export default function BusinessIntelligenceDashboard() {
   ];
 
   useEffect(() => {
+    if (userId) {
+      trackEvent('business_intelligence_dashboard_viewed', {
+        initialTab: activeSubTab,
+        timeframe
+      });
+    }
+  }, [userId, trackEvent, activeSubTab, timeframe]);
+
+  useEffect(() => {
     setBqLogs(initialBqLogs.map(l => `[${new Date().toLocaleTimeString()}] ${l}`));
   }, []);
 
   const runBqPipeline = async () => {
     setBqRunning(true);
+    if (userId) {
+      trackEvent('bi_pipeline_run_initiated', {});
+    }
     setBqLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] 🚀 Manual run initiated. Consolidating Firestore transaction collections into BigQuery...`]);
     await new Promise(resolve => setTimeout(resolve, 1500));
     setBqLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] 📦 Row Count Verified: 14,242 rows integrated into fct_mrr_movements.`]);
@@ -77,6 +95,11 @@ export default function BusinessIntelligenceDashboard() {
     await new Promise(resolve => setTimeout(resolve, 500));
     setBqLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ✓ BI pipeline synchronization complete. Zero discrepancy detected.`]);
     setBqRunning(false);
+    if (userId) {
+      trackEvent('bi_pipeline_run_completed', {
+        rowsProcessed: 14242
+      });
+    }
   };
 
   useEffect(() => {

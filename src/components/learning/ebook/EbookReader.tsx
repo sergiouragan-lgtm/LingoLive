@@ -13,6 +13,8 @@ import {
   X,
 } from "lucide-react";
 import { auth } from "../../../firebase";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useMonitoring } from "../../../hooks/useMonitoring";
 import EbookAIAssistant from "./EbookAIAssistant";
 
 interface Chapter {
@@ -96,6 +98,10 @@ interface EbookReaderProps {
 }
 
 export function EbookReader({ ebookId, onClose }: EbookReaderProps) {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [ebook, setEbook] = useState<Ebook | null>(null);
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
   const [chapterIndex, setChapterIndex] = useState(0);
@@ -105,6 +111,13 @@ export function EbookReader({ ebookId, onClose }: EbookReaderProps) {
   const [toast, setToast] = useState<{ xpGained: number; newBadges: { name: string; icon: string }[] } | null>(null);
   const [prevBadges, setPrevBadges] = useState<string[]>([]);
   const contentRef = useRef<HTMLDivElement>(null);
+  const [lastTrackedIndex, setLastTrackedIndex] = useState(-1);
+
+  // Compute derived state
+  const currentChapter = ebook?.chapters[chapterIndex];
+  const isRead = currentChapter ? !!enrollment?.progress?.[currentChapter.id]?.read : false;
+  const readCount = ebook?.chapters.filter((c) => !!enrollment?.progress?.[c.id]?.read).length ?? 0;
+  const totalChapters = ebook?.chapters.length ?? 0;
 
   // Load ebook + enrollment in parallel
   useEffect(() => {
@@ -117,12 +130,23 @@ export function EbookReader({ ebookId, onClose }: EbookReaderProps) {
         .catch(() => ({ success: true, enrollment: null })),
     ])
       .then(([ebookRes, progressRes]) => {
-        setEbook(ebookRes.ebook);
+        const loadedEbook = ebookRes.ebook;
+        setEbook(loadedEbook);
         setEnrollment(progressRes.enrollment);
+
+        if (userId && loadedEbook) {
+          trackEvent('ebook_reader_opened', {
+            ebookId,
+            title: loadedEbook.title,
+            cefrLevel: loadedEbook.cefrLevel,
+            language: loadedEbook.language,
+            chapterCount: loadedEbook.chapters.length,
+          });
+        }
       })
       .catch(() => setError("Não foi possível carregar o e-book. Tenta novamente."))
       .finally(() => setLoading(false));
-  }, [ebookId]);
+  }, [ebookId, userId, trackEvent]);
 
   // Auto-resume at last unread chapter
   useEffect(() => {
@@ -133,10 +157,40 @@ export function EbookReader({ ebookId, onClose }: EbookReaderProps) {
     if (firstUnread >= 0) setChapterIndex(firstUnread);
   }, [ebook, enrollment]);
 
+  // Track chapter navigation
+  useEffect(() => {
+    if (!ebook || chapterIndex === lastTrackedIndex) return;
+    const currentChapter = ebook.chapters[chapterIndex];
+    if (userId && currentChapter) {
+      trackEvent('ebook_chapter_navigated', {
+        ebookId,
+        chapterIndex,
+        chapterId: currentChapter.id,
+        chapterNumber: currentChapter.number,
+        chapterTitle: currentChapter.title,
+      });
+      setLastTrackedIndex(chapterIndex);
+    }
+  }, [chapterIndex, ebook, userId, trackEvent, ebookId, lastTrackedIndex]);
+
   // Scroll content to top when chapter changes
   useEffect(() => {
     contentRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   }, [chapterIndex]);
+
+  // Track ebook completion
+  useEffect(() => {
+    if (ebook && enrollment && totalChapters > 0 && readCount === totalChapters && readCount > 0) {
+      if (userId) {
+        trackEvent('ebook_completed', {
+          ebookId,
+          title: ebook.title,
+          totalChapters,
+          completionTime: Date.now(),
+        });
+      }
+    }
+  }, [ebook, enrollment, totalChapters, readCount, userId, trackEvent, ebookId]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -145,16 +199,33 @@ export function EbookReader({ ebookId, onClose }: EbookReaderProps) {
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
       if (e.key === "ArrowLeft") setChapterIndex((i) => Math.max(0, i - 1));
       else if (e.key === "ArrowRight") setChapterIndex((i) => Math.min((ebook?.chapters.length ?? 1) - 1, i + 1));
-      else if (e.key === "Escape" && onClose) onClose();
+      else if (e.key === "Escape" && onClose) {
+        if (userId) {
+          trackEvent('ebook_reader_closed', {
+            ebookId,
+            chaptersRead: readCount,
+            totalChapters,
+            closedBy: 'keyboard',
+          });
+        }
+        onClose();
+      }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [ebook, onClose]);
+  }, [ebook, onClose, userId, trackEvent, ebookId, readCount, totalChapters]);
 
-  const currentChapter = ebook?.chapters[chapterIndex];
-  const isRead = currentChapter ? !!enrollment?.progress?.[currentChapter.id]?.read : false;
-  const readCount = ebook?.chapters.filter((c) => !!enrollment?.progress?.[c.id]?.read).length ?? 0;
-  const totalChapters = ebook?.chapters.length ?? 0;
+  const handleClose = useCallback(() => {
+    if (userId) {
+      trackEvent('ebook_reader_closed', {
+        ebookId,
+        chaptersRead: readCount,
+        totalChapters,
+        closedBy: 'button',
+      });
+    }
+    onClose?.();
+  }, [userId, trackEvent, ebookId, readCount, totalChapters, onClose]);
 
   const markRead = useCallback(async () => {
     if (!currentChapter || isRead || marking) return;
@@ -178,6 +249,17 @@ export function EbookReader({ ebookId, onClose }: EbookReaderProps) {
         },
       }));
 
+      // Track chapter marked as read
+      if (userId) {
+        trackEvent('ebook_chapter_marked_read', {
+          ebookId,
+          chapterId: currentChapter.id,
+          chapterNumber: currentChapter.number,
+          xpEarned: 10,
+          newBadgesCount: data.gamification?.badges?.length ?? 0,
+        });
+      }
+
       // Detect new badges for toast
       if (data.gamification) {
         const currentBadgeIds = data.gamification.badges?.map((b) => b.id) ?? [];
@@ -190,7 +272,7 @@ export function EbookReader({ ebookId, onClose }: EbookReaderProps) {
     } finally {
       setMarking(false);
     }
-  }, [currentChapter, isRead, marking, ebookId, prevBadges]);
+  }, [currentChapter, isRead, marking, ebookId, prevBadges, userId, trackEvent]);
 
   if (loading) {
     return (
@@ -207,7 +289,7 @@ export function EbookReader({ ebookId, onClose }: EbookReaderProps) {
         <p className="text-slate-600 dark:text-slate-400">{error ?? "E-book não encontrado."}</p>
         {onClose && (
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm hover:bg-indigo-700"
           >
             Voltar
@@ -225,7 +307,7 @@ export function EbookReader({ ebookId, onClose }: EbookReaderProps) {
       <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-200 dark:border-slate-800 shrink-0">
         {onClose && (
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />

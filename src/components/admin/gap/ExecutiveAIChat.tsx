@@ -1,12 +1,34 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { MessageSquare, Send } from "lucide-react";
+import { auth } from "../../../firebase";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useMonitoring } from "../../../hooks/useMonitoring";
 
 export const ExecutiveAIChat = () => {
   const [messages, setMessages] = useState<{role: 'user'|'assistant', text: string}[]>([]);
   const [input, setInput] = useState("");
+  const userId = auth.currentUser?.uid || "";
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent("executive_ai_chat_opened", {
+        componentType: "ai_chat",
+        adminSection: "gap"
+      });
+    }
+  }, [userId, trackEvent]);
 
   const handleSend = async () => {
     if (!input.trim()) return;
+    if (userId) {
+      trackEvent("executive_ai_message_sent", {
+        messageLength: input.length,
+        messageCount: messages.length + 1,
+        adminSection: "gap"
+      });
+    }
     const userMsg = { role: 'user' as const, text: input };
     setMessages([...messages, userMsg]);
     setInput("");

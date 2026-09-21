@@ -1,17 +1,24 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { ArrowUp, ArrowDown, Minus } from 'lucide-react';
 import { StreakData } from '../../types';
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 interface WeeklyPerformanceChartProps {
   streakData: StreakData;
 }
 
 export const WeeklyPerformanceChart: React.FC<WeeklyPerformanceChartProps> = ({ streakData }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   // Get last 7 days for the chart
   const data = [];
   const today = new Date();
-  
+
   const getSessionsInRange = (startDays: number, endDays: number) => {
     let count = 0;
     for (let i = startDays; i >= endDays; i--) {
@@ -31,15 +38,25 @@ export const WeeklyPerformanceChart: React.FC<WeeklyPerformanceChartProps> = ({ 
     const d = new Date();
     d.setDate(today.getDate() - i);
     const dateStr = d.toISOString().split('T')[0];
-    
+
     // Check if practiced on this day
     const count = streakData.history.filter(h => h === dateStr).length;
-    
+
     data.push({
       name: d.toLocaleDateString('pt-BR', { weekday: 'short' }),
       sessions: count
     });
   }
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('weekly_performance_chart_viewed', {
+        thisWeek,
+        lastWeek,
+        weekOverWeekDiff: diff,
+      });
+    }
+  }, [userId, trackEvent, thisWeek, lastWeek, diff]);
 
   return (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">

@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Globe, Check, Sparkles, BookOpen, ChevronRight, Save, MapPin, Plus, Trash2, Edit3, Settings, ToggleLeft, ToggleRight, Database, AlertCircle, Cpu, Languages, ArrowRight, Compass, Heart, Volume2, Activity, Award, Network, ChevronDown, Book, FileText, Mic } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { auth } from '../../../firebase';
+import { useAnalytics } from '../../../hooks/useAnalytics';
+import { useMonitoring } from '../../../hooks/useMonitoring';
 import { Language } from '../../../types';
 
 export interface LanguageEngineItem {
@@ -196,6 +199,10 @@ export const LanguagesView: React.FC<LanguagesViewProps> = ({
   onUpdateLanguageAndVariant,
   localization
 }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [activeLang, setActiveLang] = useState<string>("Inglês");
   const [activeRegion, setActiveRegion] = useState<string>("US");
@@ -233,6 +240,17 @@ export const LanguagesView: React.FC<LanguagesViewProps> = ({
   const [newAchievements, setNewAchievements] = useState(true);
   const [newCertification, setNewCertification] = useState(true);
 
+  // Track component lifecycle
+  useEffect(() => {
+    if (userId) {
+      trackEvent('languages_view_accessed', {
+        activeTab,
+        activeLang,
+        activeRegion,
+      });
+    }
+  }, [userId, trackEvent, activeTab, activeLang, activeRegion]);
+
   // Load languages from Express Language Engine API
   const loadLanguagesFromApi = async () => {
     setIsLoadingLangs(true);
@@ -241,11 +259,23 @@ export const LanguagesView: React.FC<LanguagesViewProps> = ({
       if (res.ok) {
         const data = await res.json();
         setLanguages(data);
+        if (userId) {
+          trackEvent('languages_loaded', {
+            languagesCount: data.length,
+            source: 'api',
+          });
+        }
       } else {
         throw new Error("Não foi possível carregar a API do Motor de Idiomas.");
       }
     } catch (e) {
       console.warn("[Languages Engine] Erro ao carregar da API, usando fallback resiliente em memória local:", e);
+      if (userId) {
+        trackEvent('languages_load_failed', {
+          errorMessage: (e as any)?.message || 'Unknown error',
+          source: 'api_fallback',
+        });
+      }
       // Fallback local se a API não responder
       setLanguages([
         {
@@ -314,10 +344,19 @@ export const LanguagesView: React.FC<LanguagesViewProps> = ({
   const handleSelectLanguage = (langName: string) => {
     setActiveLang(langName);
     const variants = REGIONAL_VARIANTS[langName] || [];
+    let selectedRegion = "Standard";
     if (variants.length > 0) {
-      setActiveRegion(variants[0].code);
+      selectedRegion = variants[0].code;
+      setActiveRegion(selectedRegion);
     } else {
-      setActiveRegion("Standard");
+      setActiveRegion(selectedRegion);
+    }
+    if (userId) {
+      trackEvent('language_selected', {
+        language: langName,
+        region: selectedRegion,
+        variantsAvailable: variants.length,
+      });
     }
   };
 
@@ -325,7 +364,18 @@ export const LanguagesView: React.FC<LanguagesViewProps> = ({
     setIsSaving(true);
     try {
       await onUpdateLanguageAndVariant(activeLang, activeRegion);
+      if (userId) {
+        trackEvent('language_preferences_saved', {
+          language: activeLang,
+          region: activeRegion,
+        });
+      }
     } catch (error) {
+      if (userId) {
+        trackEvent('language_preferences_save_failed', {
+          errorMessage: (error as any)?.message || 'Unknown error',
+        });
+      }
       console.error("Failed to update regional preferences:", error);
     } finally {
       setIsSaving(false);
@@ -377,6 +427,15 @@ export const LanguagesView: React.FC<LanguagesViewProps> = ({
       });
 
       if (res.ok) {
+        if (userId) {
+          trackEvent('language_added', {
+            languageId: newId,
+            languageName: newName,
+            difficulty: newDifficulty,
+            writingSystem: newWritingSystem,
+            featuresCount: Object.values(payload).filter(v => v === true).length,
+          });
+        }
         // Reload from server
         await loadLanguagesFromApi();
         setShowAddModal(false);
@@ -388,9 +447,19 @@ export const LanguagesView: React.FC<LanguagesViewProps> = ({
         setNewCode('');
       } else {
         const errorData = await res.json();
+        if (userId) {
+          trackEvent('language_add_failed', {
+            errorMessage: errorData.error || "Erro ao registar o idioma no servidor.",
+          });
+        }
         setErrorMsg(errorData.error || "Erro ao registar o idioma no servidor.");
       }
     } catch (err: any) {
+      if (userId) {
+        trackEvent('language_add_failed', {
+          errorMessage: err.message || "Falha ao ligar ao servidor.",
+        });
+      }
       setErrorMsg(err.message || "Falha ao ligar ao servidor.");
     }
   };
@@ -401,7 +470,7 @@ export const LanguagesView: React.FC<LanguagesViewProps> = ({
     if (!lang) return;
 
     const updatedValue = !lang[property];
-    
+
     try {
       // Optimistic update
       setLanguages(prev => prev.map(l => l.id === langId ? { ...l, [property]: updatedValue } : l));
@@ -417,11 +486,32 @@ export const LanguagesView: React.FC<LanguagesViewProps> = ({
       if (!res.ok) {
         // Rollback on error
         setLanguages(prev => prev.map(l => l.id === langId ? { ...l, [property]: !updatedValue } : l));
+        if (userId) {
+          trackEvent('language_property_toggle_failed', {
+            languageId: langId,
+            property,
+          });
+        }
         console.error("Falha ao atualizar propriedade do Motor no servidor.");
+      } else {
+        if (userId) {
+          trackEvent('language_property_toggled', {
+            languageId: langId,
+            property,
+            newValue: updatedValue,
+          });
+        }
       }
     } catch (e) {
       // Rollback
       setLanguages(prev => prev.map(l => l.id === langId ? { ...l, [property]: !updatedValue } : l));
+      if (userId) {
+        trackEvent('language_property_toggle_failed', {
+          languageId: langId,
+          property,
+          errorMessage: (e as any)?.message || 'Unknown error',
+        });
+      }
       console.error(e);
     }
   };
@@ -443,12 +533,29 @@ export const LanguagesView: React.FC<LanguagesViewProps> = ({
       });
 
       if (res.ok) {
+        if (userId) {
+          trackEvent('language_deleted', {
+            languageId: langId,
+          });
+        }
         setLanguages(prev => prev.filter(l => l.id !== langId));
       } else {
         const err = await res.json();
+        if (userId) {
+          trackEvent('language_delete_failed', {
+            languageId: langId,
+            errorMessage: err.error || "Falha ao apagar idioma.",
+          });
+        }
         alert(err.error || "Falha ao apagar idioma.");
       }
     } catch (err) {
+      if (userId) {
+        trackEvent('language_delete_failed', {
+          languageId: langId,
+          errorMessage: (err as any)?.message || 'Unknown error',
+        });
+      }
       console.error(err);
     }
   };

@@ -1,0 +1,47 @@
+import { Router, Request, Response } from 'express';
+import { eventDrivenArchitectureService } from '../services/event-driven-architecture.service';
+
+const router = Router();
+
+router.post('/events/define', async (req: Request, res: Response) => {
+  try {
+    const { name, schema, producers } = req.body;
+    const event = await eventDrivenArchitectureService.defineEvent(name, schema, producers);
+    res.status(201).json(event);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+router.post('/events/publish', async (req: Request, res: Response) => {
+  try {
+    const { eventId, payload, producer } = req.body;
+    const log = await eventDrivenArchitectureService.publishEvent(eventId, payload, producer);
+    res.status(201).json(log);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+router.post('/buses/create', async (req: Request, res: Response) => {
+  try {
+    const { name, topics, throughput } = req.body;
+    const bus = await eventDrivenArchitectureService.createEventBus(name, topics, throughput);
+    res.status(201).json(bus);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+router.get('/metrics', async (req: Request, res: Response) => {
+  try {
+    const startDate = req.query.startDate ? new Date(req.query.startDate as string) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const endDate = req.query.endDate ? new Date(req.query.endDate as string) : new Date();
+    const metrics = await eventDrivenArchitectureService.getEventMetrics({ start: startDate, end: endDate });
+    res.status(200).json(metrics);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+export default router;

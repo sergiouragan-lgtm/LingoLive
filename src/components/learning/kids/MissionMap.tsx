@@ -1,6 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Lock } from 'lucide-react';
+import { auth } from '../../../firebase';
+import { useAnalytics } from '../../../hooks/useAnalytics';
+import { useMonitoring } from '../../../hooks/useMonitoring';
 
 interface Node {
   id: number;
@@ -23,9 +26,36 @@ const nodePositions = [
 ];
 
 const MissionMap: React.FC<MissionMapProps> = ({ nodes }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const activeMissionIndex = nodes.findIndex(m => m.status === 'current');
   const activePos = nodePositions[activeMissionIndex === -1 ? 0 : activeMissionIndex];
   const [hoveredNode, setHoveredNode] = React.useState<number | null>(null);
+
+  useEffect(() => {
+    if (userId && nodes.length > 0) {
+      const completedCount = nodes.filter(n => n.status === 'completed').length;
+      trackEvent('mission_map_viewed', {
+        totalNodes: nodes.length,
+        completedNodes: completedCount,
+        currentNodeId: nodes[activeMissionIndex]?.id,
+        mapType: 'kids_mission'
+      });
+    }
+  }, [userId, nodes, activeMissionIndex, trackEvent]);
+
+  const handleNodeHover = (nodeId: number, nodeTitle: string, nodeXp: number) => {
+    if (userId) {
+      trackEvent('mission_node_hovered', {
+        nodeId: nodeId,
+        nodeTitle: nodeTitle,
+        nodeXp: nodeXp,
+        mapType: 'kids_mission'
+      });
+    }
+  };
 
   return (
     <div className="w-full bg-white rounded-3xl p-8 shadow-xl relative overflow-hidden h-96">
@@ -38,11 +68,16 @@ const MissionMap: React.FC<MissionMapProps> = ({ nodes }) => {
 
       {/* Nodes */}
       {nodes.map((node, index) => (
-        <motion.div 
+        <motion.div
           key={node.id}
           className="absolute flex flex-col items-center z-10 cursor-pointer"
           style={{ top: nodePositions[index].top, left: nodePositions[index].left }}
-          onMouseEnter={() => node.status !== 'locked' && setHoveredNode(node.id)}
+          onMouseEnter={() => {
+            if (node.status !== 'locked') {
+              setHoveredNode(node.id);
+              handleNodeHover(node.id, node.title, node.xp);
+            }
+          }}
           onMouseLeave={() => setHoveredNode(null)}
         >
           <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl shadow-md border-4 ${

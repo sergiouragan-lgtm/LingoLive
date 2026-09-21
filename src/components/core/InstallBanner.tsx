@@ -2,28 +2,60 @@ import React, { useState, useEffect } from "react";
 import { usePWAInstall } from "../../hooks/usePWAInstall";
 import { Download, X, Sparkles, Smartphone } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { auth } from "../../firebase";
+import { useAnalytics } from "../../hooks/useAnalytics";
+import { useMonitoring } from "../../hooks/useMonitoring";
 
 export function InstallBanner() {
   const { isInstallable, install } = usePWAInstall();
   const [isDismissed, setIsDismissed] = useState<boolean>(true);
+  const userId = auth.currentUser?.uid || "";
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
 
   useEffect(() => {
     // Check if user previously dismissed the install banner in this session or locally
     const dismissed = localStorage.getItem("lingolive_pwa_banner_dismissed");
     if (dismissed !== "true") {
       setIsDismissed(false);
+      if (userId && isInstallable) {
+        trackEvent("pwa_install_banner_displayed", {
+          bannerType: "pwa_installation"
+        });
+      }
     }
-  }, []);
+  }, [userId, isInstallable, trackEvent]);
 
   const handleDismiss = () => {
+    if (userId) {
+      trackEvent("pwa_install_banner_dismissed", {
+        bannerType: "pwa_installation"
+      });
+    }
     setIsDismissed(true);
     localStorage.setItem("lingolive_pwa_banner_dismissed", "true");
   };
 
   const handleInstall = async () => {
+    if (userId) {
+      trackEvent("pwa_install_clicked", {
+        bannerType: "pwa_installation"
+      });
+    }
     const success = await install();
     if (success) {
+      if (userId) {
+        trackEvent("pwa_install_successful", {
+          bannerType: "pwa_installation"
+        });
+      }
       setIsDismissed(true);
+    } else {
+      if (userId) {
+        trackEvent("pwa_install_failed", {
+          bannerType: "pwa_installation"
+        });
+      }
     }
   };
 

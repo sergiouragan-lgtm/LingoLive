@@ -1,10 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { User } from "firebase/auth";
 import { db, handleFirestoreError, OperationType } from "../../firebase";
 import { doc, updateDoc, setDoc } from "firebase/firestore";
 import { Check, CreditCard, Smartphone, Landmark, Sparkles, ShieldCheck, Loader2, Zap, ArrowRight, Wallet } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useLocalization, useLanguageChanged } from "../../context/LocalizationContext";
+import { useAnalytics } from "../../hooks/useAnalytics";
+import { useMonitoring } from "../../hooks/useMonitoring";
 import { navigateToExternalCheckout } from "../../utils/navigationUtils";
 
 
@@ -18,8 +20,18 @@ interface PaymentOnboardingScreenProps {
 
 export const PaymentOnboardingScreen: React.FC<PaymentOnboardingScreenProps> = ({ user, onComplete, onBack }) => {
   const { ot } = useLocalization();
+  const { trackEvent } = useAnalytics(user.uid);
+  const { monitors } = useMonitoring();
+
   const [, setDummy] = useState({});
-  
+
+  // Lifecycle tracking
+  useEffect(() => {
+    trackEvent('payment_onboarding_accessed', {
+      userEmail: user.email || '',
+    });
+  }, [user.uid, trackEvent, user.email]);
+
   // Force re-render on language change
   useLanguageChanged(() => setDummy({}));
 
@@ -85,11 +97,20 @@ export const PaymentOnboardingScreen: React.FC<PaymentOnboardingScreenProps> = (
   const handleSelectPlan = (plan: typeof PREMIUM_PLANS[0]) => {
     setSelectedPlan(plan);
     setError("");
+
+    trackEvent('payment_plan_selected', {
+      planId: plan.id,
+    });
   };
 
   const handleCheckoutSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPlan) return;
+
+    trackEvent('payment_checkout_submitted', {
+      planId: selectedPlan.id,
+      paymentMethod,
+    });
 
     // Form validation
     if (paymentMethod === "multicaixa") {

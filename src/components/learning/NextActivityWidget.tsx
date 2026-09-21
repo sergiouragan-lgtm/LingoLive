@@ -1,6 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Calendar, Clock, Target, ChevronRight, AlertCircle } from 'lucide-react';
 import { motion } from 'motion/react';
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 export interface LearningActivity {
   id: string;
@@ -25,6 +28,33 @@ export const NextActivityWidget: React.FC<NextActivityWidgetProps> = ({
   isError = false,
   onNavigate,
 }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId && activity) {
+      trackEvent('next_activity_displayed', {
+        activityId: activity.id,
+        activityTitle: activity.title,
+        activityType: activity.type || 'unknown',
+        isLocked: activity.isLocked ?? false
+      });
+    }
+  }, [userId, activity, trackEvent]);
+
+  const handleNavigateClick = () => {
+    if (userId && activity) {
+      trackEvent('next_activity_clicked', {
+        activityId: activity.id,
+        activityTitle: activity.title,
+        activityType: activity.type || 'unknown',
+        isLocked: activity.isLocked ?? false
+      });
+    }
+    onNavigate?.();
+  };
+
   if (isLoading) {
     return (
       <div className="animate-pulse bg-slate-200 h-48 w-full rounded-2xl" aria-hidden="true" />
@@ -85,7 +115,7 @@ export const NextActivityWidget: React.FC<NextActivityWidgetProps> = ({
       <button
         type="button"
         data-testid="next-activity-button"
-        onClick={onNavigate}
+        onClick={handleNavigateClick}
         className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition-all flex items-center justify-center gap-2"
       >
         <span>{activity.isLocked ? 'Ver detalhes' : 'Começar'}</span>

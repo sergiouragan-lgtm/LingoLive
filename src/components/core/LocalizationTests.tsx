@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Play, CheckCircle2, XCircle, Clock, ShieldAlert, Cpu } from 'lucide-react';
 import { useLocalization } from '../../context/LocalizationContext';
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 interface TestResult {
   id: string;
@@ -11,11 +14,14 @@ interface TestResult {
 }
 
 export const LocalizationTests: React.FC = () => {
-  const { 
-    linguisticIdentity, 
-    setLinguisticIdentity, 
-    isRtl, 
-    fallbackLogs, 
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+  const {
+    linguisticIdentity,
+    setLinguisticIdentity,
+    isRtl,
+    fallbackLogs,
     translateMessage,
     formatCurrency,
     formatDate,
@@ -32,7 +38,13 @@ export const LocalizationTests: React.FC = () => {
 
   const runAllTests = async () => {
     setIsRunning(true);
-    
+    if (userId) {
+      trackEvent('localization_tests_started', {
+        language: linguisticIdentity.interfaceLanguage,
+        isRtl
+      });
+    }
+
     // Helper to update individual test state
     const updateResult = (id: string, updates: Partial<TestResult>) => {
       setResults(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r));
@@ -179,6 +191,16 @@ export const LocalizationTests: React.FC = () => {
     }
 
     setIsRunning(false);
+    if (userId) {
+      const passedCount = results.filter(r => r.status === 'passed').length;
+      const failedCount = results.filter(r => r.status === 'failed').length;
+      trackEvent('localization_tests_completed', {
+        totalTests: results.length,
+        passedTests: passedCount,
+        failedTests: failedCount,
+        successRate: (passedCount / results.length * 100).toFixed(2)
+      });
+    }
   };
 
   return (

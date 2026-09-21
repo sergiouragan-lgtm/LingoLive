@@ -13,6 +13,9 @@ import {
   Download,
 } from 'lucide-react';
 import { useRealtimeSync } from '@/hooks/useRealtimeSync';
+import { auth } from '@/firebase';
+import { useAnalytics } from '@/hooks/useAnalytics';
+import { useMonitoring } from '@/hooks/useMonitoring';
 
 interface Highlight {
   id: string;
@@ -54,13 +57,16 @@ const HIGHLIGHT_COLORS = {
 
 export const EbookReader: React.FC<EbookReaderProps> = ({
   ebookId,
-  userId,
+  userId: propUserId,
   title,
   author,
   pages,
   totalPages,
   readingProgress,
 }) => {
+  const currentUserId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(currentUserId);
+  const { monitors } = useMonitoring();
   const [currentPage, setCurrentPage] = useState(Math.floor((readingProgress / 100) * totalPages));
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
@@ -73,8 +79,20 @@ export const EbookReader: React.FC<EbookReaderProps> = ({
   const [selectedHighlight, setSelectedHighlight] = useState<Highlight | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    if (currentUserId) {
+      trackEvent('ebook_reader_opened', {
+        ebookId,
+        title,
+        author,
+        totalPages,
+        startingProgress: readingProgress
+      });
+    }
+  }, [currentUserId, trackEvent, ebookId, title, author, totalPages, readingProgress]);
+
   const { data: savedHighlights } = useRealtimeSync<Highlight[]>(
-    `ebooks/${ebookId}/highlights/${userId}`,
+    `ebooks/${ebookId}/highlights/${propUserId}`,
     (data) => {
       if (data) setHighlights(data);
       return data || [];
@@ -82,7 +100,7 @@ export const EbookReader: React.FC<EbookReaderProps> = ({
   );
 
   const { data: savedBookmarks } = useRealtimeSync<Bookmark[]>(
-    `ebooks/${ebookId}/bookmarks/${userId}`,
+    `ebooks/${ebookId}/bookmarks/${propUserId}`,
     (data) => {
       if (data) setBookmarks(data);
       return data || [];
@@ -114,6 +132,15 @@ export const EbookReader: React.FC<EbookReaderProps> = ({
     setShowHighlightMenu(false);
     setSelectedText('');
 
+    if (currentUserId) {
+      trackEvent('ebook_highlight_added', {
+        ebookId,
+        color: highlightColor,
+        textLength: selectedText.length,
+        pageNumber: currentPage
+      });
+    }
+
     try {
       const token = await (window as any).auth?.currentUser?.getIdToken?.();
       await fetch(`/api/ebooks/${ebookId}/highlights`, {
@@ -122,7 +149,7 @@ export const EbookReader: React.FC<EbookReaderProps> = ({
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ userId, highlight }),
+        body: JSON.stringify({ userId: propUserId, highlight }),
       });
     } catch (error) {
       console.error('Failed to save highlight:', error);
@@ -143,6 +170,15 @@ export const EbookReader: React.FC<EbookReaderProps> = ({
       setBookmarks([...bookmarks, bookmark]);
     }
 
+    if (currentUserId) {
+      trackEvent('ebook_bookmark_toggled', {
+        ebookId,
+        pageNumber: currentPage,
+        action: existingBookmark ? 'removed' : 'added',
+        totalBookmarks: existingBookmark ? bookmarks.length - 1 : bookmarks.length + 1
+      });
+    }
+
     try {
       const token = await (window as any).auth?.currentUser?.getIdToken?.();
       await fetch(`/api/ebooks/${ebookId}/bookmarks`, {
@@ -152,7 +188,7 @@ export const EbookReader: React.FC<EbookReaderProps> = ({
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          userId,
+          userId: propUserId,
           page: currentPage,
           action: existingBookmark ? 'remove' : 'add',
         }),
@@ -164,6 +200,17 @@ export const EbookReader: React.FC<EbookReaderProps> = ({
 
   const updateProgress = async (page: number) => {
     setCurrentPage(page);
+    const newProgress = Math.round(((page + 1) / totalPages) * 100);
+
+    if (currentUserId) {
+      trackEvent('ebook_page_changed', {
+        ebookId,
+        pageNumber: page,
+        totalPages,
+        progressPercent: newProgress
+      });
+    }
+
     try {
       const token = await (window as any).auth?.currentUser?.getIdToken?.();
       await fetch(`/api/ebooks/${ebookId}/progress`, {
@@ -173,9 +220,9 @@ export const EbookReader: React.FC<EbookReaderProps> = ({
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          userId,
+          userId: propUserId,
           page,
-          progress: Math.round(((page + 1) / totalPages) * 100),
+          progress: newProgress,
         }),
       });
     } catch (error) {

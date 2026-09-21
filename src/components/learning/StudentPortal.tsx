@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
-import { 
-  BookOpen, Sparkles, Trophy, Calendar, Download, Bookmark, Flame, 
-  Award, BarChart3, HelpCircle, MessageSquare, Mic, PenTool, Play, 
+import {
+  BookOpen, Sparkles, Trophy, Calendar, Download, Bookmark, Flame,
+  Award, BarChart3, HelpCircle, MessageSquare, Mic, PenTool, Play,
   CheckCircle, Plus, Send, RefreshCw, Volume2, BookmarkCheck, ArrowRight,
   TrendingUp, Star, Shield, Lock, ChevronRight, Zap, Coffee, Clock, Heart,
   Smartphone, Eye, HelpCircle as HelpIcon, FileText, Check, AlertCircle
@@ -11,6 +11,8 @@ import { db, auth } from "../../firebase";
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import { useToast } from "../../context/ToastContext";
 import { useUserRole } from "../../context/UserRoleContext";
+import { useAnalytics } from "../../hooks/useAnalytics";
+import { useMonitoring } from "../../hooks/useMonitoring";
 import { PronunciationService } from "../../services/pronunciation.service";
 import { 
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, 
@@ -61,6 +63,10 @@ export const StudentPortal: React.FC<{ setView?: (v: string) => void }> = ({ set
   const { role } = useUserRole();
   const user = auth.currentUser;
 
+  const userId = user?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   // Tabs: dashboard (painel), ai-tutor (laboratórios), stats (métricas), downloads (offline)
   const [activeTab, setActiveTab] = useState<string>("dashboard");
   const [aiLabTab, setAiLabTab] = useState<string>("conversation");
@@ -79,6 +85,27 @@ export const StudentPortal: React.FC<{ setView?: (v: string) => void }> = ({ set
     "Nzambi (Deus)",
     "Uazekela kyambote (Dormiste bem?)"
   ]);
+
+  // Track component lifecycle
+  useEffect(() => {
+    if (userId) {
+      trackEvent('student_portal_accessed', {
+        userRole: role,
+        xp,
+        level,
+        streak,
+      });
+    }
+  }, [userId, trackEvent, role, xp, level, streak]);
+
+  // Track tab changes
+  useEffect(() => {
+    if (userId && activeTab) {
+      trackEvent('student_portal_tab_changed', {
+        activeTab,
+      });
+    }
+  }, [activeTab, userId, trackEvent]);
 
   // Gamification load from Firestore
   useEffect(() => {
@@ -185,7 +212,7 @@ export const StudentPortal: React.FC<{ setView?: (v: string) => void }> = ({ set
           "Content-Type": "application/json",
           "Authorization": `Bearer ${idToken}`,
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           message: prompt,
           task: "angolan-cultural-conversation",
           context: {
@@ -198,11 +225,24 @@ export const StudentPortal: React.FC<{ setView?: (v: string) => void }> = ({ set
       if (res.ok) {
         const data = await res.json();
         setAiMessages(prev => [...prev, { sender: "AI Tutor", text: data.response, time: "Agora" }]);
+
+        if (userId) {
+          trackEvent('ai_conversation_message_sent', {
+            messageLength: prompt.length,
+            xpGained: Number(data.progress?.xp || 0),
+            coinsGained: 2,
+          });
+        }
         saveGamification(Number(data.progress?.xp || xp), coins + 2);
       } else {
         throw new Error("LEARNING_INTERACTION_FAILED");
       }
     } catch (e) {
+      if (userId) {
+        trackEvent('ai_conversation_failed', {
+          errorMessage: (e as any)?.message || 'Unknown error',
+        });
+      }
       setAiMessages(prev => [...prev, {
         sender: "AI Tutor",
         text: "O Tutor IA está temporariamente indisponível. A tua resposta não foi pontuada nem gravada; tenta novamente dentro de instantes.",
@@ -253,12 +293,30 @@ export const StudentPortal: React.FC<{ setView?: (v: string) => void }> = ({ set
       setTranscription(result.transcription);
       setPronunciationScore(result.overallScore);
       setPhoneticFeedback([result.generalFeedback, ...(result.improvementTips || [])].filter(Boolean).join(" "));
-      saveGamification(xp + Math.max(5, Math.round(result.overallScore / 4)), coins + 4);
+
+      const xpGain = Math.max(5, Math.round(result.overallScore / 4));
+      if (userId) {
+        trackEvent('pronunciation_evaluated', {
+          pronunciationScore: result.overallScore,
+          transcription: result.transcription,
+          xpGained: xpGain,
+          coinsGained: 4,
+        });
+      }
+      saveGamification(xp + xpGain, coins + 4);
       addToast("Pronúncia avaliada com áudio real.", "success");
     } catch (error: any) {
       if (error?.message === "OFFLINE_MODE_SAVED") {
+        if (userId) {
+          trackEvent('pronunciation_evaluation_offline_saved', {});
+        }
         addToast("Áudio guardado no dispositivo; será avaliado quando a ligação voltar.", "info");
       } else {
+        if (userId) {
+          trackEvent('pronunciation_evaluation_failed', {
+            errorMessage: error?.message || 'Unknown error',
+          });
+        }
         addToast("Não foi possível avaliar o áudio. Nenhuma pontuação foi inventada.", "error");
       }
     } finally {
@@ -368,6 +426,13 @@ export const StudentPortal: React.FC<{ setView?: (v: string) => void }> = ({ set
   const handleNextExamQuestion = () => {
     if (selectedAnswer === null) return;
     if (currentQuestionIdx < examQuestions.length - 1) {
+      if (userId) {
+        trackEvent('exam_question_answered', {
+          questionIndex: currentQuestionIdx,
+          selectedAnswerIndex: selectedAnswer,
+          isCorrect: selectedAnswer === examQuestions[currentQuestionIdx].correctAnswer,
+        });
+      }
       setCurrentQuestionIdx(currentQuestionIdx + 1);
       setSelectedAnswer(null);
     } else {
@@ -376,6 +441,15 @@ export const StudentPortal: React.FC<{ setView?: (v: string) => void }> = ({ set
       // In a real flow we would collect all answers, here we simulate based on this last actions
       setExamFinished(true);
       setExamScore(88); // mock score
+
+      if (userId) {
+        trackEvent('exam_finished', {
+          score: 88,
+          totalQuestions: examQuestions.length,
+          xpGained: 100,
+          coinsGained: 20,
+        });
+      }
       saveGamification(xp + 100, coins + 20);
       addToast("Parabéns! Exame simulado CEFR concluído com sucesso.", "success");
     }
@@ -383,8 +457,19 @@ export const StudentPortal: React.FC<{ setView?: (v: string) => void }> = ({ set
 
   // Offline Download Trigger
   const handleDownloadLesson = (lessonName: string) => {
+    if (userId) {
+      trackEvent('lesson_download_initiated', {
+        lessonName,
+      });
+    }
     addToast(`Descarregando "${lessonName}" para armazenamento local IndexedDB...`, "info");
     setTimeout(() => {
+      if (userId) {
+        trackEvent('lesson_downloaded', {
+          lessonName,
+          sizeKB: 2400,
+        });
+      }
       addToast(`"${lessonName}" disponível offline! (2.4 MB)`, "success");
     }, 1500);
   };

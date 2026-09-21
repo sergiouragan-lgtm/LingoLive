@@ -1,15 +1,46 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Sparkles, Users, Shield, Globe, Target } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { CouncilPortal } from "./CouncilPortal";
+import { auth } from "@/firebase";
+import { useAnalytics } from "@/hooks/useAnalytics";
+import { useMonitoring } from "@/hooks/useMonitoring";
 
 export const GlapModule = () => {
   const [showCouncil, setShowCouncil] = useState(false);
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('glap_module_viewed', {
+        moduleName: 'Global Language Ambassadors Platform',
+        moduleType: 'language_validation_system'
+      });
+    }
+  }, [userId, trackEvent]);
 
   if (showCouncil) {
-    return <CouncilPortal onBack={() => setShowCouncil(false)} />;
+    return <CouncilPortal onBack={() => {
+      if (userId) {
+        trackEvent('council_portal_closed', {
+          moduleType: 'language_validation_system'
+        });
+      }
+      setShowCouncil(false);
+    }} />;
   }
+
+  const handleCouncilPortalClick = () => {
+    if (userId) {
+      trackEvent('glap_council_portal_opened', {
+        moduleType: 'language_validation_system'
+      });
+    }
+    setShowCouncil(true);
+  };
 
   return (
     <motion.div
@@ -53,7 +84,7 @@ export const GlapModule = () => {
               <h3 className="font-bold text-slate-800 mb-4">Certificação Oficial</h3>
               <p className="text-slate-500 text-sm">Emissão de certificados digitais rastreáveis com identificador único, garantindo a qualificação técnica dos nossos embaixadores.</p>
           </div>
-          <div className="bg-indigo-50 p-6 rounded-3xl border border-indigo-100 shadow-sm md:col-span-2 cursor-pointer hover:bg-indigo-100 transition-colors" onClick={() => setShowCouncil(true)}>
+          <div className="bg-indigo-50 p-6 rounded-3xl border border-indigo-100 shadow-sm md:col-span-2 cursor-pointer hover:bg-indigo-100 transition-colors" onClick={handleCouncilPortalClick}>
             <h3 className="font-bold text-indigo-900 mb-2 flex items-center gap-2">
               <Shield className="w-5 h-5" /> Council Portal (Restrito)
             </h3>

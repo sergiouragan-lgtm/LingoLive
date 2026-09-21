@@ -1,8 +1,24 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { motion } from "motion/react";
 import { CheckCircle, Clock, XCircle } from "lucide-react";
+import { auth } from "../../../firebase";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useMonitoring } from "../../../hooks/useMonitoring";
 
 export const DevOpsPipeline = () => {
+  const userId = auth.currentUser?.uid || "";
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent("devops_pipeline_viewed", {
+        pipelineType: "cicd",
+        adminSection: "dipr"
+      });
+    }
+  }, [userId, trackEvent]);
+
   const pipelines = [
     { name: "Frontend CI", status: "success" },
     { name: "Backend CI", status: "success" },

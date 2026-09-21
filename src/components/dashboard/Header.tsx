@@ -1,9 +1,52 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Bell, Search, Download } from 'lucide-react';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 export const Header: React.FC = () => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
   const { isInstallable, install } = usePWAInstall();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('header_rendered', {
+        hasPWAInstall: isInstallable,
+        headerType: 'dashboard_header'
+      });
+    }
+  }, [userId, isInstallable, trackEvent]);
+
+  const handlePWAInstall = () => {
+    if (userId) {
+      trackEvent('pwa_install_clicked', {
+        location: 'header',
+        headerType: 'dashboard_header'
+      });
+    }
+    install();
+  };
+
+  const handleNotificationsClick = () => {
+    if (userId) {
+      trackEvent('notifications_clicked', {
+        location: 'header',
+        headerType: 'dashboard_header'
+      });
+    }
+  };
+
+  const handleProfileClick = () => {
+    if (userId) {
+      trackEvent('profile_settings_clicked', {
+        location: 'header',
+        headerType: 'dashboard_header'
+      });
+    }
+  };
 
   return (
     <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-6">
@@ -18,7 +61,7 @@ export const Header: React.FC = () => {
       <div className="flex items-center gap-4">
         {isInstallable && (
           <button
-            onClick={install}
+            onClick={handlePWAInstall}
             className="flex items-center gap-2 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-semibold text-xs shadow-md shadow-indigo-600/10 hover:shadow-indigo-600/20 active:scale-95 transition-all cursor-pointer"
             id="pwa-install-header-btn"
           >
@@ -26,10 +69,15 @@ export const Header: React.FC = () => {
             <span>Instalar LingoLIVE</span>
           </button>
         )}
-        <button className="text-gray-400 hover:text-gray-900 transition-colors" aria-label="Notifications">
+        <button
+          onClick={handleNotificationsClick}
+          className="text-gray-400 hover:text-gray-900 transition-colors"
+          aria-label="Notifications"
+        >
           <Bell size={20} />
         </button>
-        <button 
+        <button
+          onClick={handleProfileClick}
           className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-medium text-xs hover:bg-blue-700 transition-colors"
           aria-label="Profile settings"
         >

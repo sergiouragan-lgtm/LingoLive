@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'motion/react';
 import {
   BarChart,
@@ -27,6 +27,9 @@ import {
   Calendar,
   Download,
 } from 'lucide-react';
+import { auth } from '../../../firebase';
+import { useAnalytics } from '../../../hooks/useAnalytics';
+import { useMonitoring } from '../../../hooks/useMonitoring';
 import { useRealtimeSync } from '@/hooks/useRealtimeSync';
 
 interface SkillAssessment {
@@ -86,12 +89,16 @@ export const StudentAnalytics: React.FC<StudentAnalyticsProps> = ({
   classId,
   studentId,
 }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
   const [selectedSkill, setSelectedSkill] = useState<'listening' | 'speaking' | 'reading' | 'writing' | null>(
     null
   );
 
-  const { data: students, loading: studentsLoading } = useRealtimeSync<StudentProgress[]>(
+  const { data: students, isLoading: studentsLoading } = useRealtimeSync<StudentProgress[]>(
     `schools/${schoolId}/classes/${classId}/students`,
     (data) => data || []
   );
@@ -110,6 +117,19 @@ export const StudentAnalytics: React.FC<StudentAnalyticsProps> = ({
   const currentStudent = studentId
     ? students?.find((s) => s.id === studentId)
     : students?.[0];
+
+  useEffect(() => {
+    if (userId && currentStudent) {
+      trackEvent('student_analytics_accessed', {
+        schoolId,
+        classId,
+        studentId: currentStudent.id,
+        studentName: currentStudent.name,
+        studentLevel: currentStudent.level,
+        studentProgress: currentStudent.overallProgress,
+      });
+    }
+  }, [userId, trackEvent, schoolId, classId, currentStudent]);
 
   const skillData = useMemo(() => {
     if (!currentStudent) return [];
@@ -169,9 +189,16 @@ export const StudentAnalytics: React.FC<StudentAnalyticsProps> = ({
               </div>
               <div className="flex gap-4">
                 <button
-                  onClick={() =>
-                    window.print()
-                  }
+                  onClick={() => {
+                    if (userId) {
+                      trackEvent('student_analytics_report_generated', {
+                        studentId: currentStudent?.id,
+                        studentName: currentStudent?.name,
+                        reportType: 'print',
+                      });
+                    }
+                    window.print();
+                  }}
                   className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 text-gray-700 dark:text-gray-300"
                 >
                   <Download className="w-4 h-4" />
@@ -288,13 +315,18 @@ export const StudentAnalytics: React.FC<StudentAnalyticsProps> = ({
                     <div
                       key={skill}
                       className="cursor-pointer p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                      onClick={() =>
-                        setSelectedSkill(
-                          selectedSkill === skill
-                            ? null
-                            : (skill as 'listening' | 'speaking' | 'reading' | 'writing')
-                        )
-                      }
+                      onClick={() => {
+                        const newSkill = selectedSkill === skill ? null : (skill as 'listening' | 'speaking' | 'reading' | 'writing');
+                        setSelectedSkill(newSkill);
+                        if (userId) {
+                          trackEvent('student_analytics_skill_selected', {
+                            studentId: currentStudent?.id,
+                            skillName: skill,
+                            skillScore: skillSummary?.[skill as keyof typeof skillSummary] || 0,
+                            selected: newSkill === skill,
+                          });
+                        }
+                      }}
                     >
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">

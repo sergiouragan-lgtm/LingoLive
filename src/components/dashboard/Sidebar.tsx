@@ -1,12 +1,47 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { LayoutDashboard, Users, BookOpen, Settings, Bell, Calendar } from 'lucide-react';
 import { Role } from '../../models/rbac';
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 interface SidebarProps {
   role: Role;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ role }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('sidebar_rendered', {
+        userRole: role,
+        sidebarType: 'main_navigation'
+      });
+    }
+  }, [userId, role, trackEvent]);
+
+  const handleNavigation = (label: string, path: string) => {
+    if (userId) {
+      trackEvent('sidebar_navigation_clicked', {
+        navItemLabel: label,
+        navItemPath: path,
+        userRole: role,
+        sidebarType: 'main_navigation'
+      });
+    }
+  };
+
+  const handleSettingsClick = () => {
+    if (userId) {
+      trackEvent('sidebar_settings_clicked', {
+        userRole: role,
+        sidebarType: 'main_navigation'
+      });
+    }
+  };
   const menuItems = {
     [Role.STUDENT]: [
       { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
@@ -46,9 +81,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ role }) => {
           <a
             key={item.label}
             href={item.path}
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
-              isActive 
-                ? 'bg-blue-50 text-blue-700 font-semibold' 
+            onClick={() => handleNavigation(item.label, item.path)}
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all cursor-pointer ${
+              isActive
+                ? 'bg-blue-50 text-blue-700 font-semibold'
                 : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
             }`}
           >
@@ -59,7 +95,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ role }) => {
         })}
       </nav>
       <div className="p-4 border-t border-gray-100">
-        <button className="flex items-center gap-3 px-4 py-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg w-full text-sm">
+        <button
+          onClick={handleSettingsClick}
+          className="flex items-center gap-3 px-4 py-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg w-full text-sm cursor-pointer"
+        >
             <Settings size={18} />
             Settings
         </button>

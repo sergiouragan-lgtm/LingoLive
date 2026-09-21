@@ -1,7 +1,23 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { CreditCard, Wallet, Landmark, Smartphone } from 'lucide-react';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useNotifications } from '../../hooks/useNotifications';
+import { auth } from '../../firebase';
 
 export const PaymentsView: React.FC = () => {
+  // Phase 38-45 Hook Integration
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { notifications } = useNotifications(userId);
+
+  // Track payments view access
+  useEffect(() => {
+    if (userId) {
+      trackEvent('payments_view_accessed', {
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }, [userId, trackEvent]);
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold">Pagamentos</h1>

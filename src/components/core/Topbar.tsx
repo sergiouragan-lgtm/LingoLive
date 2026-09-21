@@ -4,6 +4,9 @@ import { Localization, Language, StreakData } from '../../types';
 import { COUNTRY_DETAILS } from '../../data/localizationData';
 import { useLocalization } from '../../context/LocalizationContext';
 import { LANGUAGES } from '../../data';
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 interface TopbarProps {
   setView: (view: string) => void;
@@ -18,18 +21,21 @@ interface TopbarProps {
   onProtectStreakWithPoints?: () => void;
 }
 
-export const Topbar: React.FC<TopbarProps> = ({ 
-  setView, 
-  user, 
-  toggleSidebar, 
-  GlobalSearchComponent, 
-  localization, 
+export const Topbar: React.FC<TopbarProps> = ({
+  setView,
+  user,
+  toggleSidebar,
+  GlobalSearchComponent,
+  localization,
   setLocalization,
   selectedLanguage,
   setSelectedLanguage,
   streakData,
   onProtectStreakWithPoints
 }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
   const [isOpen, setIsOpen] = useState(false);
   const [isLangOpen, setIsLangOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -65,13 +71,32 @@ export const Topbar: React.FC<TopbarProps> = ({
   const selectCountry = (code: string) => {
     const detail = COUNTRY_DETAILS[code];
     if (detail) {
-      setLocalization({
+      const newLocalization = {
         country: detail.code,
         language: detail.code === 'US' || detail.code === 'ZA' ? 'en' : 'pt',
         currency: detail.code === 'BR' ? 'BRL' : detail.code === 'PT' ? 'EUR' : detail.code === 'AO' ? 'AOA' : detail.code === 'MZ' ? 'MZN' : detail.code === 'ZA' ? 'ZAR' : 'USD'
-      });
+      };
+      setLocalization(newLocalization);
+      if (userId) {
+        trackEvent('topbar_country_selected', {
+          country: detail.code,
+          language: newLocalization.language,
+          currency: newLocalization.currency,
+        });
+      }
     }
     setIsOpen(false);
+  };
+
+  const handleLanguageSelect = (lang: Language) => {
+    setSelectedLanguage(lang);
+    setIsLangOpen(false);
+    if (userId) {
+      trackEvent('topbar_language_selected', {
+        languageCode: lang.code,
+        languageName: lang.name,
+      });
+    }
   };
 
   return (
@@ -124,13 +149,10 @@ export const Topbar: React.FC<TopbarProps> = ({
                 return (
                   <button
                     key={lang.code}
-                    onClick={() => {
-                      setSelectedLanguage(lang);
-                      setIsLangOpen(false);
-                    }}
+                    onClick={() => handleLanguageSelect(lang)}
                     className={`w-full flex items-center justify-between px-3 py-2 text-left text-sm transition-colors cursor-pointer ${
-                      isSelected 
-                        ? 'bg-indigo-50 text-indigo-900 font-bold' 
+                      isSelected
+                        ? 'bg-indigo-50 text-indigo-900 font-bold'
                         : 'text-slate-700 hover:bg-slate-50'
                     }`}
                   >

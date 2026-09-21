@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Sparkles, BookOpen, RefreshCw, AlertCircle, Loader2 } from "lucide-react";
 import { auth } from "../../../firebase";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useMonitoring } from "../../../hooks/useMonitoring";
 
 interface EbookRecommendation {
   ebookId: string;
@@ -30,6 +32,8 @@ function RecommendationCard({
   onEnroll: (id: string) => void;
 }) {
   const [enrolling, setEnrolling] = useState(false);
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
 
   const handleStart = async () => {
     setEnrolling(true);
@@ -43,8 +47,22 @@ function RecommendationCard({
         },
         body: JSON.stringify({ ebookId: rec.ebookId }),
       });
+
+      if (userId) {
+        trackEvent('ebook_recommendation_enrolled', {
+          ebookId: rec.ebookId,
+          title: rec.title,
+          language: rec.language,
+          cefrLevel: rec.cefrLevel,
+          reason: rec.reason,
+        });
+      }
     } catch {
-      // enroll-or-ignore: reader will still open; backend may already have enrollment
+      if (userId) {
+        trackEvent('ebook_recommendation_enrollment_failed', {
+          ebookId: rec.ebookId,
+        });
+      }
     } finally {
       setEnrolling(false);
       onEnroll(rec.ebookId);
@@ -101,6 +119,10 @@ export function EbookRecommendations({
 }: {
   onEnroll?: (ebookId: string) => void;
 }) {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [recs, setRecs] = useState<EbookRecommendation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -116,14 +138,30 @@ export function EbookRecommendations({
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setRecs(data.recommendations ?? []);
+
+      if (userId) {
+        trackEvent('ebook_recommendations_loaded', {
+          recommendationsCount: data.recommendations?.length || 0,
+        });
+      }
     } catch {
       setError("Não foi possível carregar as recomendações.");
+      if (userId) {
+        trackEvent('ebook_recommendations_load_failed', {});
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { fetchRecs(); }, []);
+  useEffect(() => { fetchRecs(); }, [userId, trackEvent]);
+
+  const handleRefresh = () => {
+    if (userId) {
+      trackEvent('ebook_recommendations_refresh_clicked', {});
+    }
+    fetchRecs();
+  };
 
   return (
     <div className="space-y-4">
@@ -133,7 +171,7 @@ export function EbookRecommendations({
           Recomendados para Si
         </h3>
         <button
-          onClick={fetchRecs}
+          onClick={handleRefresh}
           disabled={loading}
           className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors disabled:opacity-50"
         >

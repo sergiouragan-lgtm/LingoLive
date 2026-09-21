@@ -1,8 +1,24 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { motion } from "motion/react";
 import { Brain, TrendingUp, AlertCircle } from "lucide-react";
+import { auth } from "../../../firebase";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useMonitoring } from "../../../hooks/useMonitoring";
 
 export const AIProfileDashboard = () => {
+  const userId = auth.currentUser?.uid || "";
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent("ai_profile_dashboard_viewed", {
+        dashboardType: "learning_intelligence",
+        adminSection: "alig"
+      });
+    }
+  }, [userId, trackEvent]);
+
   return (
     <div className="p-8 space-y-8">
       <h1 className="text-3xl font-black text-slate-900">AI Learning Intelligence Graph</h1>

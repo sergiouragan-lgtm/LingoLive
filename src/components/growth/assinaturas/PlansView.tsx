@@ -1,5 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { CreditCard, Check } from 'lucide-react';
+import { auth } from '../../../firebase';
+import { useAnalytics } from '../../../hooks/useAnalytics';
+import { useMonitoring } from '../../../hooks/useMonitoring';
 
 const PLANS = [
   { name: 'Free', price: '0', features: ['Core Features', 'Limited Access'] },
@@ -12,6 +15,28 @@ const PLANS = [
 ];
 
 export const PlansView: React.FC = () => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('plans_view_displayed', {
+        availablePlans: PLANS.length
+      });
+    }
+  }, [userId, trackEvent]);
+
+  const handlePlanSelection = (planName: string, price: string) => {
+    if (userId) {
+      trackEvent('plan_selected', {
+        planName,
+        price,
+        totalPlans: PLANS.length
+      });
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold">Planos e Assinaturas</h1>
@@ -27,7 +52,10 @@ export const PlansView: React.FC = () => {
                 </li>
               ))}
             </ul>
-            <button className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700">
+            <button
+              onClick={() => handlePlanSelection(plan.name, plan.price)}
+              className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700"
+            >
               Escolher Plano
             </button>
           </div>

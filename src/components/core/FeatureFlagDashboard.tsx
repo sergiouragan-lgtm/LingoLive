@@ -1,28 +1,30 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Sliders, 
-  GitBranch, 
-  ToggleLeft, 
-  ToggleRight, 
-  Target, 
-  Globe, 
-  Sparkles, 
-  ShieldAlert, 
-  Activity, 
-  RefreshCw, 
-  TrendingUp, 
-  Plus, 
-  Trash2, 
-  Check, 
-  UserCheck, 
-  X, 
-  FileText, 
+import {
+  Sliders,
+  GitBranch,
+  ToggleLeft,
+  ToggleRight,
+  Target,
+  Globe,
+  Sparkles,
+  ShieldAlert,
+  Activity,
+  RefreshCw,
+  TrendingUp,
+  Plus,
+  Trash2,
+  Check,
+  UserCheck,
+  X,
+  FileText,
   AlertTriangle,
   Flame,
   Gauge
 } from 'lucide-react';
-import { db } from '../../firebase';
+import { db, auth } from '../../firebase';
 import { collection, addDoc, getDocs, limit, query, orderBy, doc, setDoc } from 'firebase/firestore';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 interface FlagRule {
   id: string;
@@ -41,6 +43,9 @@ interface FlagRule {
 }
 
 export default function FeatureFlagDashboard() {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
   const [activeTab, setActiveTab] = useState<'flags' | 'experiments' | 'auditor' | 'simulator'>('flags');
   const [flags, setFlags] = useState<FlagRule[]>([]);
   const [loading, setLoading] = useState(false);
@@ -189,6 +194,15 @@ export default function FeatureFlagDashboard() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('feature_flag_dashboard_viewed', {
+        activeTab,
+        flagsCount: flags.length
+      });
+    }
+  }, [userId, trackEvent, activeTab, flags.length]);
 
   useEffect(() => {
     loadData();

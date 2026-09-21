@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { 
-  Users, TrendingUp, Calendar, CreditCard, Award, MessageSquare, 
-  Shield, Bell, Sparkles, Download, CheckCircle, AlertCircle, 
-  ChevronRight, ArrowRight, Heart, FileText, UserPlus, Trash2, 
+import {
+  Users, TrendingUp, Calendar, CreditCard, Award, MessageSquare,
+  Shield, Bell, Sparkles, Download, CheckCircle, AlertCircle,
+  ChevronRight, ArrowRight, Heart, FileText, UserPlus, Trash2,
   DollarSign, Activity, Lock, Settings, RefreshCw, Star, Info,
   Check, Mail, ShieldCheck, Database, Zap, BookOpen, Clock
 } from "lucide-react";
@@ -10,6 +10,8 @@ import { motion, AnimatePresence } from "motion/react";
 import { db, auth } from "../../../firebase";
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import { useToast } from "../../../context/ToastContext";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useMonitoring } from "../../../hooks/useMonitoring";
 import { 
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, 
   Tooltip, BarChart, Bar, Legend, PieChart, Pie, Cell, LineChart, Line, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar
@@ -72,9 +74,32 @@ interface AuditLog {
 export const ParentPortal: React.FC<{ setView?: (v: string) => void }> = ({ setView }) => {
   const { addToast } = useToast();
   const user = auth.currentUser;
+  const userId = user?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
 
   // Active tab inside the parent portal
   const [activeTab, setActiveTab] = useState<string>("dashboard");
+
+  // Lifecycle tracking
+  useEffect(() => {
+    if (userId) {
+      trackEvent('parent_portal_accessed', {
+        tab: activeTab,
+        dependentsCount: 2,
+        hasPendingMessages: true,
+      });
+    }
+  }, [userId, trackEvent]);
+
+  // Track tab changes
+  useEffect(() => {
+    if (userId) {
+      trackEvent('parent_portal_tab_changed', {
+        newTab: activeTab,
+      });
+    }
+  }, [activeTab, userId, trackEvent]);
 
   // Dynamic States
   const [dependents, setDependents] = useState<Dependent[]>([

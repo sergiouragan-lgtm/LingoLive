@@ -1,15 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Video, Calendar as CalendarIcon, Users, Clock, PlayCircle, 
-  Settings, Sparkles, MessageSquare, BookOpen, Star, 
+import {
+  Video, Calendar as CalendarIcon, Users, Clock, PlayCircle,
+  Settings, Sparkles, MessageSquare, BookOpen, Star,
   BarChart3, Shield, Globe, Mic, Monitor, BrainCircuit,
   MessageCircle, LayoutDashboard, FileText, Search
 } from 'lucide-react';
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 type LCPSection = 'dashboard' | 'calendar' | 'teachers' | 'rooms' | 'recordings' | 'analytics';
 
 export const LiveClassesPlatform: React.FC<{ activeView?: string; setView?: (v: any) => void }> = ({ activeView = "live-classes", setView }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
   const [activeSection, setActiveSection] = useState<LCPSection>('dashboard');
 
   useEffect(() => {
@@ -20,6 +26,38 @@ export const LiveClassesPlatform: React.FC<{ activeView?: string; setView?: (v: 
     else if (activeView === 'live-recordings') setActiveSection('recordings');
     else if (activeView === 'live-analytics') setActiveSection('analytics');
   }, [activeView]);
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('live_classes_platform_loaded', {
+        initialSection: activeSection,
+        platformVersion: 'v1.0',
+        platformType: 'enterprise'
+      });
+    }
+  }, [userId, trackEvent]);
+
+  useEffect(() => {
+    if (userId && activeSection) {
+      trackEvent('live_platform_section_changed', {
+        section: activeSection,
+        platformVersion: 'v1.0',
+        platformType: 'enterprise'
+      });
+    }
+  }, [userId, activeSection, trackEvent]);
+
+  const handleSectionChange = (sectionId: LCPSection) => {
+    if (userId) {
+      trackEvent('live_platform_section_clicked', {
+        section: sectionId,
+        previousSection: activeSection,
+        platformVersion: 'v1.0',
+        platformType: 'enterprise'
+      });
+    }
+    setActiveSection(sectionId);
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 pt-8 pb-20">
@@ -63,8 +101,8 @@ export const LiveClassesPlatform: React.FC<{ activeView?: string; setView?: (v: 
           ].map((item) => (
             <button
               key={item.id}
-              onClick={() => setActiveSection(item.id as LCPSection)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition-all ${
+              onClick={() => handleSectionChange(item.id as LCPSection)}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${
                 activeSection === item.id
                   ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
                   : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Target, Loader2, AlertCircle } from 'lucide-react';
 import { StreakData } from '../../types';
 import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 interface DailyGoalTrackerProps {
   streakData?: StreakData;
@@ -11,7 +13,18 @@ interface DailyGoalTrackerProps {
 
 export const DailyGoalTracker: React.FC<DailyGoalTrackerProps> = ({ streakData, isLoading, isError }) => {
   const [goal, setGoal] = useState<number>(30); // Default 30 mins
-  const userId = auth.currentUser?.uid;
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('daily_goal_tracker_viewed', {
+        trackerName: 'Daily Goal Tracker',
+        trackerType: 'goal_tracking'
+      });
+    }
+  }, [userId, trackEvent]);
 
   useEffect(() => {
     if (!userId) return;
@@ -28,6 +41,10 @@ export const DailyGoalTracker: React.FC<DailyGoalTrackerProps> = ({ streakData, 
     if (!isNaN(newGoal) && newGoal > 0) {
       setGoal(newGoal);
       localStorage.setItem(`dailyPracticeGoal_${userId}`, newGoal.toString());
+      trackEvent('daily_goal_changed', {
+        goalMinutes: newGoal,
+        goalType: 'daily_practice'
+      });
     }
   };
 

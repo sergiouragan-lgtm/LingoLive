@@ -24,6 +24,7 @@ export interface LiveClassSession {
   level: string;
   maxParticipants: number;
   startTime: Date;
+  createdAt?: Date;
   status: "pending" | "active" | "recording" | "ended";
   participantCount: number;
   participants: ParticipantInfo[];
@@ -54,13 +55,13 @@ export class LiveKitService {
   /**
    * Generate access token for joining a live class
    */
-  static generateToken(
+  static async generateToken(
     userId: string,
     userName: string,
     roomName: string,
     isInstructor: boolean = false,
     expirationSeconds: number = 3600
-  ): LiveClassToken {
+  ): Promise<LiveClassToken> {
     if (isTestMode) {
       const mockToken = `test_token_${userId}_${Date.now()}`;
       return {
@@ -95,7 +96,7 @@ export class LiveKitService {
     });
 
     token.ttl = expirationSeconds;
-    const jwt = token.toJwt();
+    const jwt = await token.toJwt();
 
     return {
       token: jwt,
@@ -115,18 +116,18 @@ export class LiveKitService {
     try {
       if (isTestMode) {
         console.log(`[LiveKit Mock] Room created: ${roomName}`);
-        return { success: true, roomName, createdAt: new Date().toISOString() };
+        return { success: true, roomName };
       }
 
       const roomClient = this.initRoomClient();
       if (!roomClient) throw new Error("Room client not initialized");
 
       const room = await roomClient.createRoom({
-        roomName,
+        name: roomName,
         maxParticipants: options.maxParticipants || 50,
         emptyTimeout: 300,
         metadata: options.metadata || "",
-      });
+      } as any);
 
       console.log(`[LiveKit] ✅ Room created: ${roomName}`);
       return { success: true, roomName: room.name };
@@ -175,7 +176,7 @@ export class LiveKitService {
         language: metadata.language || "unknown",
         level: metadata.level || "beginner",
         maxParticipants: roomInfo.maxParticipants,
-        startTime: new Date(roomInfo.creationTime * 1000),
+        startTime: new Date(Number(roomInfo.creationTime) * 1000),
         status: participants.length > 0 ? "active" : "pending",
         participantCount: participants.length,
         participants,
@@ -227,7 +228,7 @@ export class LiveKitService {
           language: metadata.language || "unknown",
           level: metadata.level || "beginner",
           maxParticipants: room.maxParticipants,
-          startTime: new Date(room.creationTime * 1000),
+          startTime: new Date(Number(room.creationTime) * 1000),
           status: participants.length > 0 ? "active" : "pending",
           participantCount: participants.length,
           participants,
@@ -282,7 +283,7 @@ export class LiveKitService {
   static async healthCheck(): Promise<{ healthy: boolean; error?: string }> {
     try {
       if (isTestMode) {
-        return { healthy: true, status: "healthy" };
+        return { healthy: true };
       }
 
       if (!LIVEKIT_URL || !LIVEKIT_API_KEY || !LIVEKIT_API_SECRET) {

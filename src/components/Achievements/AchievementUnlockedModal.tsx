@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Award } from 'lucide-react';
 import { ConfettiRain } from '../core/ConfettiRain';
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 interface AchievementUnlockedModalProps {
   isOpen: boolean;
@@ -16,6 +19,28 @@ export const AchievementUnlockedModal: React.FC<AchievementUnlockedModalProps> =
   achievementTitle,
   achievementDescription
 }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId && isOpen) {
+      trackEvent('achievement_unlocked_modal_opened', {
+        achievementTitle: achievementTitle,
+        modalType: 'achievement_unlock'
+      });
+    }
+  }, [userId, isOpen, achievementTitle, trackEvent]);
+
+  const handleClose = () => {
+    if (userId) {
+      trackEvent('achievement_unlocked_modal_closed', {
+        achievementTitle: achievementTitle,
+        modalType: 'achievement_unlock'
+      });
+    }
+    onClose();
+  };
   return (
     <AnimatePresence>
       {isOpen && (
@@ -26,7 +51,7 @@ export const AchievementUnlockedModal: React.FC<AchievementUnlockedModalProps> =
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-            onClick={onClose}
+            onClick={handleClose}
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -36,8 +61,8 @@ export const AchievementUnlockedModal: React.FC<AchievementUnlockedModalProps> =
               onClick={(e) => e.stopPropagation()}
             >
               <button
-                onClick={onClose}
-                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+                onClick={handleClose}
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 cursor-pointer"
               >
                 <X size={24} />
               </button>
@@ -50,8 +75,8 @@ export const AchievementUnlockedModal: React.FC<AchievementUnlockedModalProps> =
                 <h3 className="text-xl font-semibold text-indigo-600 mb-4">{achievementTitle}</h3>
                 <p className="text-gray-600 mb-8">{achievementDescription}</p>
                 <button
-                  onClick={onClose}
-                  className="w-full bg-indigo-600 text-white font-semibold py-3 rounded-xl hover:bg-indigo-700 transition"
+                  onClick={handleClose}
+                  className="w-full bg-indigo-600 text-white font-semibold py-3 rounded-xl hover:bg-indigo-700 transition cursor-pointer"
                 >
                   Awesome!
                 </button>

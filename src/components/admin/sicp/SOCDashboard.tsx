@@ -1,8 +1,24 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { motion } from "motion/react";
 import { Activity, Brain, AlertOctagon } from "lucide-react";
+import { auth } from "../../../firebase";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useMonitoring } from "../../../hooks/useMonitoring";
 
 export const SOCDashboard = () => {
+  const userId = auth.currentUser?.uid || "";
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent("soc_dashboard_viewed", {
+        dashboardType: "security_operations",
+        adminSection: "sicp"
+      });
+    }
+  }, [userId, trackEvent]);
+
   return (
     <motion.div
       initial={{ opacity: 0 }}

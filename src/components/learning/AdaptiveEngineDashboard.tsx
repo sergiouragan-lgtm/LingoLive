@@ -1,21 +1,21 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { 
-  Sparkles, 
-  Brain, 
-  TrendingUp, 
-  Compass, 
-  CheckCircle2, 
-  Target, 
-  Calendar, 
-  BookOpen, 
-  Lock, 
-  Unlock, 
-  Play, 
-  RotateCw, 
-  Check, 
-  Plus, 
-  Trash2, 
+import {
+  Sparkles,
+  Brain,
+  TrendingUp,
+  Compass,
+  CheckCircle2,
+  Target,
+  Calendar,
+  BookOpen,
+  Lock,
+  Unlock,
+  Play,
+  RotateCw,
+  Check,
+  Plus,
+  Trash2,
   AlertCircle,
   HelpCircle,
   Clock,
@@ -35,14 +35,18 @@ import {
   CheckSquare,
   GraduationCap
 } from "lucide-react";
+import { auth } from "../../firebase";
 import { AdaptiveService } from "../../services/adaptive.service";
-import { 
-  AdaptiveLearningProfile, 
-  AdaptiveGoal, 
-  AdaptivePath, 
-  AdaptiveRecommendation 
+import {
+  AdaptiveLearningProfile,
+  AdaptiveGoal,
+  AdaptivePath,
+  AdaptiveRecommendation
 } from "../../types/adaptive";
 import { useToast } from "../../context/ToastContext";
+import { useAnalytics } from "../../hooks/useAnalytics";
+import { useMonitoring } from "../../hooks/useMonitoring";
+import { usePersonalization } from "../../hooks/usePersonalization";
 
 interface AdaptiveEngineDashboardProps {
   selectedLanguage: { code: string; name: string; flag: string };
@@ -57,6 +61,11 @@ export const AdaptiveEngineDashboard: React.FC<AdaptiveEngineDashboardProps> = (
 }) => {
   const service = React.useMemo(() => new AdaptiveService(), []);
   const { addToast } = useToast();
+
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+  const { profile: personalProfile } = usePersonalization(userId);
 
   // States
   const [profile, setProfile] = useState<AdaptiveLearningProfile | null>(null);
@@ -128,12 +137,42 @@ export const AdaptiveEngineDashboard: React.FC<AdaptiveEngineDashboardProps> = (
 
         const s = await service.getStudySchedule();
         setSchedule(s);
+
+        if (userId) {
+          trackEvent('adaptive_engine_dashboard_loaded', {
+            language: selectedLanguage.name,
+            goalsCount: g.length,
+            recommendationsCount: r.length,
+            profilePerformanceScore: p.performanceScore,
+          });
+        }
       } catch (err) {
         console.error("Error loading adaptive data:", err);
       }
     }
     loadAllData();
-  }, [selectedLanguage, service]);
+  }, [selectedLanguage, service, userId, trackEvent]);
+
+  // Track tab changes
+  useEffect(() => {
+    if (userId) {
+      trackEvent('adaptive_engine_tab_changed', {
+        activeTab,
+        language: selectedLanguage.name,
+      });
+    }
+  }, [activeTab, selectedLanguage.name, userId, trackEvent]);
+
+  // Track cycle progress
+  useEffect(() => {
+    if (userId && cycleStep > 0) {
+      trackEvent('adaptive_cycle_step_reached', {
+        cycleStep,
+        language: selectedLanguage.name,
+        cycleProgressCount,
+      });
+    }
+  }, [cycleStep, userId, trackEvent, selectedLanguage.name, cycleProgressCount]);
 
   // Handle slider update with local Recalculation (Difficulty Engine)
   const handleSliderChange = async (key: string, value: any) => {
@@ -211,12 +250,28 @@ export const AdaptiveEngineDashboard: React.FC<AdaptiveEngineDashboardProps> = (
     try {
       const updated = await service.updateGoalProgress(goalId, 1);
       setGoals(updated);
-      
+
       const justCompleted = updated.find(g => g.id === goalId && g.completed);
       if (justCompleted) {
         setConfettiGoalId(goalId);
         if (onAddXp) onAddXp(xpReward);
         setTimeout(() => setConfettiGoalId(null), 3000);
+
+        if (userId) {
+          trackEvent('adaptive_goal_completed', {
+            goalId,
+            language: selectedLanguage.name,
+            xpReward,
+          });
+        }
+      } else {
+        if (userId) {
+          trackEvent('adaptive_goal_progress_incremented', {
+            goalId,
+            language: selectedLanguage.name,
+            xpReward,
+          });
+        }
       }
     } catch (e) {
       console.error(e);
@@ -238,9 +293,28 @@ export const AdaptiveEngineDashboard: React.FC<AdaptiveEngineDashboardProps> = (
         reward
       );
       setGoals(prev => [...prev, created]);
+
+      if (userId) {
+        trackEvent('adaptive_goal_created', {
+          goalId: created.id,
+          title: newGoalTitle,
+          category: newGoalCategory,
+          target: newGoalTarget,
+          reward,
+          language: selectedLanguage.name,
+        });
+      }
+
       setNewGoalTitle("");
       setShowGoalForm(false);
     } catch (err) {
+      if (userId) {
+        trackEvent('adaptive_goal_creation_failed', {
+          title: newGoalTitle,
+          category: newGoalCategory,
+          error: (err as Error).message,
+        });
+      }
       console.error(err);
     }
   };

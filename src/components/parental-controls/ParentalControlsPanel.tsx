@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Clock,
@@ -14,6 +14,9 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import { useRealtimeSync } from '@/hooks/useRealtimeSync';
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 interface ScreenTimeLimit {
   dayOfWeek: 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
@@ -59,6 +62,9 @@ export const ParentalControlsPanel: React.FC<ParentalControlsPanelProps> = ({
   parentId,
   childId,
 }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
   const [activeTab, setActiveTab] = useState<'screentime' | 'content' | 'alerts'>('screentime');
   const [isEditing, setIsEditing] = useState(false);
   const [controls, setControls] = useState<ParentalControl | null>(null);
@@ -70,6 +76,17 @@ export const ParentalControlsPanel: React.FC<ParentalControlsPanelProps> = ({
       return data;
     }
   );
+
+  useEffect(() => {
+    if (userId && controls) {
+      trackEvent('parental_controls_panel_viewed', {
+        parentId,
+        childId,
+        screenTimeConfigured: controls.screenTimeLimits.length > 0,
+        contentFiltered: controls.contentFilters.blockedCategories.length > 0
+      });
+    }
+  }, [userId, trackEvent, parentId, childId, controls]);
 
   const handleScreenTimeLimitChange = (
     dayIndex: number,
@@ -118,6 +135,13 @@ export const ParentalControlsPanel: React.FC<ParentalControlsPanelProps> = ({
 
   const handleSave = async () => {
     try {
+      if (userId) {
+        trackEvent('parental_controls_save_initiated', {
+          parentId,
+          childId,
+          activeTab
+        });
+      }
       const token = await (window as any).auth?.currentUser?.getIdToken?.();
       await fetch(`/api/parental-controls/${parentId}/${childId}`, {
         method: 'PUT',
@@ -127,10 +151,46 @@ export const ParentalControlsPanel: React.FC<ParentalControlsPanelProps> = ({
         },
         body: JSON.stringify(controls),
       });
+      if (userId) {
+        trackEvent('parental_controls_saved_successfully', {
+          parentId,
+          childId
+        });
+      }
       setIsEditing(false);
     } catch (error) {
       console.error('Failed to save parental controls:', error);
+      if (userId) {
+        trackEvent('parental_controls_save_failed', {
+          parentId,
+          childId,
+          error: String(error)
+        });
+      }
     }
+  };
+
+  const handleTabChange = (tab: 'screentime' | 'content' | 'alerts') => {
+    if (userId) {
+      trackEvent('parental_controls_tab_switched', {
+        parentId,
+        childId,
+        fromTab: activeTab,
+        toTab: tab
+      });
+    }
+    setActiveTab(tab);
+  };
+
+  const handleEditToggle = () => {
+    if (userId) {
+      trackEvent('parental_controls_edit_toggled', {
+        parentId,
+        childId,
+        isNowEditing: !isEditing
+      });
+    }
+    setIsEditing(!isEditing);
   };
 
   if (!controls) {
@@ -168,7 +228,7 @@ export const ParentalControlsPanel: React.FC<ParentalControlsPanelProps> = ({
             )}
             {!isEditing && (
               <button
-                onClick={() => setIsEditing(true)}
+                onClick={handleEditToggle}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 flex items-center gap-2"
               >
                 <Settings className="w-4 h-4" />
@@ -182,7 +242,7 @@ export const ParentalControlsPanel: React.FC<ParentalControlsPanelProps> = ({
             {(['screentime', 'content', 'alerts'] as const).map((tab) => (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab)}
+                onClick={() => handleTabChange(tab)}
                 className={`pb-2 px-4 font-medium text-sm transition-colors ${
                   activeTab === tab
                     ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400'

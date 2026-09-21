@@ -1,11 +1,27 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { School, Users, BookOpen, Calendar, BookCheck, ClipboardList, Award, DollarSign, FileText, Settings, Sparkles } from 'lucide-react';
+import { auth } from '../../../firebase';
+import { useAnalytics } from '../../../hooks/useAnalytics';
+import { useMonitoring } from '../../../hooks/useMonitoring';
 
 interface AreaEscolarDashboardProps {
   setView: (view: any) => void;
 }
 
 export const AreaEscolarDashboard: React.FC<AreaEscolarDashboardProps> = ({ setView }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  // Lifecycle tracking
+  useEffect(() => {
+    if (userId) {
+      trackEvent('area_escolar_dashboard_accessed', {
+        userEmail: auth.currentUser?.email || '',
+      });
+    }
+  }, [userId, trackEvent]);
+
   const menuItems = [
     { name: 'Dashboard', icon: School, id: 'educator-dashboard', hasSettings: false },
     { name: 'Criar Turma', icon: BookOpen, id: 'criar-turma', hasSettings: true },
@@ -33,16 +49,30 @@ export const AreaEscolarDashboard: React.FC<AreaEscolarDashboardProps> = ({ setV
         {menuItems.map((item) => (
           <button
             key={item.id}
-            onClick={() => setView(item.id)}
+            onClick={() => {
+              if (userId) {
+                trackEvent('area_escolar_menu_clicked', {
+                  menuItem: item.id,
+                  menuName: item.name,
+                });
+              }
+              setView(item.id);
+            }}
             className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:border-indigo-300 hover:shadow-md transition-all flex items-center gap-4 text-left relative"
           >
             <item.icon className="w-8 h-8 text-indigo-600" />
             <span className="font-semibold text-slate-800 text-lg">{item.name}</span>
             {item.hasSettings && (
-              <div 
+              <div
                 className="absolute top-4 right-4 p-1 text-slate-400 hover:text-indigo-600 cursor-pointer"
                 onClick={(e) => {
                   e.stopPropagation();
+                  if (userId) {
+                    trackEvent('area_escolar_settings_clicked', {
+                      menuItem: item.id,
+                      menuName: item.name,
+                    });
+                  }
                   console.log(`Open settings for ${item.id}`);
                 }}
               >

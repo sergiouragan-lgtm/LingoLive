@@ -14,6 +14,8 @@ import {
   Filter,
 } from "lucide-react";
 import { auth } from "../../../firebase";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useMonitoring } from "../../../hooks/useMonitoring";
 import EbookReviews from "./EbookReviews";
 
 interface PublishedEbook {
@@ -71,6 +73,10 @@ interface EbookCatalogueProps {
 }
 
 export function EbookCatalogue({ onOpenReader }: EbookCatalogueProps) {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [ebooks, setEbooks] = useState<PublishedEbook[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -109,6 +115,15 @@ export function EbookCatalogue({ onOpenReader }: EbookCatalogueProps) {
 
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => {
+    if (userId && !loading && !error) {
+      trackEvent('ebook_catalogue_viewed', {
+        totalEbooks: ebooks.length,
+        librarySize: libraryIds.size,
+      });
+    }
+  }, [userId, trackEvent, ebooks.length, libraryIds.size, loading, error]);
+
   // Keyboard shortcuts: Escape closes drawer, "/" focuses search
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -135,10 +150,25 @@ export function EbookCatalogue({ onOpenReader }: EbookCatalogueProps) {
       });
       setLibraryIds((prev) => new Set([...prev, ebookId]));
       setEnrollStatus((prev) => ({ ...prev, [ebookId]: "enrolled" }));
+
+      if (userId) {
+        const ebook = ebooks.find((e) => e.id === ebookId);
+        trackEvent('ebook_catalogue_enrolled', {
+          ebookId,
+          ebookTitle: ebook?.title,
+          language: ebook?.language,
+          cefrLevel: ebook?.cefrLevel,
+        });
+      }
     } catch {
       setEnrollStatus((prev) => ({ ...prev, [ebookId]: null }));
+      if (userId) {
+        trackEvent('ebook_catalogue_enrollment_failed', {
+          ebookId,
+        });
+      }
     }
-  }, []);
+  }, [userId, ebooks, trackEvent]);
 
   const languages = ["Todos", ...Array.from(new Set(ebooks.map((e) => e.language))).sort()];
 
@@ -194,7 +224,14 @@ export function EbookCatalogue({ onOpenReader }: EbookCatalogueProps) {
         </div>
         {hasActiveFilters && (
           <button
-            onClick={() => { setQuery(""); setCefrFilter("Todos"); setLangFilter("Todos"); }}
+            onClick={() => {
+              setQuery("");
+              setCefrFilter("Todos");
+              setLangFilter("Todos");
+              if (userId) {
+                trackEvent('ebook_catalogue_filters_cleared', {});
+              }
+            }}
             className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 mt-1 shrink-0"
           >
             <X className="w-3 h-3" /> Limpar filtros
@@ -232,7 +269,14 @@ export function EbookCatalogue({ onOpenReader }: EbookCatalogueProps) {
           {LEVELS.map((lvl) => (
             <button
               key={lvl}
-              onClick={() => setCefrFilter(lvl)}
+              onClick={() => {
+                setCefrFilter(lvl);
+                if (userId && lvl !== cefrFilter) {
+                  trackEvent('ebook_catalogue_cefr_filter_changed', {
+                    selectedLevel: lvl,
+                  });
+                }
+              }}
               className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${
                 cefrFilter === lvl
                   ? "bg-indigo-600 text-white"
@@ -253,7 +297,14 @@ export function EbookCatalogue({ onOpenReader }: EbookCatalogueProps) {
             {languages.map((lang) => (
               <button
                 key={lang}
-                onClick={() => setLangFilter(lang)}
+                onClick={() => {
+                  setLangFilter(lang);
+                  if (userId && lang !== langFilter) {
+                    trackEvent('ebook_catalogue_language_filter_changed', {
+                      selectedLanguage: lang,
+                    });
+                  }
+                }}
                 className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${
                   langFilter === lang
                     ? "bg-emerald-600 text-white"

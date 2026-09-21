@@ -5,9 +5,11 @@ import {
   Circle, StopCircle, Hand, Monitor, MoreVertical
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { auth, db } from "@/src/firebase";
+import { auth, db } from "@/firebase";
 import { doc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
-import { useToast } from "@/src/context/ToastContext";
+import { useToast } from "@/context/ToastContext";
+import { useAnalytics } from "@/hooks/useAnalytics";
+import { useMonitoring } from "@/hooks/useMonitoring";
 
 interface LiveRoom {
   id: string;
@@ -44,6 +46,9 @@ export const LiveClassVideoRoom: React.FC<{
 }> = ({ roomId, onEnd }) => {
   const { addToast } = useToast();
   const user = auth.currentUser;
+  const userId = user?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
 
   const [room, setRoom] = useState<LiveRoom | null>(null);
   const [videoEnabled, setVideoEnabled] = useState(true);
@@ -65,12 +70,21 @@ export const LiveClassVideoRoom: React.FC<{
     const roomRef = doc(db, "live_classes", roomId);
     const unsubscribe = onSnapshot(roomRef, (doc) => {
       if (doc.exists()) {
-        setRoom(doc.data() as LiveRoom);
+        const roomData = doc.data() as LiveRoom;
+        setRoom(roomData);
+        if (userId) {
+          trackEvent('live_room_loaded', {
+            roomId: roomId,
+            teacherId: roomData.teacherId,
+            roomTitle: roomData.title,
+            maxParticipants: roomData.maxParticipants
+          });
+        }
       }
     });
 
     return () => unsubscribe();
-  }, [roomId]);
+  }, [roomId, userId, trackEvent]);
 
   // Initialize mock participants
   useEffect(() => {
@@ -96,36 +110,76 @@ export const LiveClassVideoRoom: React.FC<{
   }, [roomId]);
 
   const handleToggleVideo = useCallback(() => {
-    setVideoEnabled(prev => !prev);
-  }, []);
+    setVideoEnabled(prev => {
+      const newState = !prev;
+      if (userId) {
+        trackEvent('live_room_video_toggled', {
+          videoEnabled: newState,
+          roomId: room?.id || '',
+          isTeacher: room?.teacherId === userId
+        });
+      }
+      return newState;
+    });
+  }, [userId, trackEvent, room]);
 
   const handleToggleAudio = useCallback(() => {
-    setAudioEnabled(prev => !prev);
-  }, []);
+    setAudioEnabled(prev => {
+      const newState = !prev;
+      if (userId) {
+        trackEvent('live_room_audio_toggled', {
+          audioEnabled: newState,
+          roomId: room?.id || '',
+          isTeacher: room?.teacherId === userId
+        });
+      }
+      return newState;
+    });
+  }, [userId, trackEvent, room]);
 
   const handleToggleRecording = useCallback(() => {
-    setIsRecording(prev => !prev);
-    if (!isRecording) {
-      addToast("Gravação iniciada", "success");
-      setChatMessages(prev => [...prev, {
-        id: `sys-${Date.now()}`,
-        senderId: "system",
-        senderName: "Sistema",
-        text: "🔴 Gravação iniciada",
-        timestamp: Date.now()
-      }]);
-    } else {
-      addToast("Gravação finalizada", "success");
-    }
-  }, [isRecording, addToast]);
+    setIsRecording(prev => {
+      const newState = !prev;
+      if (userId) {
+        trackEvent('live_room_recording_toggled', {
+          recordingEnabled: newState,
+          roomId: room?.id || '',
+          isTeacher: room?.teacherId === userId
+        });
+      }
+      if (!prev) {
+        addToast("Gravação iniciada", "success");
+        setChatMessages(prev => [...prev, {
+          id: `sys-${Date.now()}`,
+          senderId: "system",
+          senderName: "Sistema",
+          text: "🔴 Gravação iniciada",
+          timestamp: Date.now()
+        }]);
+      } else {
+        addToast("Gravação finalizada", "success");
+      }
+      return newState;
+    });
+  }, [userId, trackEvent, room, addToast]);
 
   const handleRaiseHand = useCallback(() => {
-    setHandRaised(prev => !prev);
-    addToast(
-      handRaised ? "Mão baixada" : "Mão levantada",
-      "info"
-    );
-  }, [handRaised, addToast]);
+    setHandRaised(prev => {
+      const newState = !prev;
+      if (userId) {
+        trackEvent('live_room_hand_raised', {
+          handRaised: newState,
+          roomId: room?.id || '',
+          isTeacher: room?.teacherId === userId
+        });
+      }
+      addToast(
+        newState ? "Mão levantada" : "Mão baixada",
+        "info"
+      );
+      return newState;
+    });
+  }, [userId, trackEvent, room, handRaised, addToast]);
 
   const handleSendMessage = useCallback(() => {
     if (!chatInput.trim() || !user) return;
@@ -138,14 +192,28 @@ export const LiveClassVideoRoom: React.FC<{
       timestamp: Date.now()
     };
 
+    if (userId) {
+      trackEvent('live_room_message_sent', {
+        messageLength: chatInput.length,
+        roomId: room?.id || '',
+        isTeacher: room?.teacherId === userId
+      });
+    }
+
     setChatMessages(prev => [...prev, newMessage]);
     setChatInput("");
-  }, [chatInput, user]);
+  }, [chatInput, user, userId, trackEvent, room]);
 
   const handleCopyCode = () => {
     if (room?.roomCode) {
       navigator.clipboard.writeText(room.roomCode);
       setCodeCopied(true);
+      if (userId) {
+        trackEvent('live_room_code_copied', {
+          roomId: room.id,
+          isTeacher: room.teacherId === userId
+        });
+      }
       addToast("Código copiado!", "success");
       setTimeout(() => setCodeCopied(false), 2000);
     }
@@ -153,6 +221,13 @@ export const LiveClassVideoRoom: React.FC<{
 
   const handleEndClass = () => {
     if (window.confirm("Deseja sair da aula?")) {
+      if (userId) {
+        trackEvent('live_room_ended', {
+          roomId: room?.id || '',
+          isTeacher: room?.teacherId === userId,
+          wasRecording: isRecording
+        });
+      }
       addToast("Encerrando conexão...", "info");
       setTimeout(() => {
         onEnd();

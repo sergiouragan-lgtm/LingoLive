@@ -2,6 +2,9 @@ import React, { useState, useEffect } from "react";
 import { QUIZ_QUESTIONS, QuizQuestion } from "../../../quizData";
 import { Language, SavedWord } from "../../../types";
 import { LANGUAGES } from "../../../data";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useMonitoring } from "../../../hooks/useMonitoring";
+import { auth } from "../../../firebase";
 import { 
   Trophy, 
   ArrowLeft, 
@@ -167,17 +170,32 @@ const GRADES = [
   { id: "7º Ano", label: "7º Ano", labelEn: "7th Grade", color: "bg-purple-500 hover:bg-purple-600 text-white" }
 ] as const;
 
-export default function LanguageQuiz({ 
-  currentLanguage, 
-  savedWords = [], 
-  onAddWords, 
-  onBack, 
+export default function LanguageQuiz({
+  currentLanguage,
+  savedWords = [],
+  onAddWords,
+  onBack,
   onCompleteQuiz,
   selectedAgeGroup,
   userAge
 }: LanguageQuizProps) {
   const activeProfile = normalizeAssessmentProfile(selectedAgeGroup, userAge);
   const profileExp = getAssessmentProfileExperience(activeProfile);
+
+  // Analytics & Monitoring
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('language_quiz_accessed', {
+        language: currentLanguage.code || currentLanguage.name,
+        ageGroup: activeProfile || 'unknown',
+        savedWordsCount: savedWords.length,
+      });
+    }
+  }, [userId, trackEvent, currentLanguage, activeProfile, savedWords.length]);
 
   // State for configuration
   const [quizMode, setQuizMode] = useState<"school" | "flashcard">("school");
@@ -466,6 +484,16 @@ export default function LanguageQuiz({
     setIsFinished(false);
     setIsPlaying(true);
     setFeedbackMessage("");
+
+    if (userId) {
+      trackEvent('quiz_started', {
+        mode: quizMode,
+        grade: selectedGrade,
+        category: selectedCategory,
+        language: quizLanguage.code || quizLanguage.name,
+        questionsCount: finalSet.length,
+      });
+    }
   };
 
   const handleSelectOption = (idx: number) => {
@@ -507,6 +535,23 @@ export default function LanguageQuiz({
     } else {
       playSoundEffect("finish");
       setIsFinished(true);
+
+      if (userId) {
+        const totalQuestions = currentQuestions.length;
+        const finalScore = currentQuestionIndex + 1 === totalQuestions && isAnswerConfirmed ? (selectedAnswerIndex === currentQuestions[currentQuestionIndex].correctAnswerIndex ? score + 1 : score) : score;
+        const scorePercent = totalQuestions > 0 ? (finalScore / totalQuestions) * 100 : 0;
+
+        trackEvent('quiz_completed', {
+          mode: quizMode,
+          grade: selectedGrade,
+          category: selectedCategory,
+          language: quizLanguage.code || quizLanguage.name,
+          scoreCount: finalScore,
+          totalQuestions: totalQuestions,
+          scorePercent: Math.round(scorePercent),
+        });
+      }
+
       if (onCompleteQuiz) {
         onCompleteQuiz();
       }

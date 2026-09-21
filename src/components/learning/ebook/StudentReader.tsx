@@ -1,5 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { getAuth } from "firebase/auth";
+import { auth } from "../../../firebase";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useMonitoring } from "../../../hooks/useMonitoring";
 import EbookAIAssistant from "./EbookAIAssistant";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -356,6 +359,10 @@ interface StudentReaderProps {
 }
 
 export function StudentReader({ ebookId, enrollment, onBack, backLabel }: StudentReaderProps) {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [ebook, setEbook] = useState<EbookData | null>(null);
   const [progress, setProgress] = useState<Enrollment>(enrollment ?? EMPTY_ENROLLMENT);
   const [completionPercent, setCompletionPercent] = useState(0);
@@ -372,12 +379,28 @@ export function StudentReader({ ebookId, enrollment, onBack, backLabel }: Studen
 
   // Load ebook data
   useEffect(() => {
+    if (userId) {
+      trackEvent('student_reader_opened', {
+        ebookId,
+        hasEnrollment: !!enrollment,
+      });
+    }
+
     fetchEbookData(ebookId).then(data => {
       if (data) {
         setEbook(data);
         // Select first chapter by default
         if (data.chapters?.length > 0) {
           setSelectedChapter(data.chapters[0]);
+        }
+        if (userId) {
+          trackEvent('student_reader_ebook_loaded', {
+            ebookId,
+            title: data.title,
+            chapterCount: data.chapters?.length ?? 0,
+            language: data.language,
+            cefrLevel: data.cefrLevel,
+          });
         }
       }
     });
@@ -386,9 +409,16 @@ export function StudentReader({ ebookId, enrollment, onBack, backLabel }: Studen
       if (data) {
         setProgress(data.enrollment);
         setCompletionPercent(data.completionPercent);
+        if (userId) {
+          trackEvent('student_reader_progress_loaded', {
+            ebookId,
+            completionPercent: data.completionPercent,
+            totalChapters: data.totalChapters,
+          });
+        }
       }
     });
-  }, [ebookId]);
+  }, [ebookId, userId, trackEvent]);
 
   // Load / adapt blocks when chapter or CEFR changes
   useEffect(() => {
@@ -447,7 +477,15 @@ export function StudentReader({ ebookId, enrollment, onBack, backLabel }: Studen
   const handleSelectChapter = useCallback((chapter: Chapter) => {
     setSelectedChapter(chapter);
     contentRef.current?.scrollTo({ top: 0, behavior: "smooth" });
-  }, []);
+    if (userId) {
+      trackEvent('student_reader_chapter_selected', {
+        ebookId,
+        chapterId: chapter.id,
+        chapterTitle: chapter.title,
+        order: chapter.order,
+      });
+    }
+  }, [ebookId, userId, trackEvent]);
 
   const handleMarkRead = async () => {
     if (!selectedChapter || !ebook) return;
@@ -457,11 +495,25 @@ export function StudentReader({ ebookId, enrollment, onBack, backLabel }: Studen
     if (data) {
       setProgress(data.enrollment);
       setCompletionPercent(data.completionPercent);
+      if (userId) {
+        trackEvent('student_reader_chapter_marked_read', {
+          ebookId,
+          chapterId: selectedChapter.id,
+          completionPercent: data.completionPercent,
+          isComplete: data.completionPercent >= 100,
+        });
+      }
       if (data.completionPercent >= 100) {
         const certData = await issueCertificateApi(ebookId);
         if (certData?.certificate) {
           setCertificate(certData.certificate);
           setShowCertModal(true);
+          if (userId) {
+            trackEvent('student_reader_ebook_completed', {
+              ebookId,
+              verificationCode: certData.certificate.verificationCode,
+            });
+          }
         }
       } else {
         // Auto-advance to next chapter after a short delay
@@ -476,6 +528,14 @@ export function StudentReader({ ebookId, enrollment, onBack, backLabel }: Studen
   const handleCefrChange = async (level: CefrLevel) => {
     setCefrLevel(level);
     await updateCefrLevelApi(ebookId, level);
+    if (userId) {
+      trackEvent('student_reader_cefr_changed', {
+        ebookId,
+        chapterId: selectedChapter?.id,
+        previousLevel: cefrLevel,
+        newLevel: level,
+      });
+    }
   };
 
   const isChapterRead = (chapterId: string) =>

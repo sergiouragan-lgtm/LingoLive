@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Bell, 
-  Send, 
-  Trash2, 
-  Trophy, 
-  CheckCircle2, 
-  AlertCircle, 
-  Info, 
-  Sparkles, 
+import {
+  Bell,
+  Send,
+  Trash2,
+  Trophy,
+  CheckCircle2,
+  AlertCircle,
+  Info,
+  Sparkles,
   Activity,
   Layers,
   Play,
@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import { notificationService } from '../../services/notification.service';
 import { getAuth } from 'firebase/auth';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useNotifications } from '../../hooks/useNotifications';
 
 interface LocalNotification {
   id: string;
@@ -28,15 +30,18 @@ interface LocalNotification {
 }
 
 export function NotificationDiagnostic() {
+  // Phase 38-45 Hook Integration
+  const auth = getAuth();
+  const userId = auth.currentUser?.uid || 'anonymous';
+  const { trackEvent } = useAnalytics(userId);
+  const { notifications } = useNotifications(userId);
+
   const [customTitle, setCustomTitle] = useState('');
   const [customMessage, setCustomMessage] = useState('');
   const [customType, setCustomType] = useState('info');
   const [liveEvents, setLiveEvents] = useState<LocalNotification[]>([]);
   const [storedNotifications, setStoredNotifications] = useState<LocalNotification[]>([]);
   const [activeTab, setActiveTab] = useState<'trigger' | 'history'>('trigger');
-
-  const auth = getAuth();
-  const userId = auth.currentUser?.uid || 'anonymous';
 
   // Load notifications from localStorage
   const loadStoredNotifications = () => {
@@ -54,6 +59,15 @@ export function NotificationDiagnostic() {
   };
 
   useEffect(() => {
+    if (userId) {
+      trackEvent('notification_diagnostic_accessed', {
+        timestamp: new Date().toISOString(),
+        storedNotificationCount: storedNotifications.length,
+      });
+    }
+  }, [userId, trackEvent, storedNotifications.length]);
+
+  useEffect(() => {
     loadStoredNotifications();
 
     // Listen to live notification events
@@ -62,7 +76,7 @@ export function NotificationDiagnostic() {
       if (customEvent.detail) {
         const newNotif = customEvent.detail as LocalNotification;
         setLiveEvents((prev) => [newNotif, ...prev].slice(0, 10));
-        
+
         // Reload stored list
         setTimeout(() => {
           loadStoredNotifications();
@@ -78,6 +92,11 @@ export function NotificationDiagnostic() {
 
   // Handle firing a predefined scenario
   const handleTriggerPredefined = (title: string, message: string, type: string) => {
+    trackEvent('predefined_notification_triggered', {
+      title,
+      type,
+      timestamp: new Date().toISOString(),
+    });
     notificationService.notifyUser(userId, { title, message, type });
   };
 
@@ -87,6 +106,11 @@ export function NotificationDiagnostic() {
     if (!customMessage.trim()) return;
 
     const titleToUse = customTitle.trim() || 'Notificação de Teste';
+    trackEvent('custom_notification_sent', {
+      title: titleToUse,
+      type: customType,
+      timestamp: new Date().toISOString(),
+    });
     notificationService.notifyUser(userId, {
       title: titleToUse,
       message: customMessage.trim(),
@@ -101,6 +125,10 @@ export function NotificationDiagnostic() {
   const handleClearHistory = () => {
     const key = `lingolive_notifications_${userId}`;
     try {
+      trackEvent('notification_history_cleared', {
+        clearedCount: storedNotifications.length,
+        timestamp: new Date().toISOString(),
+      });
       localStorage.removeItem(key);
       setStoredNotifications([]);
       setLiveEvents([]);

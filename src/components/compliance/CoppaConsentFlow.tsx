@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Shield,
@@ -10,6 +10,9 @@ import {
 } from "lucide-react";
 import { useToast } from "../../context/ToastContext";
 import { recordCoppaConsentWithVerification } from "../../services/coppaEnforcement.service";
+import { auth } from "../../firebase";
+import { useAnalytics } from "../../hooks/useAnalytics";
+import { useMonitoring } from "../../hooks/useMonitoring";
 
 interface CoppaConsentFlowProps {
   studentName: string;
@@ -36,19 +39,50 @@ export const CoppaConsentFlow: React.FC<CoppaConsentFlowProps> = ({
   const [creditCardVerified, setCreditCardVerified] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const { showToast } = useToast();
+  const userId = auth.currentUser?.uid || "";
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent("coppa_consent_flow_started", {
+        studentAge: studentAge,
+        studentId: studentId,
+        flowType: "parental_consent"
+      });
+    }
+  }, [userId, studentId, studentAge, trackEvent]);
 
   const handleVerifyCreditCard = async () => {
+    if (userId) {
+      trackEvent("coppa_credit_card_verification_started", {
+        studentId: studentId,
+        parentEmail: parentEmail
+      });
+    }
     setIsProcessing(true);
     try {
       // Simulação - em produção, integrar com Stripe ou similar
       await new Promise((resolve) => setTimeout(resolve, 1500));
       setCreditCardVerified(true);
       setStep("confirmation");
+      if (userId) {
+        trackEvent("coppa_credit_card_verified", {
+          studentId: studentId,
+          success: true
+        });
+      }
       showToast(
         "Cartão de crédito verificado com sucesso",
         "success"
       );
     } catch (error) {
+      if (userId) {
+        trackEvent("coppa_credit_card_verification_failed", {
+          studentId: studentId,
+          error: error instanceof Error ? error.message : "Unknown error"
+        });
+      }
       showToast(
         "Erro ao verificar cartão de crédito. Tente novamente.",
         "error"
@@ -67,6 +101,13 @@ export const CoppaConsentFlow: React.FC<CoppaConsentFlowProps> = ({
       return;
     }
 
+    if (userId) {
+      trackEvent("coppa_consent_submission_started", {
+        studentId: studentId,
+        parentEmail: parentEmail
+      });
+    }
+
     setIsProcessing(true);
     try {
       const result = await recordCoppaConsentWithVerification(
@@ -78,12 +119,31 @@ export const CoppaConsentFlow: React.FC<CoppaConsentFlowProps> = ({
       );
 
       if (result.success) {
+        if (userId) {
+          trackEvent("coppa_consent_recorded", {
+            studentId: studentId,
+            success: true,
+            parentName: parentName
+          });
+        }
         showToast(result.message, "success");
         onConsentConfirmed?.();
       } else {
+        if (userId) {
+          trackEvent("coppa_consent_failed", {
+            studentId: studentId,
+            message: result.message
+          });
+        }
         showToast(result.message, "error");
       }
     } catch (error) {
+      if (userId) {
+        trackEvent("coppa_consent_error", {
+          studentId: studentId,
+          error: error instanceof Error ? error.message : "Unknown error"
+        });
+      }
       showToast(
         "Erro ao processar consentimento. Tente novamente.",
         "error"

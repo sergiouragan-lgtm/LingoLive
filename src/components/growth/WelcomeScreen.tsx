@@ -1,10 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { User } from "firebase/auth";
 import { db, handleFirestoreError, OperationType } from "../../firebase";
 import { doc, updateDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { Sparkles, CheckCircle2, ArrowRight, Brain, Cpu, MessageSquare, Volume2, Trophy, Globe, Download } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useLocalization } from "../../context/LocalizationContext";
+import { useAnalytics } from "../../hooks/useAnalytics";
+import { useMonitoring } from "../../hooks/useMonitoring";
 import { COUNTRY_DETAILS } from "../../data/localizationData";
 import { usePWAInstall } from "../../hooks/usePWAInstall";
 
@@ -14,6 +16,9 @@ interface WelcomeScreenProps {
 }
 
 export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ user, onComplete }) => {
+  const { trackEvent } = useAnalytics(user.uid);
+  const { monitors } = useMonitoring();
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -22,10 +27,22 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ user, onComplete }
 
   const userName = user.displayName || user.email?.split("@")[0] || "Estudante";
 
+  // Lifecycle tracking
+  useEffect(() => {
+    trackEvent('welcome_screen_accessed', {
+      userName,
+      hasDisplayName: !!user.displayName,
+    });
+  }, [user.uid, trackEvent, userName, user.displayName]);
+
   const handleContinue = async () => {
     setLoading(true);
     setError("");
     try {
+      trackEvent('welcome_screen_completed', {
+        locale: localization?.locale || 'pt-PT',
+      });
+
       const userRef = doc(db, "users", user.uid);
       await setDoc(userRef, {
         welcomeCompleted: true,

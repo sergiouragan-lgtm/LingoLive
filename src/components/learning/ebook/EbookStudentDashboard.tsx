@@ -18,6 +18,8 @@ import {
   GraduationCap,
 } from "lucide-react";
 import { auth } from "../../../firebase";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useMonitoring } from "../../../hooks/useMonitoring";
 
 interface GamificationData {
   xp: number;
@@ -149,6 +151,10 @@ export function EbookStudentDashboard({
   onNavigate?: (view: string) => void;
   onOpenReader?: (ebookId: string) => void;
 }) {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [gamification, setGamification] = useState<GamificationData | null>(null);
   const [assignments, setAssignments] = useState<StudentAssignment[]>([]);
   const [stats, setStats] = useState<StudentStats | null>(null);
@@ -183,9 +189,25 @@ export function EbookStudentDashboard({
 
     setErrors(errs);
     setLoading(false);
+
+    if (userId && results[2].status === "fulfilled") {
+      trackEvent('ebook_student_dashboard_loaded', {
+        totalEnrolled: results[2].value.stats?.totalEnrolled ?? 0,
+        totalCompleted: results[2].value.stats?.totalCompleted ?? 0,
+        inProgress: results[2].value.stats?.inProgress ?? 0,
+        errorsCount: errs.length,
+      });
+    }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    if (userId) {
+      trackEvent('ebook_student_dashboard_viewed', {
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }, [userId, trackEvent]);
 
   const activeAssignments = assignments.filter((a) => a.status !== "completed");
   const overdueAssignments = activeAssignments.filter((a) => a.overdue);
@@ -202,7 +224,12 @@ export function EbookStudentDashboard({
           O Meu Painel
         </h3>
         <button
-          onClick={load}
+          onClick={() => {
+            if (userId) {
+              trackEvent('ebook_student_dashboard_refresh_clicked', {});
+            }
+            load();
+          }}
           disabled={loading}
           className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
         >
@@ -310,7 +337,14 @@ export function EbookStudentDashboard({
       {overdueAssignments.length > 0 && (
         <div
           className="flex items-center gap-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl px-4 py-3 cursor-pointer hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
-          onClick={() => onNavigate?.("ebook-assignments-student")}
+          onClick={() => {
+            if (userId) {
+              trackEvent('ebook_student_dashboard_overdue_clicked', {
+                overdueCount: overdueAssignments.length,
+              });
+            }
+            onNavigate?.("ebook-assignments-student");
+          }}
         >
           <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
           <div className="flex-1">
@@ -347,7 +381,17 @@ export function EbookStudentDashboard({
             {activeAssignments.slice(0, 3).map(({ assignment, completionPercent, status, overdue }) => (
               <button
                 key={assignment.id}
-                onClick={() => onOpenReader ? onOpenReader(assignment.ebookId) : onNavigate?.("ebook-curation")}
+                onClick={() => {
+                  if (userId) {
+                    trackEvent('ebook_student_dashboard_assignment_opened', {
+                      assignmentId: assignment.id,
+                      ebookId: assignment.ebookId,
+                      completionPercent,
+                      status,
+                    });
+                  }
+                  onOpenReader ? onOpenReader(assignment.ebookId) : onNavigate?.("ebook-curation");
+                }}
                 className="w-full bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 px-4 py-3 flex items-center gap-3 text-left hover:border-indigo-300 dark:hover:border-indigo-600 transition-colors"
               >
                 <div className="flex-1 min-w-0">
@@ -399,7 +443,16 @@ export function EbookStudentDashboard({
             {recentEbooks.map((e) => (
               <button
                 key={e.ebookId}
-                onClick={() => onOpenReader ? onOpenReader(e.ebookId) : onNavigate?.("ebook-curation")}
+                onClick={() => {
+                  if (userId) {
+                    trackEvent('ebook_student_dashboard_recent_ebook_opened', {
+                      ebookId: e.ebookId,
+                      progress: e.progress,
+                      lastReadAt: e.lastReadAt,
+                    });
+                  }
+                  onOpenReader ? onOpenReader(e.ebookId) : onNavigate?.("ebook-curation");
+                }}
                 className="w-full bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 px-4 py-3 flex items-center gap-3 text-left hover:border-indigo-300 dark:hover:border-indigo-600 transition-colors"
               >
                 <div className="flex-1 min-w-0">
@@ -436,14 +489,24 @@ export function EbookStudentDashboard({
           </p>
           <div className="flex gap-2 justify-center">
             <button
-              onClick={() => onNavigate?.("ebook-curation")}
+              onClick={() => {
+                if (userId) {
+                  trackEvent('ebook_student_dashboard_empty_state_catalogue_clicked', {});
+                }
+                onNavigate?.("ebook-curation");
+              }}
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors"
             >
               <BookOpen className="w-4 h-4" />
               Ver catálogo
             </button>
             <button
-              onClick={() => onNavigate?.("ebook-recommendations")}
+              onClick={() => {
+                if (userId) {
+                  trackEvent('ebook_student_dashboard_empty_state_recommendations_clicked', {});
+                }
+                onNavigate?.("ebook-recommendations");
+              }}
               className="flex items-center gap-2 px-4 py-2 rounded-xl border border-indigo-300 dark:border-indigo-600 text-indigo-700 dark:text-indigo-300 text-sm font-semibold hover:bg-indigo-100 dark:hover:bg-indigo-800/40 transition-colors"
             >
               <Sparkles className="w-4 h-4" />
@@ -470,7 +533,15 @@ export function EbookStudentDashboard({
           ].map(({ label, icon, view, color }) => (
             <button
               key={view}
-              onClick={() => onNavigate?.(view)}
+              onClick={() => {
+                if (userId) {
+                  trackEvent('ebook_student_dashboard_quickaction_clicked', {
+                    action: view,
+                    label,
+                  });
+                }
+                onNavigate?.(view);
+              }}
               className={`flex items-center gap-3 px-4 py-3 rounded-2xl ${color} hover:opacity-80 transition-opacity text-sm font-medium`}
             >
               {icon}

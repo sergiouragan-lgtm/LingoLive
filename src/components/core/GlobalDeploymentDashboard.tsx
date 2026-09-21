@@ -1,24 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Globe, 
-  Cpu, 
-  Radio, 
-  Cloud, 
-  Map, 
-  Zap, 
-  ShieldCheck, 
-  RefreshCw, 
-  Activity, 
-  FileCode, 
-  Layout, 
-  Terminal, 
-  Database, 
-  AlertTriangle, 
-  CheckCircle, 
+import {
+  Globe,
+  Cpu,
+  Radio,
+  Cloud,
+  Map,
+  Zap,
+  ShieldCheck,
+  RefreshCw,
+  Activity,
+  FileCode,
+  Layout,
+  Terminal,
+  Database,
+  AlertTriangle,
+  CheckCircle,
   ArrowRight,
   TrendingDown,
   Navigation
 } from 'lucide-react';
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 interface CloudRegion {
   id: string;
@@ -33,6 +36,9 @@ interface CloudRegion {
 }
 
 export default function GlobalDeploymentDashboard() {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
   const [activeTab, setActiveTab] = useState<'regions' | 'anycast' | 'tf' | 'dns'>('regions');
   const [regions, setRegions] = useState<CloudRegion[]>([]);
   const [loading, setLoading] = useState(false);
@@ -61,6 +67,15 @@ export default function GlobalDeploymentDashboard() {
     'Cloud CDN cache headers populated on 24 edge endpoints globally.',
     'Regional health checks reported 100% SLA for all continental clusters.'
   ];
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('global_deployment_dashboard_viewed', {
+        activeTab,
+        regionsCount: regions.length
+      });
+    }
+  }, [userId, trackEvent, activeTab, regions.length]);
 
   useEffect(() => {
     setRegions(initialRegions);

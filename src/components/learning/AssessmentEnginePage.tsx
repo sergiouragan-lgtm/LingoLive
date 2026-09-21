@@ -1,12 +1,28 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { AssessmentEngine } from './AssessmentEngine';
 import { ArrowLeft } from 'lucide-react';
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 interface AssessmentEnginePageProps {
   setView?: (view: any) => void;
 }
 
 export const AssessmentEnginePage: React.FC<AssessmentEnginePageProps> = ({ setView }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('assessment_engine_page_viewed', {
+        pageName: 'Assessment Engine Simulator',
+        pageType: 'adaptive_assessment_interface'
+      });
+    }
+  }, [userId, trackEvent]);
+
   return (
     <div className="min-h-screen bg-slate-50 pt-8 pb-20">
       <div className="max-w-7xl mx-auto px-4 mb-8">

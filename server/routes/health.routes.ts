@@ -4,6 +4,41 @@ import { ai } from "../config/gemini";
 
 const router = Router();
 
+/**
+ * @swagger
+ * /service-health:
+ *   get:
+ *     summary: Public health check endpoint
+ *     description: Returns basic service health status without authentication
+ *     tags:
+ *       - Health
+ *     responses:
+ *       200:
+ *         description: Service is healthy
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   enum: [healthy, degraded, unhealthy]
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *                 services:
+ *                   type: object
+ *                   properties:
+ *                     firestore:
+ *                       type: object
+ *                       properties:
+ *                         status:
+ *                           type: string
+ *                         latencyMs:
+ *                           type: integer
+ *                         error:
+ *                           type: string
+ */
 router.get("/public", async (req, res) => {
   const timestamp = new Date().toISOString();
   res.json({

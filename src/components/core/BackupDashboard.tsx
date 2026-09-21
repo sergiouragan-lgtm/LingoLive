@@ -1,25 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Database, 
-  Cloud, 
-  RefreshCw, 
-  ArrowRight, 
-  Check, 
-  ShieldAlert, 
-  FileText, 
-  Sliders, 
-  Download, 
-  Clock, 
-  Activity, 
-  AlertCircle, 
-  Settings, 
+import {
+  Database,
+  Cloud,
+  RefreshCw,
+  ArrowRight,
+  Check,
+  ShieldAlert,
+  FileText,
+  Sliders,
+  Download,
+  Clock,
+  Activity,
+  AlertCircle,
+  Settings,
   CheckCircle,
   Play,
   Heart,
   HelpCircle
 } from 'lucide-react';
-import { db } from '../../firebase';
+import { db, auth } from '../../firebase';
 import { collection, addDoc, getDocs, limit, query, orderBy } from 'firebase/firestore';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 interface BackupRecord {
   id?: string;
@@ -31,6 +33,9 @@ interface BackupRecord {
 }
 
 export default function BackupDashboard() {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
   const [activeSubTab, setActiveSubTab] = useState<'status' | 'restore' | 'drp'>('status');
   const [backups, setBackups] = useState<BackupRecord[]>([]);
   const [loadingBackups, setLoadingBackups] = useState(false);
@@ -90,11 +95,23 @@ export default function BackupDashboard() {
   };
 
   useEffect(() => {
+    if (userId) {
+      trackEvent('backup_dashboard_viewed', {
+        subTab: activeSubTab,
+        backupCount: backups.length
+      });
+    }
+  }, [userId, trackEvent, activeSubTab, backups.length]);
+
+  useEffect(() => {
     loadBackups();
   }, []);
 
   const triggerManualBackup = async () => {
     setIsBackingUp(true);
+    if (userId) {
+      trackEvent('backup_manual_initiated', {});
+    }
     try {
       await new Promise(resolve => setTimeout(resolve, 2000));
       const newBackup: BackupRecord = {
@@ -106,8 +123,19 @@ export default function BackupDashboard() {
       };
       await addDoc(collection(db, 'backup_logs'), newBackup);
       await loadBackups();
+      if (userId) {
+        trackEvent('backup_manual_completed', {
+          size: '15.4 MB',
+          items: newBackup.items.length
+        });
+      }
     } catch (err) {
       console.error(err);
+      if (userId) {
+        trackEvent('backup_manual_failed', {
+          error: err instanceof Error ? err.message : 'Unknown error'
+        });
+      }
     } finally {
       setIsBackingUp(false);
     }

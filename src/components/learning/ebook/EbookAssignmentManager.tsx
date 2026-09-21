@@ -13,6 +13,8 @@ import {
   X,
 } from "lucide-react";
 import { auth } from "../../../firebase";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useMonitoring } from "../../../hooks/useMonitoring";
 
 interface EbookAssignment {
   id: string;
@@ -129,6 +131,9 @@ function CreateAssignmentModal({
   onClose: () => void;
   onCreated: () => void;
 }) {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+
   const [ebookId, setEbookId] = useState("");
   const [ebookSearch, setEbookSearch] = useState("");
   const [ebookOptions, setEbookOptions] = useState<EbookOption[]>([]);
@@ -176,10 +181,27 @@ function CreateAssignmentModal({
         method: "POST",
         body: JSON.stringify({ ebookId, title, description, dueDate: dueDate || null, studentIds }),
       });
+
+      if (userId) {
+        trackEvent('ebook_assignment_created', {
+          ebookId,
+          title,
+          studentCount: studentIds.length,
+          hasDueDate: !!dueDate,
+          hasDescription: !!description,
+        });
+      }
+
       onCreated();
       onClose();
     } catch {
       setError("Erro ao criar tarefa. Verifique os dados e tente novamente.");
+      if (userId) {
+        trackEvent('ebook_assignment_creation_failed', {
+          ebookId,
+          studentCount: studentIds.length,
+        });
+      }
     } finally {
       setSaving(false);
     }
@@ -418,6 +440,10 @@ function AssignmentDetailPanel({
 }
 
 function TeacherView() {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [assignments, setAssignments] = useState<EbookAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -430,14 +456,37 @@ function TeacherView() {
     try {
       const data = await apiFetch<{ assignments: EbookAssignment[] }>("/teacher");
       setAssignments(data.assignments);
+
+      if (userId) {
+        trackEvent('ebook_teacher_assignments_loaded', {
+          assignmentsCount: data.assignments.length,
+        });
+      }
     } catch {
       setError("Erro ao carregar tarefas.");
+      if (userId) {
+        trackEvent('ebook_teacher_assignments_load_failed', {});
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    if (userId) {
+      trackEvent('ebook_teacher_assignments_viewed', {});
+    }
+  }, [userId, trackEvent]);
+
+  const handleSelectAssignment = (id: string) => {
+    if (userId) {
+      trackEvent('ebook_teacher_assignment_opened', {
+        assignmentId: id,
+      });
+    }
+    setSelectedId(id);
+  };
 
   if (selectedId) {
     return <AssignmentDetailPanel assignmentId={selectedId} onBack={() => setSelectedId(null)} />;
@@ -497,7 +546,7 @@ function TeacherView() {
           {assignments.map((a) => (
             <button
               key={a.id}
-              onClick={() => setSelectedId(a.id)}
+              onClick={() => handleSelectAssignment(a.id)}
               className="w-full bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 px-4 py-3 text-left hover:border-indigo-300 dark:hover:border-indigo-600 transition-colors group"
             >
               <div className="flex items-start justify-between gap-2">
@@ -541,16 +590,36 @@ function TeacherView() {
 // ── Student view ───────────────────────────────────────────────────────────────
 
 function StudentView({ onOpenEbook }: { onOpenEbook?: (ebookId: string) => void }) {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [assignments, setAssignments] = useState<StudentAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     apiFetch<{ assignments: StudentAssignment[] }>("/student/me")
-      .then((d) => setAssignments(d.assignments))
-      .catch(() => setError("Erro ao carregar tarefas."))
+      .then((d) => {
+        setAssignments(d.assignments);
+        if (userId) {
+          const completedCount = d.assignments.filter(a => a.status === 'completed').length;
+          trackEvent('ebook_student_assignments_loaded', {
+            assignmentsCount: d.assignments.length,
+            completedCount,
+            inProgressCount: d.assignments.filter(a => a.status === 'in_progress').length,
+            notStartedCount: d.assignments.filter(a => a.status === 'not_started').length,
+          });
+        }
+      })
+      .catch(() => {
+        setError("Erro ao carregar tarefas.");
+        if (userId) {
+          trackEvent('ebook_student_assignments_load_failed', {});
+        }
+      })
       .finally(() => setLoading(false));
-  }, []);
+  }, [userId, trackEvent]);
 
   return (
     <div className="space-y-4">

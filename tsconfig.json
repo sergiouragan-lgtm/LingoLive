@@ -19,7 +19,7 @@
     "resolveJsonModule": true,
     "paths": {
       "@/*": [
-        "./*"
+        "./src/*"
       ]
     },
     "allowImportingTsExtensions": true,
@@ -27,21 +27,12 @@
   },
   "exclude": [
     "firebase/migrations/**",
-    "server/services/subscriptionManager.service.ts",
-    "server/services/livekit.service.ts",
     "server/routes/livekit.routes.ts",
     "server/routes/__tests__/livekit.routes.test.ts",
-    "src/hooks/useRealtimeSync.ts",
     "src/services/realtime.service.ts",
-    "src/components/ai-tutor/AITutorChat.tsx",
-    "src/components/analytics/AdvancedAnalytics.tsx",
-    "src/components/b2b/area-aluno/StudentAnalytics.tsx",
-    "src/components/b2b/area-escolar/SchoolPortal.tsx",
-    "src/components/b2b/area-pais/AdvancedParentDashboard.tsx",
-    "src/components/b2b/area-pais/SchoolParentPortal.tsx",
-    "src/components/gamification/GamificationDashboard.tsx",
-    "src/components/marketplace/EbookReader.tsx",
-    "src/components/parental-controls/ParentalControlsPanel.tsx",
+    "**/__tests__/**",
+    "**/*.test.ts",
+    "**/*.test.tsx",
     "node_modules/**"
   ]
 }

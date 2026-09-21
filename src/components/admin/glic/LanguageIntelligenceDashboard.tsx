@@ -1,9 +1,25 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { motion } from "motion/react";
 import { Languages, Mic, Globe } from "lucide-react";
 import { SpeechIntelligenceMonitor } from "./SpeechIntelligenceMonitor";
+import { auth } from "../../../firebase";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useMonitoring } from "../../../hooks/useMonitoring";
 
 export const LanguageIntelligenceDashboard = () => {
+  const userId = auth.currentUser?.uid || "";
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent("language_intelligence_dashboard_viewed", {
+        dashboardType: "language_intelligence_cloud",
+        adminSection: "glic"
+      });
+    }
+  }, [userId, trackEvent]);
+
   return (
     <motion.div
       initial={{ opacity: 0 }}

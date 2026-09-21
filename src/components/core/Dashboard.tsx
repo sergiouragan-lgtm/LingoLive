@@ -30,6 +30,11 @@ import {
 } from "lucide-react";
 import { useToast } from "../../context/ToastContext";
 import { useDeviceOrientation } from "../../hooks/useDeviceOrientation";
+import { useAnalytics } from "../../hooks/useAnalytics";
+import { useRecommendations } from "../../hooks/useRecommendations";
+import { useFeatureFlags } from "../../hooks/useFeatureFlags";
+import { usePersonalization } from "../../hooks/usePersonalization";
+import { useMonitoring } from "../../hooks/useMonitoring";
 import { WeeklyComparisonChart } from "../growth/WeeklyComparisonChart";
 import { WeeklyPerformanceChart } from "../growth/WeeklyPerformanceChart";
 import { UserGrowthChart } from "../growth/UserGrowthChart";
@@ -731,6 +736,15 @@ WeeklyProgressSection.displayName = "WeeklyProgressSection";
 export default function Dashboard(props: DashboardProps) {
   const { addToast } = useToast();
   const orientation = useDeviceOrientation();
+
+  // Phase 38-45 Hook Integration
+  const userId = props.userId || auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { recommendations, isLoading: recsLoading } = useRecommendations(userId);
+  const { isFlagEnabled } = useFeatureFlags();
+  const { profile: personalizationProfile } = usePersonalization(userId);
+  const { monitors } = useMonitoring();
+
   const [achievementsData, setAchievementsData] = useState<UserAchievements | null>(null);
   const [showStreakCelebration, setShowStreakCelebration] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -742,6 +756,19 @@ export default function Dashboard(props: DashboardProps) {
   const [realtimeUserGamification, setRealtimeUserGamification] = useState<any>(null);
   const [isGamificationLoading, setIsGamificationLoading] = useState(true);
   const [isGamificationError, setIsGamificationError] = useState(false);
+
+  // Track dashboard mount and key metrics (Phase 38-45 Analytics)
+  useEffect(() => {
+    if (userId) {
+      trackEvent('dashboard_mounted', {
+        language: props.selectedLanguage?.name,
+        proficiency: props.selectedProficiency,
+        ageGroup: props.selectedAgeGroup,
+        streak: props.streakData?.count,
+        achievements: props.achievements?.length || 0,
+      });
+    }
+  }, [userId, trackEvent]);
 
   useEffect(() => {
     // 1. Announcements Realtime Listener with tenant scoping

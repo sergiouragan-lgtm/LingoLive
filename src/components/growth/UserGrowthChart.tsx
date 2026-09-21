@@ -1,12 +1,19 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { StreakData } from '../../types';
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 interface UserGrowthChartProps {
   streakData: StreakData;
 }
 
 export const UserGrowthChart: React.FC<UserGrowthChartProps> = ({ streakData }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   // Generate data for the last 30 days
   const data = [];
   const today = new Date();
@@ -14,7 +21,7 @@ export const UserGrowthChart: React.FC<UserGrowthChartProps> = ({ streakData }) 
     const d = new Date();
     d.setDate(today.getDate() - i);
     const dateStr = d.toISOString().split('T')[0];
-    
+
     // Count sessions for this date
     const sessions = streakData.history.filter(h => h === dateStr).length;
     data.push({
@@ -22,6 +29,15 @@ export const UserGrowthChart: React.FC<UserGrowthChartProps> = ({ streakData }) 
       activity: sessions * 20, // Assume 20 mins per session
     });
   }
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('user_growth_chart_viewed', {
+        totalDays: data.length,
+        maxActivity: Math.max(...data.map(d => d.activity), 0),
+      });
+    }
+  }, [userId, trackEvent, data.length]);
 
   return (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">

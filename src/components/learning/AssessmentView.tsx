@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { auth } from '../../firebase';
 import { Loader2, CheckCircle2 } from 'lucide-react';
 import { AppView } from '../../types';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 interface Question {
   question: string;
@@ -15,12 +17,22 @@ interface AssessmentViewProps {
 }
 
 export const AssessmentView: React.FC<AssessmentViewProps> = ({ userId, language, setView }) => {
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [assessmentId, setAssessmentId] = useState('');
   const [answers, setAnswers] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+
+  useEffect(() => {
+    trackEvent('assessment_view_viewed', {
+      viewName: 'Assessment View',
+      language: language,
+      viewType: 'proficiency_assessment'
+    });
+  }, [userId, trackEvent]);
 
   useEffect(() => {
     const fetchQuestions = async () => {
@@ -40,17 +52,32 @@ export const AssessmentView: React.FC<AssessmentViewProps> = ({ userId, language
         }
         setAssessmentId(data.assessmentId);
         setQuestions(data.questions);
+        trackEvent('assessment_questions_loaded', {
+          assessmentId: data.assessmentId,
+          language: language,
+          questionCount: data.questions.length
+        });
       } catch (error) {
         console.error("Error fetching questions:", error);
+        trackEvent('assessment_questions_load_failed', {
+          language: language,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
       } finally {
         setLoading(false);
       }
     };
     fetchQuestions();
-  }, [language]);
+  }, [language, trackEvent]);
 
   const handleSubmit = async () => {
     setSubmitting(true);
+    trackEvent('assessment_submitted', {
+      assessmentId: assessmentId,
+      language: language,
+      totalQuestions: questions.length,
+      answersSubmitted: answers.length
+    });
     try {
       const idToken = await auth.currentUser?.getIdToken();
       // Calculate score or send answers to API to get result
@@ -67,9 +94,18 @@ export const AssessmentView: React.FC<AssessmentViewProps> = ({ userId, language
         throw new Error(data.error || 'Não foi possível corrigir a avaliação.');
       }
 
+      trackEvent('assessment_submission_successful', {
+        assessmentId: assessmentId,
+        language: language
+      });
       setView('dashboard');
     } catch (error) {
       console.error("Error submitting assessment:", error);
+      trackEvent('assessment_submission_failed', {
+        assessmentId: assessmentId,
+        language: language,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     } finally {
       setSubmitting(false);
     }
@@ -89,6 +125,12 @@ export const AssessmentView: React.FC<AssessmentViewProps> = ({ userId, language
                 key={index}
                 className="w-full text-left p-4 bg-white rounded-lg border hover:bg-indigo-50"
                 onClick={() => {
+                  trackEvent('assessment_answer_selected', {
+                    assessmentId: assessmentId,
+                    questionIndex: currentStep,
+                    selectedAnswer: index,
+                    language: language
+                  });
                   setAnswers([...answers, index]);
                   setCurrentStep(currentStep + 1);
                 }}

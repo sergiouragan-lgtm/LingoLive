@@ -1,6 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { TranscriptItem } from '../../types';
 import { X } from 'lucide-react';
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 interface TranscriptModalProps {
   studentName: string;
@@ -9,12 +12,35 @@ interface TranscriptModalProps {
 }
 
 export const TranscriptModal: React.FC<TranscriptModalProps> = ({ studentName, transcripts, onClose }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('transcript_modal_opened', {
+        studentName,
+        transcriptCount: transcripts.length,
+      });
+    }
+  }, [userId, trackEvent, studentName, transcripts.length]);
+
+  const handleClose = () => {
+    if (userId) {
+      trackEvent('transcript_modal_closed', {
+        studentName,
+        transcriptCount: transcripts.length,
+      });
+    }
+    onClose();
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
       <div className="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">Transcrições de {studentName}</h2>
-          <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-full">
+          <button onClick={handleClose} className="p-1 hover:bg-slate-100 rounded-full">
             <X size={20} />
           </button>
         </div>

@@ -1,8 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { CreditCard, AlertTriangle, Clock, Calendar, CheckCircle, XCircle } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useLocalization } from '../../context/LocalizationContext';
 import { PLANOS_DE_SERVIDOR } from '../../constants/plans';
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 export type SubscriptionViewState = 
   | 'loading' | 'error' | 'review_required' | 'trial' | 'pending_payment' 
@@ -49,8 +52,33 @@ const resolveSubscriptionViewState = (status: SubscriptionStatus): SubscriptionV
 };
 
 export const SubscriptionStatusWidget: React.FC<SubscriptionStatusWidgetProps> = (props) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
   const viewState = useMemo(() => resolveSubscriptionViewState(props), [props]);
   const { translateMessage, formatDate: formatLocalizedDate } = useLocalization();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('subscription_status_widget_displayed', {
+        viewState: viewState,
+        planId: props.planId || 'unknown',
+        subscriptionActive: props.subscriptionActive || false,
+        widgetType: 'subscription_status'
+      });
+    }
+  }, [userId, viewState, props.planId, props.subscriptionActive, trackEvent]);
+
+  const handleManagePlan = () => {
+    if (userId) {
+      trackEvent('manage_plan_clicked', {
+        viewState: viewState,
+        planId: props.planId || 'unknown',
+        widgetType: 'subscription_status'
+      });
+    }
+    props.onManagePlan?.();
+  };
 
   if (viewState === 'loading') {
     return <div className="animate-pulse bg-slate-200 h-24 w-full rounded-2xl" aria-hidden="true" />;
@@ -109,9 +137,9 @@ export const SubscriptionStatusWidget: React.FC<SubscriptionStatusWidgetProps> =
 
       <button
         type="button"
-        onClick={props.onManagePlan}
+        onClick={handleManagePlan}
         data-testid="manage-plan-button"
-        className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold px-4 py-2 rounded-xl text-xs transition-all"
+        className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold px-4 py-2 rounded-xl text-xs transition-all cursor-pointer"
       >
         {translateMessage('gerirAssinatura', 'Gerir Assinatura')}
       </button>

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { collection, onSnapshot, query, where, limit } from 'firebase/firestore';
 import { db, auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 interface WeeklyComparisonChartProps {
   userMinutes: number;
@@ -20,16 +22,28 @@ function getCanonicalWeekKey(): string {
   return `${d.getFullYear()}-W${weekNo.toString().padStart(2, '0')}`;
 }
 
-export const WeeklyComparisonChart: React.FC<WeeklyComparisonChartProps> = ({ 
-  userMinutes, 
+export const WeeklyComparisonChart: React.FC<WeeklyComparisonChartProps> = ({
+  userMinutes,
   classId: propClassId,
   organizationId: propOrgId,
-  userId: propUserId 
+  userId: propUserId
 }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
   const [classAverage, setClassAverage] = useState<number | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
   const uid = propUserId || auth.currentUser?.uid;
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('weekly_comparison_chart_viewed', {
+        hasClassData: propClassId && propOrgId ? true : false,
+        userMinutes,
+      });
+    }
+  }, [userId, trackEvent, userMinutes, propClassId, propOrgId]);
 
   useEffect(() => {
     if (!uid || !propOrgId || !propClassId) {
@@ -62,19 +76,31 @@ export const WeeklyComparisonChart: React.FC<WeeklyComparisonChartProps> = ({
         });
         const calculatedAvg = count > 0 ? Math.round(totalMins / count) : userMinutes;
         setClassAverage(calculatedAvg);
+        if (userId) {
+          trackEvent('weekly_comparison_data_loaded', {
+            classAverage: calculatedAvg,
+            studentCount: count,
+          });
+        }
       } else {
         // Less than 2 students in class statistics: insufficient data
         setClassAverage(null);
+        if (userId) {
+          trackEvent('weekly_comparison_insufficient_data', {});
+        }
       }
       setLoading(false);
     }, (error) => {
       console.warn('[WeeklyComparisonChart] Realtime stats snapshot notice:', error);
       setClassAverage(null);
       setLoading(false);
+      if (userId) {
+        trackEvent('weekly_comparison_load_error', {});
+      }
     });
 
     return () => unsubscribe();
-  }, [uid, userMinutes, propClassId, propOrgId]);
+  }, [uid, userMinutes, propClassId, propOrgId, userId, trackEvent]);
 
   const hasData = classAverage !== null;
   const data = [

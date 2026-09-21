@@ -1,19 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Video, 
-  Loader2, 
-  Mic, 
-  MicOff, 
-  Camera, 
-  CameraOff, 
-  PhoneOff, 
-  Calendar, 
-  Copy, 
-  ExternalLink, 
-  Plus, 
-  History, 
-  LogOut, 
-  Check, 
+import {
+  Video,
+  Loader2,
+  Mic,
+  MicOff,
+  Camera,
+  CameraOff,
+  PhoneOff,
+  Calendar,
+  Copy,
+  ExternalLink,
+  Plus,
+  History,
+  LogOut,
+  Check,
   Sparkles,
   Link
 } from 'lucide-react';
@@ -22,6 +22,8 @@ import { auth, db, handleFirestoreError, OperationType } from '../../firebase';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { collection, addDoc, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { useToast } from '../../context/ToastContext';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 interface GoogleMeetSpace {
   id: string;
@@ -34,7 +36,20 @@ interface GoogleMeetSpace {
 
 export const LiveSessionsView: React.FC = () => {
   const { addToast } = useToast();
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
   const [activeTab, setActiveTab] = useState<'ai' | 'meet'>('ai');
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('live_sessions_view_viewed', {
+        viewName: 'Live Sessions',
+        initialTab: activeTab,
+        viewType: 'educational_platform'
+      });
+    }
+  }, [userId, trackEvent]);
 
   // Existing LiveKit/AI Session States
   const [status, setStatus] = useState<'idle' | 'connecting' | 'live'>('idle');
@@ -89,7 +104,16 @@ export const LiveSessionsView: React.FC = () => {
     if (activeTab === 'meet') {
       fetchMeetSpaces();
     }
-  }, [activeTab]);
+    if (userId) {
+      trackEvent('live_sessions_tab_selected', {
+        tabId: activeTab,
+        tabNames: {
+          ai: 'AI Sessão (LiveKit)',
+          meet: 'Google Meet Síncrono'
+        }
+      });
+    }
+  }, [activeTab, userId, trackEvent]);
 
   // Google Authentication handler to request Google Meet scopes
   const handleConnectGoogle = async () => {
@@ -101,21 +125,42 @@ export const LiveSessionsView: React.FC = () => {
 
       const result = await signInWithPopup(auth, provider);
       const credential = GoogleAuthProvider.credentialFromResult(result);
-      
+
       if (credential?.accessToken) {
         setGoogleToken(credential.accessToken);
         addToast("Conta do Google conectada com sucesso ao Google Meet!", "success");
+        if (userId) {
+          trackEvent('google_meet_authenticated', {
+            integrationType: 'oauth',
+            service: 'google_meet'
+          });
+        }
         fetchMeetSpaces();
       } else {
         addToast("Não foi possível obter o token do Google.", "error");
+        if (userId) {
+          trackEvent('google_meet_auth_failed', {
+            reason: 'no_access_token'
+          });
+        }
       }
     } catch (error: any) {
       console.error("Google authentication error:", error);
       addToast(`Falha ao conectar conta Google: ${error.message}`, "error");
+      if (userId) {
+        trackEvent('google_meet_auth_failed', {
+          reason: error.message || 'unknown_error'
+        });
+      }
     }
   };
 
   const handleDisconnectGoogle = () => {
+    if (userId) {
+      trackEvent('google_meet_disconnected', {
+        service: 'google_meet'
+      });
+    }
     setGoogleToken(null);
     addToast("Desconectado do serviço do Google Meet.", "success");
   };
@@ -130,6 +175,12 @@ export const LiveSessionsView: React.FC = () => {
 
     const title = newSpaceTitle.trim() || "Sessão de Conversação LingoLive";
     setCreatingSpace(true);
+    if (userId) {
+      trackEvent('google_meet_room_creation_started', {
+        roomTitle: title,
+        service: 'google_meet'
+      });
+    }
 
     try {
       const res = await fetch('https://meet.googleapis.com/v2/spaces', {
@@ -146,7 +197,7 @@ export const LiveSessionsView: React.FC = () => {
       }
 
       const data = await res.json();
-      
+
       if (!data.meetingUri) {
         throw new Error("Formato de resposta inesperado do Google Meet API");
       }
@@ -168,11 +219,24 @@ export const LiveSessionsView: React.FC = () => {
         }
       }
 
+      if (userId) {
+        trackEvent('google_meet_room_created', {
+          roomTitle: title,
+          meetingCode: meetingCode,
+          service: 'google_meet'
+        });
+      }
       addToast("Sala do Google Meet criada com sucesso!", "success");
       setNewSpaceTitle('');
       fetchMeetSpaces();
     } catch (error: any) {
       console.error("Failed to create Google Meet space:", error);
+      if (userId) {
+        trackEvent('google_meet_room_creation_failed', {
+          roomTitle: title,
+          error: error.message || 'unknown_error'
+        });
+      }
       addToast(`Erro ao criar sala do Meet: ${error.message}`, "error");
     } finally {
       setCreatingSpace(false);
@@ -182,27 +246,48 @@ export const LiveSessionsView: React.FC = () => {
   const copyToClipboard = (text: string, spaceId: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(spaceId);
+    if (userId) {
+      trackEvent('google_meet_room_link_copied', {
+        roomId: spaceId
+      });
+    }
     addToast("Link copiado para a área de transferência!", "success");
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleEnterMeetRoom = (meetingUri: string, spaceId: string) => {
+    if (userId) {
+      trackEvent('google_meet_room_entered', {
+        roomId: spaceId,
+        source: 'external_link'
+      });
+    }
+    window.open(meetingUri, '_blank');
   };
 
   // Existing LiveKit handlers
   const startLiveSession = async () => {
     setStatus('connecting');
+    if (userId) {
+      trackEvent('live_session_livekit_started', {
+        sessionType: 'ai_practice',
+        sessionName: 'LiveKit AI Session'
+      });
+    }
     try {
       const room = new Room();
-      
+
       room.on(RoomEvent.TrackSubscribed, (track) => {
         if (track.kind === 'video') {
             setRemoteVideoTrack(track as VideoTrack);
         }
       });
 
-      const url = 'wss://your-livekit-url.com'; 
-      const token = 'your-token'; 
-      
+      const url = 'wss://your-livekit-url.com';
+      const token = 'your-token';
+
       await room.connect(url, token);
-      
+
       await room.localParticipant.setCameraEnabled(true);
       await room.localParticipant.setMicrophoneEnabled(true);
 
@@ -213,11 +298,23 @@ export const LiveSessionsView: React.FC = () => {
       setStatus('live');
     } catch (error) {
       console.error("Connection failed", error);
+      if (userId) {
+        trackEvent('live_session_livekit_failed', {
+          sessionType: 'ai_practice',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
       setStatus('idle');
     }
   };
 
   const endLiveSession = () => {
+    if (userId) {
+      trackEvent('live_session_livekit_ended', {
+        sessionType: 'ai_practice',
+        duration: 'unknown'
+      });
+    }
     room?.disconnect();
     setRoom(null);
     setRemoteVideoTrack(null);
@@ -499,15 +596,13 @@ export const LiveSessionsView: React.FC = () => {
                     </div>
 
                     <div className="flex items-center gap-2 pt-1">
-                      <a 
-                        href={space.meetingUri}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        onClick={() => handleEnterMeetRoom(space.meetingUri, space.id)}
                         className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition shadow-xs"
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
                         Entrar na Sala
-                      </a>
+                      </button>
                       
                       <button 
                         onClick={() => copyToClipboard(space.meetingUri, space.id)}

@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Activity, 
-  Brain, 
-  Target, 
-  CheckCircle, 
-  XCircle, 
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
+import {
+  Activity,
+  Brain,
+  Target,
+  CheckCircle,
+  XCircle,
   Award,
   RefreshCw,
   Zap,
@@ -64,6 +67,10 @@ const MOCK_QUESTIONS: Question[] = [
 const MAX_QUESTIONS = 10;
 
 export const AssessmentEngine: React.FC = () => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [state, setState] = useState<AssessmentState>({
     currentDifficulty: 3,
     askedQuestionIds: new Set(),
@@ -77,10 +84,17 @@ export const AssessmentEngine: React.FC = () => {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [cheatAlert, setCheatAlert] = useState<string | null>(null);
 
-  // Initialize first question
+  // Initialize first question and track view
   useEffect(() => {
+    if (userId) {
+      trackEvent('assessment_engine_viewed', {
+        moduleName: 'Assessment Engine',
+        moduleType: 'assessment_system',
+        initialDifficulty: 3
+      });
+    }
     loadNextQuestion(state.currentDifficulty, state.askedQuestionIds);
-  }, []);
+  }, [userId, trackEvent]);
 
   // --- ANTI-CHEAT LISTENERS ---
   useEffect(() => {
@@ -89,11 +103,23 @@ export const AssessmentEngine: React.FC = () => {
     const handleVisibilityChange = () => {
       if (document.hidden) {
         setCheatAlert("O IACE detetou que mudou de aba. Por favor, mantenha o foco no exame.");
+        if (userId) {
+          trackEvent('assessment_cheat_detection_tab_switch', {
+            assessmentType: 'assessment_system',
+            detectionType: 'tab_switch'
+          });
+        }
       }
     };
 
     const handleWindowBlur = () => {
       setCheatAlert("O IACE detetou perda de foco na janela do exame. Evite sair da página.");
+      if (userId) {
+        trackEvent('assessment_cheat_detection_window_blur', {
+          assessmentType: 'assessment_system',
+          detectionType: 'window_blur'
+        });
+      }
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -103,7 +129,7 @@ export const AssessmentEngine: React.FC = () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("blur", handleWindowBlur);
     };
-  }, [state.isFinished]);
+  }, [state.isFinished, userId, trackEvent]);
 
   const loadNextQuestion = (targetDifficulty: DifficultyLevel, asked: Set<string>) => {
     // Try to find a question of the exact target difficulty
@@ -132,11 +158,21 @@ export const AssessmentEngine: React.FC = () => {
     if (!currentQuestion || selectedOption === null) return;
 
     const isCorrect = selectedOption === currentQuestion.correctAnswer;
-    
+
+    if (userId) {
+      trackEvent('assessment_question_answered', {
+        questionId: currentQuestion.id,
+        isCorrect,
+        difficulty: currentQuestion.difficulty,
+        topic: currentQuestion.topic,
+        assessmentType: 'assessment_system'
+      });
+    }
+
     setState(prev => {
       const newAnswers = [...prev.answers, { questionId: currentQuestion.id, isCorrect, difficulty: currentQuestion.difficulty }];
       const newAsked = new Set(prev.askedQuestionIds).add(currentQuestion.id);
-      
+
       return {
         ...prev,
         answers: newAnswers,
@@ -184,6 +220,12 @@ export const AssessmentEngine: React.FC = () => {
   };
 
   const restartAssessment = () => {
+    if (userId) {
+      trackEvent('assessment_restarted', {
+        assessmentType: 'assessment_system',
+        previousQuestionsAttempted: state.answers.length
+      });
+    }
     setState({
       currentDifficulty: 3,
       askedQuestionIds: new Set(),

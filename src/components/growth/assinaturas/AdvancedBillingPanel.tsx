@@ -8,6 +8,8 @@ import { motion, AnimatePresence } from "motion/react";
 import { auth, db } from "../../../firebase";
 import { collection, query, where, onSnapshot, Timestamp } from "firebase/firestore";
 import { useToast } from "../../../context/ToastContext";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useMonitoring } from "../../../hooks/useMonitoring";
 
 interface SubscriptionPlan {
   id: string;
@@ -48,6 +50,9 @@ interface PaymentMethod {
 export const AdvancedBillingPanel: React.FC<{
   setView?: (v: string) => void;
 }> = ({ setView }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
   const { addToast } = useToast();
   const user = auth.currentUser;
 
@@ -145,6 +150,12 @@ export const AdvancedBillingPanel: React.FC<{
   }, [user]);
 
   const handlePauseSubscription = (subscription: UserSubscription) => {
+    if (userId) {
+      trackEvent('billing_subscription_pause_initiated', {
+        planId: subscription.planId,
+        billingCycle: subscription.billingCycle
+      });
+    }
     setSelectedSubscription(subscription);
     setShowPauseModal(true);
   };
@@ -152,6 +163,11 @@ export const AdvancedBillingPanel: React.FC<{
   const confirmPauseSubscription = () => {
     if (!selectedSubscription) return;
 
+    if (userId) {
+      trackEvent('billing_subscription_paused', {
+        planId: selectedSubscription.planId
+      });
+    }
     addToast("Processando pausa da assinatura...", "info");
     setTimeout(() => {
       addToast(`Assinatura pausada. Você pode retomar a qualquer momento.`, "success");
@@ -161,6 +177,11 @@ export const AdvancedBillingPanel: React.FC<{
   };
 
   const handleResumeSubscription = (subscription: UserSubscription) => {
+    if (userId) {
+      trackEvent('billing_subscription_resumed', {
+        planId: subscription.planId
+      });
+    }
     addToast("Processando retomada da assinatura...", "info");
     setTimeout(() => {
       addToast("Assinatura retomada com sucesso!", "success");
@@ -170,9 +191,19 @@ export const AdvancedBillingPanel: React.FC<{
 
   const handleCancelSubscription = (subscription: UserSubscription) => {
     if (!window.confirm("Tem certeza que deseja cancelar esta assinatura? Esta ação não pode ser desfeita.")) {
+      if (userId) {
+        trackEvent('billing_subscription_cancel_dismissed', {
+          planId: subscription.planId
+        });
+      }
       return;
     }
 
+    if (userId) {
+      trackEvent('billing_subscription_cancelled', {
+        planId: subscription.planId
+      });
+    }
     addToast("Processando cancelamento...", "info");
     setTimeout(() => {
       addToast("Assinatura cancelada.", "success");
@@ -181,11 +212,31 @@ export const AdvancedBillingPanel: React.FC<{
   };
 
   const handleUpgradePlan = (planId: string) => {
+    if (userId) {
+      trackEvent('billing_upgrade_initiated', {
+        targetPlan: planId
+      });
+    }
     addToast(`Iniciando upgrade para plano ${planId}...`, "info");
     setTimeout(() => {
+      if (userId) {
+        trackEvent('billing_upgrade_completed', {
+          targetPlan: planId
+        });
+      }
       addToast("Upgrade realizado com sucesso!", "success");
       // In production, this would create a new Stripe subscription
     }, 1500);
+  };
+
+  const handleTabChange = (tab: 'subscriptions' | 'payment-methods' | 'upgrade') => {
+    if (userId) {
+      trackEvent('billing_tab_switched', {
+        fromTab: selectedTab,
+        toTab: tab
+      });
+    }
+    setSelectedTab(tab);
   };
 
   const formatDate = (timestamp: number) => {
@@ -228,7 +279,7 @@ export const AdvancedBillingPanel: React.FC<{
         {(["subscriptions", "payment-methods", "upgrade"] as const).map((tab) => (
           <button
             key={tab}
-            onClick={() => setSelectedTab(tab)}
+            onClick={() => handleTabChange(tab)}
             className={`px-4 py-3 font-bold text-sm border-b-2 transition-all ${
               selectedTab === tab
                 ? "border-indigo-600 text-indigo-600"

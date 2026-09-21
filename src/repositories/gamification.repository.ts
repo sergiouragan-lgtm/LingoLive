@@ -1,5 +1,5 @@
 import { doc, getDoc, setDoc, updateDoc, collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../firebase';
+import { db, auth, handleFirestoreError, OperationType } from '../firebase';
 import { 
   UserGamificationState, 
   StoreItem, 
@@ -90,8 +90,7 @@ export class GamificationRepository {
 
   async awardXpViaServer(eventId: string, eventType: string, extra: Record<string, any> = {}): Promise<any> {
     try {
-      const authModule = await import('../firebase');
-      const token = await authModule.auth.currentUser?.getIdToken();
+      const token = await auth.currentUser?.getIdToken();
       const res = await fetch('/api/gamification/award-xp', {
         method: 'POST',
         headers: {

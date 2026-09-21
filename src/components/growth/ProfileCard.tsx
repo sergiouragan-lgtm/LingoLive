@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Baby, Zap, User, CheckCircle2, ArrowRight } from 'lucide-react';
 import { AgeGroup } from '../../types';
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 export type TargetAgeGroup = 'CHILD' | 'TEEN' | 'ADULT';
 
@@ -123,14 +126,33 @@ export const ProfileCard: React.FC<ProfileCardProps> = React.memo(({
   isSelected,
   onSelect
 }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
   const item = getProfileVisualState(groupKey, isSelected);
   const IconComponent = item.icon;
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('profile_card_viewed', { groupKey });
+    }
+  }, [userId, trackEvent, groupKey]);
+
+  const handleSelect = (group: TargetAgeGroup) => {
+    if (userId) {
+      trackEvent('profile_selected', {
+        groupKey: group,
+        profileTitle: getProfileVisualState(group, isSelected).title,
+      });
+    }
+    onSelect(group);
+  };
 
   return (
     <motion.div
       whileHover={{ y: -3 }}
       transition={{ duration: 0.2 }}
-      onClick={() => onSelect(groupKey)}
+      onClick={() => handleSelect(groupKey)}
       className={`relative rounded-2xl p-6 border transition-all cursor-pointer flex flex-col justify-between ${item.containerClasses}`}
       data-testid={`profile-card-${groupKey.toLowerCase()}`}
     >

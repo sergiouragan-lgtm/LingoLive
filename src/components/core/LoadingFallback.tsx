@@ -1,16 +1,31 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Languages } from 'lucide-react';
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 interface LoadingFallbackProps {
   title?: string;
   subMessage?: string;
 }
 
-export const LoadingFallback: React.FC<LoadingFallbackProps> = ({ 
-  title = 'LingoLIVE IA', 
-  subMessage = 'Iniciando ambiente seguro...' 
+export const LoadingFallback: React.FC<LoadingFallbackProps> = ({
+  title = 'LingoLIVE IA',
+  subMessage = 'Iniciando ambiente seguro...'
 }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('loading_fallback_displayed', {
+        title,
+        subMessage
+      });
+    }
+  }, [userId, trackEvent, title, subMessage]);
   return (
     <motion.div
       initial={{ opacity: 0 }}

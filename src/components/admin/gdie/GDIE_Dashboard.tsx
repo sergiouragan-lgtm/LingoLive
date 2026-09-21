@@ -1,8 +1,24 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { motion } from "motion/react";
 import { Code, Key, Zap, Settings } from "lucide-react";
+import { auth } from "../../../firebase";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useMonitoring } from "../../../hooks/useMonitoring";
 
 export const GDIE_Dashboard = () => {
+  const userId = auth.currentUser?.uid || "";
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent("developer_ecosystem_dashboard_viewed", {
+        dashboardType: "developer_innovation",
+        adminSection: "gdie"
+      });
+    }
+  }, [userId, trackEvent]);
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-8 space-y-8">
       <h1 className="text-3xl font-black text-slate-900">Global Developer & Innovation Ecosystem (GDIE)</h1>

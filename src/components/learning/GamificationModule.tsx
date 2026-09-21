@@ -1,16 +1,49 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Trophy, Star, Target, Zap, Crown, Flame, 
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
+import {
+  Trophy, Star, Target, Zap, Crown, Flame,
   Gift, ShoppingBag, Users, Activity, Compass, Sparkles,
   Award, Heart, Cpu, Map as MapIcon, Calendar, ArrowRight,
-  TrendingUp, CheckCircle, ShieldCheck
+  TrendingUp, CheckCircle, ShieldCheck, Lock
 } from 'lucide-react';
 
 type IGESection = 'dashboard' | 'quests' | 'leagues' | 'store' | 'pets' | 'bme';
 
 export const GamificationModule: React.FC = () => {
   const [activeSection, setActiveSection] = useState<IGESection>('dashboard');
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('gamification_module_viewed', {
+        moduleName: 'Intelligent Gamification Engine',
+        moduleType: 'gamification_system'
+      });
+    }
+  }, [userId, trackEvent]);
+
+  const handleSectionChange = (section: IGESection) => {
+    setActiveSection(section);
+    if (userId) {
+      trackEvent('ige_section_selected', {
+        sectionId: section,
+        moduleName: 'Intelligent Gamification Engine',
+        sectionNames: {
+          dashboard: 'Dashboard',
+          quests: 'Missões & Metas',
+          leagues: 'Ligas & Temporadas',
+          store: 'Loja Virtual',
+          pets: 'Companheiros (Pets)',
+          bme: 'Behavioral Engine'
+        }
+      });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 pt-8 pb-20">
@@ -58,7 +91,7 @@ export const GamificationModule: React.FC = () => {
           ].map((item) => (
             <button
               key={item.id}
-              onClick={() => setActiveSection(item.id as IGESection)}
+              onClick={() => handleSectionChange(item.id as IGESection)}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition-all ${
                 activeSection === item.id
                   ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20'

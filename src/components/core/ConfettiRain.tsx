@@ -1,4 +1,7 @@
 import React, { useEffect, useRef } from "react";
+import { auth } from "../../firebase";
+import { useAnalytics } from "../../hooks/useAnalytics";
+import { useMonitoring } from "../../hooks/useMonitoring";
 
 interface ConfettiRainProps {
   active: boolean;
@@ -35,11 +38,22 @@ export const ConfettiRain: React.FC<ConfettiRainProps> = ({
   duration = 4500,
   onComplete,
 }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const particlesRef = useRef<Particle[]>([]);
   const startTimeRef = useRef<number | null>(null);
   const isEmittingRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    if (active && userId) {
+      trackEvent('confetti_animation_started', {
+        duration
+      });
+    }
+  }, [active, userId, trackEvent, duration]);
 
   useEffect(() => {
     if (!active) {
@@ -180,6 +194,11 @@ export const ConfettiRain: React.FC<ConfettiRainProps> = ({
 
       // Check if finished
       if (particlesRef.current.length === 0 && !isEmittingRef.current) {
+        if (userId) {
+          trackEvent('confetti_animation_completed', {
+            duration
+          });
+        }
         if (onComplete) {
           onComplete();
         }

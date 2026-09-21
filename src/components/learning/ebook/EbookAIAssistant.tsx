@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { getAuth } from "firebase/auth";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useMonitoring } from "../../../hooks/useMonitoring";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -35,6 +37,10 @@ export default function EbookAIAssistant({
   onSaveWord,
 }: Props) {
   const user = getAuth().currentUser;
+  const userId = user?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [isOpen, setIsOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("chat");
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -62,6 +68,27 @@ export default function EbookAIAssistant({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    if (userId && isOpen) {
+      trackEvent('ebook_ai_assistant_opened', {
+        ebookId,
+        chapterTitle,
+        ebookLanguage,
+      });
+    }
+  }, [isOpen, userId, trackEvent, ebookId, chapterTitle, ebookLanguage]);
+
+  const handleTabChange = (t: Tab) => {
+    setTab(t);
+    if (userId) {
+      trackEvent('ebook_ai_assistant_tab_changed', {
+        ebookId,
+        tab: t,
+      });
+    }
+    if (t === 'vocab') loadVocab();
+  };
 
   async function sendMessage() {
     if (!input.trim() || loading) return;
@@ -91,8 +118,21 @@ export default function EbookAIAssistant({
       });
       const data = await res.json();
       setMessages([...newHistory, { role: "assistant", content: data.reply ?? "Erro ao processar resposta." }]);
+
+      if (userId) {
+        trackEvent('ebook_ai_assistant_message_sent', {
+          ebookId,
+          messageLength: userMsg.length,
+          historyLength: newHistory.length,
+        });
+      }
     } catch {
       setMessages([...newHistory, { role: "assistant", content: "Erro de ligação. Tente novamente." }]);
+      if (userId) {
+        trackEvent('ebook_ai_assistant_message_failed', {
+          ebookId,
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -114,8 +154,22 @@ export default function EbookAIAssistant({
       });
       const data = await res.json();
       setVocab(data.vocabulary ?? []);
+
+      if (userId) {
+        trackEvent('ebook_ai_vocabulary_loaded', {
+          ebookId,
+          vocabCount: data.vocabulary?.length || 0,
+          ebookLanguage,
+          cefrLevel,
+        });
+      }
     } catch {
       setVocabError("Não foi possível carregar vocabulário. Tente novamente.");
+      if (userId) {
+        trackEvent('ebook_ai_vocabulary_load_failed', {
+          ebookId,
+        });
+      }
     } finally {
       setVocabLoading(false);
     }
@@ -138,21 +192,39 @@ export default function EbookAIAssistant({
       });
       const data = await res.json();
       setGrammarResult(data.explanation ?? null);
+
+      if (userId) {
+        trackEvent('ebook_ai_grammar_explained', {
+          ebookId,
+          sentenceLength: grammarSentence.length,
+          ebookLanguage,
+          cefrLevel,
+        });
+      }
     } catch {
       setGrammarError("Não foi possível obter a explicação. Tente novamente.");
+      if (userId) {
+        trackEvent('ebook_ai_grammar_explanation_failed', {
+          ebookId,
+        });
+      }
     } finally {
       setGrammarLoading(false);
     }
   }
 
-  function handleTabChange(t: Tab) {
-    setTab(t);
-    if (t === "vocab") loadVocab();
-  }
-
   function handleSave(item: VocabItem) {
     setSavedWords((prev) => new Set([...prev, item.word]));
     onSaveWord?.(item.word, item.translation);
+
+    if (userId) {
+      trackEvent('ebook_ai_word_saved', {
+        ebookId,
+        word: item.word,
+        cefrLevel: item.cefrLevel,
+        partOfSpeech: item.partOfSpeech,
+      });
+    }
   }
 
   const cefrColors: Record<string, string> = {
