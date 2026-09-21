@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { collection, query, getDocs, where } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../../firebase';
+import { db, handleFirestoreError, OperationType, auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 interface UserSubscription {
   id: string;
@@ -11,8 +13,21 @@ interface UserSubscription {
 }
 
 export const SubscriptionMonitor = () => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [subscriptions, setSubscriptions] = useState<UserSubscription[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Lifecycle tracking
+  useEffect(() => {
+    if (userId) {
+      trackEvent('subscription_monitor_accessed', {
+        initialLoadingState: loading,
+      });
+    }
+  }, [userId, trackEvent]);
 
   useEffect(() => {
     const fetchSubscriptions = async () => {
@@ -21,14 +36,25 @@ export const SubscriptionMonitor = () => {
         const snapshot = await getDocs(q);
         const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserSubscription));
         setSubscriptions(data);
+
+        if (userId) {
+          trackEvent('subscription_monitor_loaded', {
+            activeSubscriptionCount: data.length,
+          });
+        }
       } catch (error) {
         handleFirestoreError(error, OperationType.LIST, 'users');
+        if (userId) {
+          trackEvent('subscription_monitor_error', {
+            errorMessage: String(error),
+          });
+        }
       } finally {
         setLoading(false);
       }
     };
     fetchSubscriptions();
-  }, []);
+  }, [userId, trackEvent]);
 
   if (loading) return <div className="p-4 text-center">Carregando assinaturas...</div>;
 
