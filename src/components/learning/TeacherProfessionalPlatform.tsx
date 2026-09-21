@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  LayoutDashboard, Users, BookOpen, PenTool, Sparkles, 
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
+import {
+  LayoutDashboard, Users, BookOpen, PenTool, Sparkles,
   BarChart3, Calendar, FileText, CheckCircle, BrainCircuit,
   MessageSquare, ShieldCheck, Play, Plus, Search, Settings,
   AlertTriangle, TrendingUp, Clock, Globe, Award, Heart, Cpu,
@@ -11,7 +14,20 @@ import {
 type TPPSection = 'dashboard' | 'classes' | 'planning' | 'builder' | 'ai-copilot' | 'analytics' | 'live';
 
 export const TeacherProfessionalPlatform: React.FC<{ activeView?: string; setView?: (v: any) => void }> = ({ activeView = "dashboard", setView }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
   const [activeSection, setActiveSection] = useState<TPPSection>('dashboard');
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('teacher_professional_platform_viewed', {
+        platformName: 'Teacher Professional Platform',
+        initialSection: activeSection,
+        platformType: 'enterprise_education'
+      });
+    }
+  }, [userId, trackEvent]);
 
   useEffect(() => {
     // Map existing activeViews to TPPSections if needed
@@ -23,6 +39,24 @@ export const TeacherProfessionalPlatform: React.FC<{ activeView?: string; setVie
     else if (activeView === 'comunicacao' || activeView === 'mensagens') setActiveSection('live');
     else if (activeView === 'analytics' || activeView === 'presencas') setActiveSection('analytics'); // or another mapping
   }, [activeView]);
+
+  const handleSectionChange = (section: TPPSection) => {
+    setActiveSection(section);
+    if (userId) {
+      trackEvent('tpp_section_selected', {
+        sectionId: section,
+        sectionNames: {
+          dashboard: 'Dashboard',
+          classes: 'Turmas & Alunos',
+          planning: 'Planeamento',
+          builder: 'Construtor',
+          'ai-copilot': 'AI Copilot',
+          live: 'Aulas ao Vivo',
+          analytics: 'Analytics'
+        }
+      });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 pt-8 pb-20">
@@ -67,7 +101,7 @@ export const TeacherProfessionalPlatform: React.FC<{ activeView?: string; setVie
           ].map((item) => (
             <button
               key={item.id}
-              onClick={() => setActiveSection(item.id as TPPSection)}
+              onClick={() => handleSectionChange(item.id as TPPSection)}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition-all ${
                 activeSection === item.id
                   ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
