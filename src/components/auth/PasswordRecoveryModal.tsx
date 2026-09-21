@@ -1,6 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Mail, X, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 interface PasswordRecoveryModalProps {
   isOpen: boolean;
@@ -23,6 +26,54 @@ export const PasswordRecoveryModal: React.FC<PasswordRecoveryModalProps> = ({
   error,
   successMessage,
 }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (isOpen) {
+      trackEvent('password_recovery_modal_opened', {
+        modalType: 'password_reset'
+      });
+    }
+  }, [isOpen, trackEvent]);
+
+  useEffect(() => {
+    if (successMessage) {
+      trackEvent('password_recovery_successful', {
+        email: email,
+        modalType: 'password_reset'
+      });
+    }
+  }, [successMessage, email, trackEvent]);
+
+  useEffect(() => {
+    if (error) {
+      trackEvent('password_recovery_error', {
+        errorOccurred: true,
+        email: email,
+        modalType: 'password_reset'
+      });
+    }
+  }, [error, email, trackEvent]);
+
+  const handleRecover = () => {
+    if (email) {
+      trackEvent('password_recovery_submitted', {
+        email: email,
+        modalType: 'password_reset'
+      });
+    }
+    onRecover();
+  };
+
+  const handleClose = () => {
+    trackEvent('password_recovery_modal_closed', {
+      hasEmail: !!email,
+      modalType: 'password_reset'
+    });
+    onClose();
+  };
   return (
     <AnimatePresence>
       {isOpen && (
@@ -40,7 +91,7 @@ export const PasswordRecoveryModal: React.FC<PasswordRecoveryModalProps> = ({
           >
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold text-white">Recuperar Palavra-Passe</h2>
-              <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-full transition-colors text-slate-400 hover:text-white">
+              <button onClick={handleClose} className="p-2 hover:bg-slate-800 rounded-full transition-colors text-slate-400 hover:text-white cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -78,9 +129,9 @@ export const PasswordRecoveryModal: React.FC<PasswordRecoveryModalProps> = ({
                 )}
 
                 <button
-                  onClick={onRecover}
+                  onClick={handleRecover}
                   disabled={loading}
-                  className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
                 >
                   {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enviar e-mail de recuperação'}
                 </button>
