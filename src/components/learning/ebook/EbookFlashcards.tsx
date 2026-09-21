@@ -11,6 +11,8 @@ import {
   ChevronLeft,
 } from "lucide-react";
 import { auth } from "../../../firebase";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useMonitoring } from "../../../hooks/useMonitoring";
 
 interface VocabWord {
   word: string;
@@ -385,6 +387,10 @@ async function fetchLibrary(): Promise<LibraryEntry[]> {
 // ── Public export ──────────────────────────────────────────────────────────────
 
 export function EbookFlashcards({ ebookId }: { ebookId?: string }) {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [deckId, setDeckId] = useState<string | null>(ebookId ?? null);
   const [deck, setDeck] = useState<VocabDeck | null>(null);
   const [progressCards, setProgressCards] = useState<CardProgress[]>([]);
@@ -415,8 +421,22 @@ export function EbookFlashcards({ ebookId }: { ebookId?: string }) {
       setProgressCards(p as CardProgress[]);
       setDeckId(id);
       setMode("browse");
+
+      if (userId) {
+        trackEvent('ebook_flashcards_deck_loaded', {
+          deckId: id,
+          deckTitle: d.ebookTitle,
+          wordCount: d.words.length,
+          language: d.language,
+        });
+      }
     } catch {
       setError("Não foi possível carregar o vocabulário deste e-book.");
+      if (userId) {
+        trackEvent('ebook_flashcards_deck_load_failed', {
+          deckId: id,
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -426,6 +446,36 @@ export function EbookFlashcards({ ebookId }: { ebookId?: string }) {
     if (ebookId) loadDeck(ebookId);
   }, []);
 
+  useEffect(() => {
+    if (userId) {
+      trackEvent('ebook_flashcards_viewed', {
+        mode,
+        deckLoaded: deck !== null,
+        cardCount: deck?.words.length ?? 0,
+      });
+    }
+  }, [userId, trackEvent, mode, deck]);
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('ebook_flashcards_mode_changed', {
+        newMode: mode,
+        deckId: deckId || 'none',
+      });
+    }
+  }, [mode, userId, trackEvent, deckId]);
+
+  const handleModeChange = useCallback((newMode: "pick" | "browse" | "review") => {
+    setMode(newMode);
+    if (userId && newMode !== mode) {
+      trackEvent('ebook_flashcards_mode_transition', {
+        fromMode: mode,
+        toMode: newMode,
+        deckId: deckId || 'none',
+      });
+    }
+  }, [mode, userId, trackEvent, deckId]);
+
   const handleReviewFinish = async (results: { word: string; quality: number }[]) => {
     if (!deckId) return;
     try {
@@ -434,10 +484,23 @@ export function EbookFlashcards({ ebookId }: { ebookId?: string }) {
         body: JSON.stringify({ results }),
       });
       setProgressCards(updated.cards);
+
+      if (userId) {
+        const averageQuality = results.length > 0 ? results.reduce((sum, r) => sum + r.quality, 0) / results.length : 0;
+        trackEvent('ebook_flashcards_review_completed', {
+          deckId,
+          reviewedCount: results.length,
+          averageQuality: Math.round(averageQuality * 100) / 100,
+        });
+      }
     } catch {
-      // Best-effort — keep local state
+      if (userId) {
+        trackEvent('ebook_flashcards_review_failed', {
+          deckId,
+        });
+      }
     }
-    setMode("browse");
+    handleModeChange("browse");
   };
 
   return (
@@ -451,8 +514,8 @@ export function EbookFlashcards({ ebookId }: { ebookId?: string }) {
         {(mode === "review" || mode === "browse") && (
           <button
             onClick={() => {
-              if (mode === "review") { setMode("browse"); return; }
-              setDeck(null); setDeckId(null); setMode("pick");
+              if (mode === "review") { handleModeChange("browse"); return; }
+              setDeck(null); setDeckId(null); handleModeChange("pick");
             }}
             className="flex items-center gap-1 text-sm text-indigo-600 dark:text-indigo-400 hover:underline"
           >
@@ -524,7 +587,7 @@ export function EbookFlashcards({ ebookId }: { ebookId?: string }) {
         <DeckBrowser
           deck={deck}
           progressCards={progressCards}
-          onStartReview={() => setMode("review")}
+          onStartReview={() => handleModeChange("review")}
         />
       )}
 
