@@ -1,17 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { School, AlertCircle } from 'lucide-react';
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 export const SchoolRegistration: React.FC<{onRegister: (data: any) => void}> = ({ onRegister }) => {
-  const [formData, setFormData] = useState({ 
-    nome: '', 
-    numeroFiscal: '', 
-    endereco: '', 
-    emailPrincipal: '', 
-    telefonePrincipal: '', 
-    contactoAlternativo: '', 
-    country: 'AO' 
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  const [formData, setFormData] = useState({
+    nome: '',
+    numeroFiscal: '',
+    endereco: '',
+    emailPrincipal: '',
+    telefonePrincipal: '',
+    contactoAlternativo: '',
+    country: 'AO'
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('school_registration_viewed', {
+        country: formData.country,
+      });
+    }
+  }, [userId, trackEvent]);
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
@@ -26,7 +41,20 @@ export const SchoolRegistration: React.FC<{onRegister: (data: any) => void}> = (
 
   const handleRegister = () => {
     if (validate()) {
+      if (userId) {
+        trackEvent('school_registration_submitted', {
+          country: formData.country,
+          hasAlternativeContact: !!formData.contactoAlternativo,
+        });
+      }
       onRegister(formData);
+    } else {
+      if (userId) {
+        trackEvent('school_registration_validation_error', {
+          errorCount: Object.keys(errors).length,
+          errorFields: Object.keys(errors),
+        });
+      }
     }
   };
 
