@@ -1,6 +1,5 @@
 node_modules
 npm-debug.log
-dist
 .git
 .gitignore
 .dockerignore
@@ -13,7 +12,5 @@ coverage
 .idea
 *.swp
 *.swo
-public
-src
-vite.config.ts
-tsconfig.json
+.github
+.firebase
