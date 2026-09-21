@@ -1,4 +1,7 @@
 import React, { useEffect, useRef } from "react";
+import { auth } from "@/firebase";
+import { useAnalytics } from "@/hooks/useAnalytics";
+import { useMonitoring } from "@/hooks/useMonitoring";
 
 interface AudioVisualizerProps {
   analyser: AnalyserNode | null;
@@ -6,7 +9,19 @@ interface AudioVisualizerProps {
 }
 
 export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ analyser, isMuted }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('audio_visualizer_mounted', {
+        hasAnalyser: !!analyser,
+        isMuted
+      });
+    }
+  }, [userId, trackEvent, analyser, isMuted]);
 
   useEffect(() => {
     let animationFrameId: number;

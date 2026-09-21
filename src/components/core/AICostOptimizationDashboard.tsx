@@ -1,34 +1,37 @@
 import React, { useState, useEffect } from 'react';
 import AICostTrackerDashboard from './AICostTrackerDashboard';
-import { 
-  Cpu, 
-  Brain, 
-  Coins, 
-  DollarSign, 
-  Sliders, 
-  Database, 
-  Play, 
-  AlertTriangle, 
-  CheckCircle, 
-  RefreshCw, 
-  Search, 
-  Lock, 
-  ArrowRight, 
-  ArrowUpRight, 
-  ArrowDownRight, 
-  TrendingDown, 
-  Flame, 
-  Layers, 
-  Zap, 
-  BookOpen, 
-  Terminal, 
-  FileCode, 
-  Activity, 
-  Gauge, 
-  ShieldCheck, 
+import {
+  Cpu,
+  Brain,
+  Coins,
+  DollarSign,
+  Sliders,
+  Database,
+  Play,
+  AlertTriangle,
+  CheckCircle,
+  RefreshCw,
+  Search,
+  Lock,
+  ArrowRight,
+  ArrowUpRight,
+  ArrowDownRight,
+  TrendingDown,
+  Flame,
+  Layers,
+  Zap,
+  BookOpen,
+  Terminal,
+  FileCode,
+  Activity,
+  Gauge,
+  ShieldCheck,
   BellRing,
   Award
 } from 'lucide-react';
+import { auth } from '@/firebase';
+import { useAnalytics } from '@/hooks/useAnalytics';
+import { useMonitoring } from '@/hooks/useMonitoring';
 
 interface ModelConfig {
   name: string;
@@ -49,6 +52,9 @@ interface SchoolLimit {
 }
 
 export default function AICostOptimizationDashboard() {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
   const [activeTab, setActiveTab] = useState<'monitor' | 'router' | 'cache' | 'limits' | 'docs' | 'tracker'>('monitor');
   const [loading, setLoading] = useState(false);
   const [selectedScenario, setSelectedScenario] = useState<'chat' | 'grading' | 'translation'>('chat');
@@ -80,9 +86,14 @@ export default function AICostOptimizationDashboard() {
   ];
 
   useEffect(() => {
+    if (userId) {
+      trackEvent('ai_cost_optimization_dashboard_viewed', {
+        initialTab: 'monitor'
+      });
+    }
     setCacheLogs(initialCacheLogs.map(l => `[${new Date().toLocaleTimeString()}] ${l}`));
     compressPrompt();
-  }, []);
+  }, [userId, trackEvent]);
 
   const compressPrompt = () => {
     // Basic heuristic simulation for prompt compression
@@ -142,6 +153,37 @@ export default function AICostOptimizationDashboard() {
     { schoolName: 'Agrupamento de Escolas de Portimão', monthlyBudget: 250, spentBudget: 12.40, dailyTokenLimit: 800000, activeStudents: 1240, alertThresholdPercent: 85 },
     { schoolName: 'Escola Alemã de Lisboa', monthlyBudget: 200, spentBudget: 184.10, dailyTokenLimit: 600000, activeStudents: 310, alertThresholdPercent: 90 }
   ];
+
+  const handleTabChange = (tab: 'monitor' | 'router' | 'cache' | 'limits' | 'docs' | 'tracker') => {
+    setActiveTab(tab);
+    if (userId) {
+      trackEvent('ai_cost_optimization_tab_changed', {
+        tabName: tab
+      });
+    }
+  };
+
+  const handleCompressionClick = () => {
+    if (userId) {
+      trackEvent('ai_cost_optimization_compression_initiated', {
+        originalLength: originalPrompt.length,
+        compressionRatio
+      });
+    }
+    compressPrompt();
+  };
+
+  const handleCacheSyncClick = async () => {
+    if (userId) {
+      trackEvent('ai_cost_optimization_cache_sync_initiated', {});
+    }
+    await runCacheSync();
+    if (userId) {
+      trackEvent('ai_cost_optimization_cache_sync_completed', {
+        cacheHits
+      });
+    }
+  };
 
   return (
     <div className="bg-slate-900 text-slate-100 rounded-3xl border border-slate-800 p-6 shadow-xl space-y-6 relative overflow-hidden">
@@ -220,66 +262,66 @@ export default function AICostOptimizationDashboard() {
 
       {/* Tabs Menu */}
       <div className="flex border-b border-slate-800 gap-1 overflow-x-auto relative z-10 scrollbar-none">
-        <button 
-          onClick={() => setActiveTab('monitor')}
+        <button
+          onClick={() => handleTabChange('monitor')}
           className={`flex items-center gap-2 px-4 py-2.5 font-bold text-xs border-b-2 tracking-wide uppercase transition-all cursor-pointer ${
-            activeTab === 'monitor' 
-              ? 'border-indigo-500 text-indigo-400 bg-indigo-500/5' 
+            activeTab === 'monitor'
+              ? 'border-indigo-500 text-indigo-400 bg-indigo-500/5'
               : 'border-transparent text-slate-400 hover:text-white'
           }`}
         >
           <Activity className="w-4 h-4" />
           <span>Monitorização de Tokens</span>
         </button>
-        <button 
-          onClick={() => setActiveTab('router')}
+        <button
+          onClick={() => handleTabChange('router')}
           className={`flex items-center gap-2 px-4 py-2.5 font-bold text-xs border-b-2 tracking-wide uppercase transition-all cursor-pointer ${
-            activeTab === 'router' 
-              ? 'border-indigo-500 text-indigo-400 bg-indigo-500/5' 
+            activeTab === 'router'
+              ? 'border-indigo-500 text-indigo-400 bg-indigo-500/5'
               : 'border-transparent text-slate-400 hover:text-white'
           }`}
         >
           <Sliders className="w-4 h-4" />
           <span>Model Routing Inteligente</span>
         </button>
-        <button 
-          onClick={() => setActiveTab('cache')}
+        <button
+          onClick={() => handleTabChange('cache')}
           className={`flex items-center gap-2 px-4 py-2.5 font-bold text-xs border-b-2 tracking-wide uppercase transition-all cursor-pointer ${
-            activeTab === 'cache' 
-              ? 'border-indigo-500 text-indigo-400 bg-indigo-500/5' 
+            activeTab === 'cache'
+              ? 'border-indigo-500 text-indigo-400 bg-indigo-500/5'
               : 'border-transparent text-slate-400 hover:text-white'
           }`}
         >
           <Database className="w-4 h-4" />
           <span>Cache Semântico</span>
         </button>
-        <button 
-          onClick={() => setActiveTab('limits')}
+        <button
+          onClick={() => handleTabChange('limits')}
           className={`flex items-center gap-2 px-4 py-2.5 font-bold text-xs border-b-2 tracking-wide uppercase transition-all cursor-pointer ${
-            activeTab === 'limits' 
-              ? 'border-indigo-500 text-indigo-400 bg-indigo-500/5' 
+            activeTab === 'limits'
+              ? 'border-indigo-500 text-indigo-400 bg-indigo-500/5'
               : 'border-transparent text-slate-400 hover:text-white'
           }`}
         >
           <BellRing className="w-4 h-4" />
           <span>Limites e Alertas por Escola</span>
         </button>
-        <button 
-          onClick={() => setActiveTab('docs')}
+        <button
+          onClick={() => handleTabChange('docs')}
           className={`flex items-center gap-2 px-4 py-2.5 font-bold text-xs border-b-2 tracking-wide uppercase transition-all cursor-pointer ${
-            activeTab === 'docs' 
-              ? 'border-indigo-500 text-indigo-400 bg-indigo-500/5' 
+            activeTab === 'docs'
+              ? 'border-indigo-500 text-indigo-400 bg-indigo-500/5'
               : 'border-transparent text-slate-400 hover:text-white'
           }`}
         >
           <BookOpen className="w-4 h-4" />
           <span>FinOps Docs</span>
         </button>
-        <button 
-          onClick={() => setActiveTab('tracker')}
+        <button
+          onClick={() => handleTabChange('tracker')}
           className={`flex items-center gap-2 px-4 py-2.5 font-bold text-xs border-b-2 tracking-wide uppercase transition-all cursor-pointer ${
-            activeTab === 'tracker' 
-              ? 'border-indigo-500 text-indigo-400 bg-indigo-500/5' 
+            activeTab === 'tracker'
+              ? 'border-indigo-500 text-indigo-400 bg-indigo-500/5'
               : 'border-transparent text-slate-400 hover:text-white'
           }`}
         >
@@ -312,8 +354,8 @@ export default function AICostOptimizationDashboard() {
               </div>
 
               <div className="flex justify-end">
-                <button 
-                  onClick={compressPrompt}
+                <button
+                  onClick={handleCompressionClick}
                   className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-all cursor-pointer"
                 >
                   Otimizar e Comprimir Prompt
@@ -539,8 +581,8 @@ export default function AICostOptimizationDashboard() {
                   <Terminal className="w-4 h-4 text-indigo-400" />
                   <span className="text-xs font-bold uppercase tracking-wider">Console Redis Vector</span>
                 </div>
-                <button 
-                  onClick={runCacheSync}
+                <button
+                  onClick={handleCacheSyncClick}
                   className="text-[10px] text-slate-500 hover:text-white font-mono uppercase border border-slate-850 px-2 py-0.5 rounded cursor-pointer"
                 >
                   Sync Index
