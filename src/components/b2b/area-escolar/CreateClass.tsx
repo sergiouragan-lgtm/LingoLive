@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BookOpen, Plus } from 'lucide-react';
+import { auth } from '@/firebase';
+import { useAnalytics } from '@/hooks/useAnalytics';
+import { useMonitoring } from '@/hooks/useMonitoring';
 
 interface CreateClassProps {
   onCancel: () => void;
@@ -8,6 +11,38 @@ interface CreateClassProps {
 
 export const CreateClass: React.FC<CreateClassProps> = ({ onCancel, onSave }) => {
   const [className, setClassName] = useState('');
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('create_class_form_viewed', {
+        formType: 'class_creation'
+      });
+    }
+  }, [userId, trackEvent]);
+
+  const handleSave = () => {
+    if (userId) {
+      trackEvent('create_class_submitted', {
+        formType: 'class_creation',
+        className: className,
+        hasClassName: !!className
+      });
+    }
+    onSave(className);
+  };
+
+  const handleCancel = () => {
+    if (userId) {
+      trackEvent('create_class_cancelled', {
+        formType: 'class_creation',
+        classNameEntered: !!className
+      });
+    }
+    onCancel();
+  };
 
   return (
     <div className="p-6 bg-white rounded-2xl border border-slate-200 shadow-sm max-w-lg mx-auto mt-10">
@@ -26,8 +61,8 @@ export const CreateClass: React.FC<CreateClassProps> = ({ onCancel, onSave }) =>
           />
         </div>
         <div className="flex gap-4 pt-4">
-          <button onClick={onCancel} className="flex-1 py-2 rounded-xl text-slate-600 border hover:bg-slate-50 transition">Cancelar</button>
-          <button onClick={() => onSave(className)} className="flex-1 py-2 rounded-xl bg-primary text-white font-semibold hover:bg-primary/90 transition flex items-center justify-center gap-2">
+          <button onClick={handleCancel} className="flex-1 py-2 rounded-xl text-slate-600 border hover:bg-slate-50 transition">Cancelar</button>
+          <button onClick={handleSave} className="flex-1 py-2 rounded-xl bg-primary text-white font-semibold hover:bg-primary/90 transition flex items-center justify-center gap-2">
             <Plus className="w-4 h-4" /> Criar Turma
           </button>
         </div>
