@@ -1,5 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Trophy, AlertCircle } from 'lucide-react';
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 type CurrentLevelWidgetProps = {
   level?: string | null;
@@ -12,6 +15,19 @@ export const CurrentLevelWidget: React.FC<CurrentLevelWidgetProps> = ({
   isLoading = false,
   isError = false,
 }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId && level) {
+      trackEvent('current_level_widget_displayed', {
+        cerfLevel: level,
+        widgetType: 'language_level'
+      });
+    }
+  }, [userId, level, trackEvent]);
+
   if (isLoading) {
     return (
       <div className="animate-pulse bg-slate-200 h-12 w-full rounded-2xl" aria-hidden="true" />
