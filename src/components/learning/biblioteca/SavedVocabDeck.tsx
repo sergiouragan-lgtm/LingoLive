@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { SavedWord } from "../../../types";
-import { 
-  ArrowLeft, 
-  Trash2, 
-  Volume2, 
-  Bookmark, 
-  Sparkles, 
-  BookOpen, 
+import {
+  ArrowLeft,
+  Trash2,
+  Volume2,
+  Bookmark,
+  Sparkles,
+  BookOpen,
   Calendar,
   HelpCircle,
   Eye,
@@ -17,6 +17,9 @@ import {
   Search
 } from "lucide-react";
 import { COMMON_PHRASES } from "./commonPhrases";
+import { auth } from "../../../firebase";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useMonitoring } from "../../../hooks/useMonitoring";
 
 interface SavedVocabDeckProps {
   savedWords: SavedWord[];
@@ -150,6 +153,10 @@ export default function SavedVocabDeck({
   userAge,
   selectedAgeGroup
 }: SavedVocabDeckProps) {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [revealAll, setRevealAll] = useState(false);
   const [revealedIds, setRevealedIds] = useState<Record<string, boolean>>({});
   const [importSectionOpen, setImportSectionOpen] = useState(false);
@@ -184,6 +191,19 @@ export default function SavedVocabDeck({
   const availablePhrases = COMMON_PHRASES[normalizedCode] || [];
 
   useEffect(() => {
+    if (userId) {
+      trackEvent('saved_vocab_deck_viewed', {
+        language: languageName,
+        languageCode: languageCode,
+        savedWordsCount: savedWords.length,
+        availablePhrasesCount: availablePhrases.length,
+        userProfile: resolvedProfile,
+        deckType: 'vocabulary_library'
+      });
+    }
+  }, [userId, languageName, languageCode, savedWords.length, availablePhrases.length, resolvedProfile, trackEvent]);
+
+  useEffect(() => {
     if (availablePhrases.length > 0) {
       setSelectedIndices(availablePhrases.map((_, i) => i));
     } else {
@@ -191,15 +211,61 @@ export default function SavedVocabDeck({
     }
   }, [languageCode]);
 
+  const handleRevealAll = () => {
+    if (userId) {
+      trackEvent('vocab_deck_reveal_toggled', {
+        revealAll: !revealAll,
+        totalCards: savedWords.length,
+        language: languageName,
+        languageCode: languageCode
+      });
+    }
+    setRevealAll(!revealAll);
+  };
+
+  const handleImportSectionToggle = () => {
+    if (userId) {
+      trackEvent('vocab_import_section_toggled', {
+        isOpening: !importSectionOpen,
+        availablePhrases: availablePhrases.length,
+        language: languageName,
+        languageCode: languageCode
+      });
+    }
+    setImportSectionOpen(!importSectionOpen);
+  };
+
   const handleToggleSelectAll = () => {
-    if (selectedIndices.length === availablePhrases.length) {
-      setSelectedIndices([]);
-    } else {
+    const willSelectAll = selectedIndices.length !== availablePhrases.length;
+    if (userId) {
+      trackEvent('vocab_import_select_all_toggled', {
+        selectAll: willSelectAll,
+        phraseCount: availablePhrases.length,
+        previousSelection: selectedIndices.length,
+        language: languageName,
+        languageCode: languageCode
+      });
+    }
+    if (willSelectAll) {
       setSelectedIndices(availablePhrases.map((_, i) => i));
+    } else {
+      setSelectedIndices([]);
     }
   };
 
   const handleToggleIndividual = (idx: number) => {
+    const isAdding = !selectedIndices.includes(idx);
+    if (userId) {
+      const phrase = availablePhrases[idx];
+      trackEvent('vocab_phrase_selection_toggled', {
+        phraseWord: phrase?.word || '',
+        isSelected: isAdding,
+        selectionIndex: idx,
+        totalSelectedAfter: isAdding ? selectedIndices.length + 1 : selectedIndices.length - 1,
+        language: languageName,
+        languageCode: languageCode
+      });
+    }
     setSelectedIndices((prev) =>
       prev.includes(idx) ? prev.filter((i) => i !== idx) : [...prev, idx]
     );
@@ -207,6 +273,16 @@ export default function SavedVocabDeck({
 
   const handleImportSelected = () => {
     if (selectedIndices.length === 0 || !onAddWords) return;
+
+    if (userId) {
+      trackEvent('vocab_phrases_imported', {
+        phraseCount: selectedIndices.length,
+        totalAvailable: availablePhrases.length,
+        language: languageName,
+        languageCode: languageCode,
+        deckType: 'vocabulary_library'
+      });
+    }
 
     const wordsToSave: SavedWord[] = selectedIndices.map((idx, i) => {
       const template = availablePhrases[idx];
@@ -228,8 +304,73 @@ export default function SavedVocabDeck({
     setImportSectionOpen(false);
   };
 
+  const handlePhraseSpeak = (phraseWord: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (userId) {
+      trackEvent('vocab_phrase_speak_clicked', {
+        phraseWord: phraseWord,
+        language: languageName,
+        languageCode: languageCode
+      });
+    }
+    speakLocal(phraseWord);
+  };
+
+  const handleCardSpeak = (cardWord: string) => {
+    if (userId) {
+      trackEvent('vocab_card_speak_clicked', {
+        word: cardWord,
+        language: languageName,
+        languageCode: languageCode
+      });
+    }
+    speakLocal(cardWord);
+  };
+
+  const handleCardExampleSpeak = (exampleText: string) => {
+    if (userId) {
+      trackEvent('vocab_card_example_speak_clicked', {
+        exampleLength: exampleText.length,
+        language: languageName,
+        languageCode: languageCode
+      });
+    }
+    speakLocal(exampleText);
+  };
+
   const toggleReveal = (id: string) => {
+    const isBeingRevealed = !revealedIds[id];
+    if (userId) {
+      trackEvent('vocab_card_reveal_toggled', {
+        cardId: id,
+        isRevealed: isBeingRevealed,
+        language: languageName,
+        languageCode: languageCode
+      });
+    }
     setRevealedIds((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const handleDeleteWord = (wordId: string) => {
+    if (userId) {
+      trackEvent('vocab_word_deleted', {
+        wordId: wordId,
+        language: languageName,
+        languageCode: languageCode
+      });
+    }
+    onDeleteWord(wordId);
+  };
+
+  const handleBackClick = () => {
+    if (userId) {
+      trackEvent('vocab_deck_back_clicked', {
+        savedWordsCount: savedWords.length,
+        language: languageName,
+        languageCode: languageCode
+      });
+    }
+    onBack();
   };
 
   // Speaks out the word or phrase utilizing native browser TTS
@@ -252,7 +393,7 @@ export default function SavedVocabDeck({
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-slate-100 pb-5" data-testid="library-header">
         <div className="flex items-center gap-3">
           <button
-            onClick={onBack}
+            onClick={handleBackClick}
             aria-label="Voltar"
             data-testid="header-back-button"
             className="p-2 hover:bg-slate-50 border border-slate-200 rounded-xl transition-all cursor-pointer text-slate-600 hover:text-slate-900"
@@ -280,7 +421,7 @@ export default function SavedVocabDeck({
 
         {savedWords.length > 0 && (
           <button
-            onClick={() => setRevealAll(!revealAll)}
+            onClick={handleRevealAll}
             className="inline-flex items-center gap-2 px-4 py-2 border border-slate-200 hover:border-slate-300 rounded-xl text-xs font-semibold text-slate-700 transition-all cursor-pointer"
           >
             {revealAll ? <EyeOff className="w-4 h-4 text-slate-400" /> : <Eye className="w-4 h-4 text-slate-500" />}
@@ -308,7 +449,7 @@ export default function SavedVocabDeck({
             </div>
             
             <button
-              onClick={() => setImportSectionOpen(!importSectionOpen)}
+              onClick={handleImportSectionToggle}
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition-all cursor-pointer shadow-xs whitespace-nowrap self-start sm:self-center"
               id="btn-toggle-import-panel"
               data-testid="library-primary-action"
@@ -356,10 +497,7 @@ export default function SavedVocabDeck({
                           </div>
                           <button
                             type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              speakLocal(phrase.word);
-                            }}
+                            onClick={(e) => handlePhraseSpeak(phrase.word, e)}
                             className="p-1 bg-slate-100 hover:bg-indigo-100 text-slate-600 hover:text-indigo-600 rounded transition-all cursor-pointer inline-flex items-center justify-center"
                             title="Hear Pronunciation"
                           >
@@ -591,7 +729,7 @@ export default function SavedVocabDeck({
                                 {item.word}
                               </h4>
                               <button
-                                onClick={() => speakLocal(item.word)}
+                                onClick={() => handleCardSpeak(item.word)}
                                 className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 hover:text-indigo-700 rounded-lg text-xs font-semibold transition-all cursor-pointer border border-indigo-100"
                                 title="Click to hear pronunciation"
                                 id={`speak-btn-${item.id}`}
@@ -636,7 +774,7 @@ export default function SavedVocabDeck({
                           <div className="flex items-center gap-1.5 z-10 self-start">
                             {/* Delete item */}
                             <button
-                              onClick={() => onDeleteWord(item.id)}
+                              onClick={() => handleDeleteWord(item.id)}
                               className="p-2 hover:bg-rose-50 text-slate-300 hover:text-rose-600 rounded-xl transition-all cursor-pointer"
                               title="Remove Flashcard"
                             >
@@ -670,7 +808,7 @@ export default function SavedVocabDeck({
                           <div className="flex items-center justify-between">
                             <span className="text-[10px] text-slate-400 font-semibold uppercase">In-Context Usage</span>
                             <button
-                              onClick={() => speakLocal(item.exampleOriginal)}
+                              onClick={() => handleCardExampleSpeak(item.exampleOriginal)}
                               className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 hover:text-indigo-600 transition-all cursor-pointer px-1.5 py-0.5 rounded hover:bg-slate-50"
                               title="Hear Example Sentence"
                             >
