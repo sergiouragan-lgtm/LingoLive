@@ -1,11 +1,34 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { Shield, Lock, Eye, AlertTriangle } from "lucide-react";
 import { SOCDashboard } from "./SOCDashboard";
 import { TrustCenter } from "./TrustCenter";
+import { useAnalytics } from "@/hooks/useAnalytics";
+import { useMonitoring } from "@/hooks/useMonitoring";
+import { auth } from "@/firebase";
 
 export const SecurityDashboard = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'soc' | 'trust'>('overview');
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('security_dashboard_accessed', {
+        activeTab,
+        initialView: 'overview',
+      });
+    }
+  }, [userId, trackEvent]);
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('security_dashboard_tab_changed', {
+        newTab: activeTab,
+      });
+    }
+  }, [activeTab, userId, trackEvent]);
 
   return (
     <motion.div

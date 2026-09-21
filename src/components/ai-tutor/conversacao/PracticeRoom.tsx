@@ -7,6 +7,8 @@ import { PronunciationTipModal } from '../PronunciationTipModal';
 import { AudioVisualizer } from '../AudioVisualizer';
 import { SmartProfile } from "../../../profile/types";
 import { buildTutorSessionContext, TutorSessionContext } from "../../../features/tutor/tutorSessionContextBuilder";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useMonitoring } from "../../../hooks/useMonitoring";
 import { 
   Mic, 
   MicOff, 
@@ -87,6 +89,23 @@ export default function PracticeRoom({
       cefrLevel: proficiency,
     });
   }, [propSessionContext, propSmartProfile, userProfile, language, proficiency]);
+
+  // Analytics & Monitoring
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('practice_room_session_started', {
+        language: language.code || language.name,
+        scenarioId: scenario.id,
+        scenarioTitle: scenario.title,
+        proficiency,
+        ageGroup,
+      });
+    }
+  }, [userId, trackEvent, language, scenario, proficiency, ageGroup]);
 
   // Session UI states
   const [sessionStatus, setSessionStatus] = useState<"connecting" | "ready" | "closed" | "error">("connecting");
