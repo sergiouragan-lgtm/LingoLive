@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Language, Scenario, TranscriptItem, FeedbackReport, AgeGroup } from "../../types";
 import { auth } from "../../firebase";
+import { useAnalytics } from "../../hooks/useAnalytics";
+import { useMonitoring } from "../../hooks/useMonitoring";
 import { 
   Award, 
   CheckCircle, 
@@ -39,10 +41,24 @@ export default function FeedbackReportCard({
   onRestart,
   onViewSavedVocab
 }: FeedbackReportCardProps) {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<FeedbackReport | null>(null);
   const [loadingStep, setLoadingStep] = useState(0);
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('feedback_report_card_viewed', {
+        scenario: scenario.title,
+        language: language.name,
+        proficiency,
+        ageGroup,
+      });
+    }
+  }, [userId, trackEvent, scenario.title, language.name, proficiency, ageGroup]);
 
   const speakWord = (text: string) => {
     if (!("speechSynthesis" in window)) return;
@@ -133,16 +149,41 @@ export default function FeedbackReportCard({
 
         const result = await response.json();
         setReport(result);
+        if (userId) {
+          trackEvent('feedback_report_loaded', {
+            overallScore: result.overallScore,
+            fluencyLevel: result.fluencyLevel,
+          });
+        }
       } catch (err: any) {
         console.error(err);
         setError(err.message || "An unexpected error occurred while analyzing your conversation.");
+        if (userId) {
+          trackEvent('feedback_report_load_error', {
+            errorMessage: err.message,
+          });
+        }
       } finally {
         setLoading(false);
       }
     }
 
     fetchFeedback();
-  }, [language, proficiency, scenario, transcript]);
+  }, [language, proficiency, scenario, transcript, userId, trackEvent]);
+
+  const handleRestart = () => {
+    if (userId) {
+      trackEvent('feedback_report_restart_clicked', {});
+    }
+    onRestart();
+  };
+
+  const handleViewSavedVocab = () => {
+    if (userId) {
+      trackEvent('feedback_report_view_vocab_clicked', {});
+    }
+    onViewSavedVocab();
+  };
 
   if (loading) {
     return (
@@ -180,7 +221,7 @@ export default function FeedbackReportCard({
         </div>
         <div className="flex justify-center gap-3">
           <button
-            onClick={onRestart}
+            onClick={handleRestart}
             className="inline-flex items-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium shadow-xs transition-all cursor-pointer"
           >
             <RotateCcw className="w-4 h-4" />
@@ -632,7 +673,7 @@ export default function FeedbackReportCard({
 
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <button
-            onClick={onViewSavedVocab}
+            onClick={handleViewSavedVocab}
             className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-100 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-xs"
           >
             <Bookmark className="w-4 h-4 fill-indigo-700" />
@@ -640,7 +681,7 @@ export default function FeedbackReportCard({
           </button>
 
           <button
-            onClick={onRestart}
+            onClick={handleRestart}
             className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-xs"
           >
             <RotateCcw className="w-4 h-4" />
