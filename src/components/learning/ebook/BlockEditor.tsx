@@ -9,6 +9,9 @@ import {
   HelpCircle, Volume2, GripVertical, Trash2, Copy, Plus, GraduationCap,
   Loader2, Check, X,
 } from "lucide-react";
+import { auth } from "../../../firebase";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useMonitoring } from "../../../hooks/useMonitoring";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -701,6 +704,10 @@ interface BlockEditorProps {
 export function BlockEditor({
   blocks, onChange, onAdaptBlock, language,
 }: BlockEditorProps) {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [adaptingBlockId, setAdaptingBlockId] = useState<string | null>(null);
   const addMenuRef = useRef<HTMLDivElement>(null);
@@ -718,9 +725,17 @@ export function BlockEditor({
 
   const addBlock = useCallback(
     (type: BlockType) => {
-      onChange([...blocks, createBlock(type)]);
+      const newBlocks = [...blocks, createBlock(type)];
+      onChange(newBlocks);
+
+      if (userId) {
+        trackEvent('ebook_block_added', {
+          blockType: type,
+          totalBlockCount: newBlocks.length,
+        });
+      }
     },
-    [blocks, onChange]
+    [blocks, onChange, userId, trackEvent]
   );
 
   const updateBlock = useCallback(
@@ -738,13 +753,33 @@ export function BlockEditor({
       const target = dir === "up" ? idx - 1 : idx + 1;
       [newBlocks[idx], newBlocks[target]] = [newBlocks[target], newBlocks[idx]];
       onChange(newBlocks);
+
+      if (userId) {
+        trackEvent('ebook_block_moved', {
+          blockType: blocks[idx].type,
+          direction: dir,
+          fromIndex: idx,
+          toIndex: target,
+        });
+      }
     },
-    [blocks, onChange]
+    [blocks, onChange, userId, trackEvent]
   );
 
   const deleteBlock = useCallback(
-    (id: string) => onChange(blocks.filter((b) => b.id !== id)),
-    [blocks, onChange]
+    (id: string) => {
+      const deletedBlock = blocks.find((b) => b.id === id);
+      const newBlocks = blocks.filter((b) => b.id !== id);
+      onChange(newBlocks);
+
+      if (userId && deletedBlock) {
+        trackEvent('ebook_block_deleted', {
+          blockType: deletedBlock.type,
+          remainingBlockCount: newBlocks.length,
+        });
+      }
+    },
+    [blocks, onChange, userId, trackEvent]
   );
 
   const duplicateBlock = useCallback(
@@ -754,8 +789,15 @@ export function BlockEditor({
       const newBlocks = [...blocks];
       newBlocks.splice(idx + 1, 0, clone);
       onChange(newBlocks);
+
+      if (userId) {
+        trackEvent('ebook_block_duplicated', {
+          blockType: blocks[idx].type,
+          totalBlockCount: newBlocks.length,
+        });
+      }
     },
-    [blocks, onChange]
+    [blocks, onChange, userId, trackEvent]
   );
 
   const adaptLevel = useCallback(
@@ -775,6 +817,14 @@ export function BlockEditor({
       }
       if (!text.trim()) return;
 
+      if (userId) {
+        trackEvent('ebook_block_adapt_level_initiated', {
+          blockType: block.type,
+          targetLevel,
+          textLength: text.length,
+        });
+      }
+
       setAdaptingBlockId(blockId);
       try {
         const adapted = await onAdaptBlock(blockId, text, targetLevel);
@@ -792,13 +842,27 @@ export function BlockEditor({
             default: return b;
           }
         }));
+
+        if (userId) {
+          trackEvent('ebook_block_adapt_level_completed', {
+            blockType: block.type,
+            targetLevel,
+            adaptedTextLength: adapted.length,
+          });
+        }
       } catch {
+        if (userId) {
+          trackEvent('ebook_block_adapt_level_failed', {
+            blockType: block.type,
+            targetLevel,
+          });
+        }
         // swallow — parent shows toast
       } finally {
         setAdaptingBlockId(null);
       }
     },
-    [blocks, onChange, onAdaptBlock]
+    [blocks, onChange, onAdaptBlock, userId, trackEvent]
   );
 
   if (blocks.length === 0) {
