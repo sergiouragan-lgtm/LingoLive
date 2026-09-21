@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { getAuth } from "firebase/auth";
+import { auth } from "../../../firebase";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useMonitoring } from "../../../hooks/useMonitoring";
 
 interface Review {
   id: string;
@@ -25,6 +28,10 @@ interface Props {
 
 export default function EbookReviews({ ebookId, authorId }: Props) {
   const user = getAuth().currentUser;
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [reviews, setReviews] = useState<Review[]>([]);
   const [aggregate, setAggregate] = useState<RatingAggregate | null>(null);
   const [myReview, setMyReview] = useState<Review | null>(null);
@@ -67,7 +74,23 @@ export default function EbookReviews({ ebookId, authorId }: Props) {
 
   useEffect(() => {
     fetchReviews();
-  }, [ebookId]);
+    if (userId) {
+      trackEvent('ebook_reviews_viewed', {
+        ebookId,
+        isAuthor: authorId === userId,
+      });
+    }
+  }, [ebookId, userId, trackEvent, authorId]);
+
+  useEffect(() => {
+    if (userId && aggregate) {
+      trackEvent('ebook_reviews_aggregate_loaded', {
+        ebookId,
+        averageRating: aggregate.average,
+        totalReviews: aggregate.total,
+      });
+    }
+  }, [aggregate, ebookId, userId, trackEvent]);
 
   async function submitReview() {
     if (!formRating || !formComment.trim()) return;
@@ -86,11 +109,31 @@ export default function EbookReviews({ ebookId, authorId }: Props) {
       if (res.ok) {
         setSubmitMsg("Avaliação guardada com sucesso!");
         await fetchReviews();
+        if (userId) {
+          trackEvent('ebook_review_submitted', {
+            ebookId,
+            rating: formRating,
+            commentLength: formComment.length,
+            isUpdate: !!myReview,
+          });
+        }
       } else {
         setSubmitMsg("Erro ao guardar avaliação.");
+        if (userId) {
+          trackEvent('ebook_review_submission_failed', {
+            ebookId,
+            rating: formRating,
+          });
+        }
       }
     } catch {
       setSubmitMsg("Erro de ligação.");
+      if (userId) {
+        trackEvent('ebook_review_submission_failed', {
+          ebookId,
+          rating: formRating,
+        });
+      }
     } finally {
       setSubmitting(false);
     }
@@ -106,8 +149,19 @@ export default function EbookReviews({ ebookId, authorId }: Props) {
       setReviews((prev) =>
         prev.map((r) => (r.id === reviewId ? { ...r, helpful: r.helpful + 1 } : r))
       );
+      if (userId) {
+        trackEvent('ebook_review_marked_helpful', {
+          ebookId,
+          reviewId,
+        });
+      }
     } catch {
-      /* silent */
+      if (userId) {
+        trackEvent('ebook_review_helpful_failed', {
+          ebookId,
+          reviewId,
+        });
+      }
     }
   }
 
@@ -344,7 +398,15 @@ export default function EbookReviews({ ebookId, authorId }: Props) {
             {(["recent", "helpful"] as const).map((opt) => (
               <button
                 key={opt}
-                onClick={() => setSortBy(opt)}
+                onClick={() => {
+                  setSortBy(opt);
+                  if (userId) {
+                    trackEvent('ebook_reviews_sort_changed', {
+                      ebookId,
+                      sortBy: opt,
+                    });
+                  }
+                }}
                 style={{
                   fontSize: 12,
                   padding: "3px 10px",
