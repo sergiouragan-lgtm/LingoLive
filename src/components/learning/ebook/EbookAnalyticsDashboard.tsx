@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { auth } from "../../../firebase";
 import { useUserRole } from "../../../context/UserRoleContext";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useMonitoring } from "../../../hooks/useMonitoring";
 
 const STUDENT_ROLES = new Set(["Student", "STUDENT", "LEARNER", "BUSINESS_USER"]);
 function isStudentRole(role: string) {
@@ -373,6 +375,9 @@ function MyStatsPanel() {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function EbookAnalyticsDashboard() {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
   const { role } = useUserRole();
   const canViewOverview = !isStudentRole(role);
   const [overview, setOverview] = useState<OverviewStats | null>(null);
@@ -394,6 +399,25 @@ export function EbookAnalyticsDashboard() {
     if (canViewOverview) fetchOverview();
     else setLoadingOverview(false);
   }, [fetchOverview, canViewOverview]);
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('ebook_analytics_dashboard_viewed', {
+        userRole: role,
+        canViewOverview,
+        hasData: overview !== null,
+      });
+    }
+  }, [userId, trackEvent, role, canViewOverview, overview]);
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('ebook_analytics_tab_changed', {
+        activeTab,
+        userRole: role,
+      });
+    }
+  }, [activeTab, userId, trackEvent, role]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6">

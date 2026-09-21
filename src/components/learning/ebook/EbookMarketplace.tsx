@@ -7,6 +7,8 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { auth } from "../../../firebase";
 import { useToast } from "../../../context/ToastContext";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useMonitoring } from "../../../hooks/useMonitoring";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -230,6 +232,9 @@ export function EbookMarketplace({
 }: {
   onOpenReader: (ebookId: string, enrollment: any) => void;
 }) {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
   const { showToast } = useToast();
 
   type Tab = "marketplace" | "library";
@@ -277,6 +282,15 @@ export function EbookMarketplace({
 
   useEffect(() => { loadMarketplace(); }, [loadMarketplace]);
 
+  useEffect(() => {
+    if (userId) {
+      trackEvent('ebook_marketplace_viewed', {
+        ebooksLoaded: ebooks.length,
+        librarySize: library.length,
+      });
+    }
+  }, [userId, trackEvent, ebooks.length, library.length]);
+
   const handlePurchase = async (ebook: EbookListing) => {
     setPurchasingId(ebook.id);
     try {
@@ -284,6 +298,15 @@ export function EbookMarketplace({
         method: "POST",
         body: JSON.stringify({ ebookId: ebook.id }),
       });
+      if (userId) {
+        trackEvent('ebook_purchase_initiated', {
+          ebookId: ebook.id,
+          ebookTitle: ebook.title,
+          price: ebook.priceUsd,
+          language: ebook.language,
+          cefrLevel: ebook.cefrLevel,
+        });
+      }
       if (data.url) {
         window.location.href = data.url;
       } else {
@@ -291,6 +314,12 @@ export function EbookMarketplace({
         loadMarketplace();
       }
     } catch (err: any) {
+      if (userId) {
+        trackEvent('ebook_purchase_failed', {
+          ebookId: ebook.id,
+          error: err.message,
+        });
+      }
       showToast(err.message ?? "Erro ao iniciar compra", "error");
     } finally {
       setPurchasingId(null);
@@ -299,13 +328,24 @@ export function EbookMarketplace({
 
   const handleRead = async (ebookId: string) => {
     try {
-      // Ensure enrollment exists (free ebooks can be enrolled without purchase)
       const data = await apiFetch("/api/ebook/student/enroll", {
         method: "POST",
         body: JSON.stringify({ ebookId }),
       });
+      if (userId) {
+        trackEvent('ebook_library_opened', {
+          ebookId,
+          fromTab: tab,
+        });
+      }
       onOpenReader(ebookId, data.enrollment);
     } catch (err: any) {
+      if (userId) {
+        trackEvent('ebook_enrollment_failed', {
+          ebookId,
+          error: err.message,
+        });
+      }
       showToast(err.message ?? "Erro ao abrir e-book", "error");
     }
   };
@@ -342,7 +382,16 @@ export function EbookMarketplace({
             {(["marketplace", "library"] as Tab[]).map((t) => (
               <button
                 key={t}
-                onClick={() => setTab(t)}
+                onClick={() => {
+                  setTab(t);
+                  if (userId) {
+                    trackEvent('ebook_marketplace_tab_changed', {
+                      tab: t,
+                      ebooksCount: ebooks.length,
+                      libraryCount: library.length,
+                    });
+                  }
+                }}
                 className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                   tab === t ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-white"
                 }`}
