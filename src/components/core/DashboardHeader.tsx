@@ -1,6 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Search, Share2, FileText, Bell, Database, Cloud, RefreshCw, CheckCircle, Wifi, WifiOff, AlertCircle } from 'lucide-react';
 import { motion } from "motion/react";
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 interface DashboardHeaderProps {
   studentName: string;
@@ -20,22 +23,67 @@ interface DashboardHeaderProps {
   onForceSync?: () => Promise<void>;
 }
 
-export const DashboardHeader: React.FC<DashboardHeaderProps> = React.memo(({ 
-  studentName, 
-  onShare, 
-  onGenerateReport, 
-  levelNum, 
-  currentXp, 
-  nextXpThreshold, 
-  progressPercent, 
+export const DashboardHeader: React.FC<DashboardHeaderProps> = React.memo(({
+  studentName,
+  onShare,
+  onGenerateReport,
+  levelNum,
+  currentXp,
+  nextXpThreshold,
+  progressPercent,
   profile,
   syncState,
   onForceSync
 }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('dashboard_header_mounted', {
+        studentName,
+        levelNum,
+        currentXp,
+        progressPercent
+      });
+    }
+  }, [userId, trackEvent, studentName, levelNum, currentXp, progressPercent]);
+
   const syncStatus = syncState || {
     status: typeof navigator !== "undefined" && navigator.onLine ? "synced" : "offline",
     lastSyncedAt: new Date().toLocaleTimeString(),
     target: "None" as const
+  };
+
+  const handleShare = () => {
+    if (userId) {
+      trackEvent('dashboard_header_share_clicked', {
+        studentName
+      });
+    }
+    onShare();
+  };
+
+  const handleGenerateReport = () => {
+    if (userId) {
+      trackEvent('dashboard_header_report_clicked', {
+        studentName,
+        levelNum
+      });
+    }
+    onGenerateReport();
+  };
+
+  const handleForceSync = async () => {
+    if (userId) {
+      trackEvent('dashboard_header_sync_clicked', {
+        syncStatus: syncStatus.status
+      });
+    }
+    if (onForceSync) {
+      await onForceSync();
+    }
   };
 
   return (
@@ -44,18 +92,18 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = React.memo(({
         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Painel de Ações</span>
       </div>
       <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
-        <button onClick={onShare} className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer">
+        <button onClick={handleShare} className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer">
           <Share2 size={14} />
           <span className="truncate">Compartilhar</span>
         </button>
-        <button onClick={onGenerateReport} className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition cursor-pointer">
+        <button onClick={handleGenerateReport} className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition cursor-pointer">
           <FileText size={14} />
           <span className="truncate">Relatório</span>
         </button>
 
         {/* Sync Status Indicator */}
         <button
-          onClick={onForceSync}
+          onClick={handleForceSync}
           disabled={syncStatus.status === "syncing"}
           className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer shadow-xs ${
             syncStatus.status === "syncing"

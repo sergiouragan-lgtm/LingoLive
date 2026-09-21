@@ -1,19 +1,22 @@
 import React, { useState, useEffect } from "react";
-import { 
-  Sparkles, 
-  ArrowLeft, 
-  ArrowRight, 
-  X, 
-  HelpCircle, 
-  Mic, 
-  Bookmark, 
-  Gamepad2, 
-  Compass, 
+import {
+  Sparkles,
+  ArrowLeft,
+  ArrowRight,
+  X,
+  HelpCircle,
+  Mic,
+  Bookmark,
+  Gamepad2,
+  Compass,
   Award,
   BookOpen,
   Check
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { auth } from "../../firebase";
+import { useAnalytics } from "../../hooks/useAnalytics";
+import { useMonitoring } from "../../hooks/useMonitoring";
 
 interface WelcomeTourProps {
   isOpen: boolean;
@@ -40,6 +43,9 @@ export const WelcomeTour: React.FC<WelcomeTourProps> = ({
 }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
+  const authUserId = auth.currentUser?.uid || "";
+  const { trackEvent } = useAnalytics(authUserId);
+  const { monitors } = useMonitoring();
 
   const steps: TourStep[] = [
     {
@@ -88,12 +94,30 @@ export const WelcomeTour: React.FC<WelcomeTourProps> = ({
     }
   ];
 
+  // Track tour initialization
+  useEffect(() => {
+    if (isOpen && authUserId) {
+      trackEvent('welcome_tour_started', {
+        tourType: 'onboarding_features',
+        totalSteps: steps.length
+      });
+    }
+  }, [isOpen, authUserId, trackEvent, steps.length]);
+
   // Effect to handle view transitions and calculate target element bounds
   useEffect(() => {
     if (!isOpen) return;
 
+    if (authUserId) {
+      trackEvent('welcome_tour_step_viewed', {
+        stepNumber: currentStep + 1,
+        totalSteps: steps.length,
+        stepTitle: steps[currentStep]?.badge
+      });
+    }
+
     const step = steps[currentStep];
-    
+
     // Switch view if the step recommends a target view
     if (step.viewTarget) {
       setView(step.viewTarget);
@@ -125,11 +149,17 @@ export const WelcomeTour: React.FC<WelcomeTourProps> = ({
         }
       }
     };
-  }, [currentStep, isOpen]);
+  }, [currentStep, isOpen, authUserId, trackEvent, steps]);
 
   if (!isOpen) return null;
 
   const handleNext = () => {
+    if (authUserId) {
+      trackEvent('welcome_tour_next_clicked', {
+        fromStep: currentStep + 1,
+        totalSteps: steps.length
+      });
+    }
     if (currentStep < steps.length - 1) {
       setCurrentStep(prev => prev + 1);
     } else {
@@ -138,12 +168,25 @@ export const WelcomeTour: React.FC<WelcomeTourProps> = ({
   };
 
   const handlePrev = () => {
+    if (authUserId) {
+      trackEvent('welcome_tour_prev_clicked', {
+        fromStep: currentStep + 1,
+        totalSteps: steps.length
+      });
+    }
     if (currentStep > 0) {
       setCurrentStep(prev => prev - 1);
     }
   };
 
   const handleComplete = () => {
+    if (authUserId) {
+      trackEvent('welcome_tour_completed', {
+        tourType: 'onboarding_features',
+        totalSteps: steps.length,
+        completionStep: currentStep + 1
+      });
+    }
     if (userId) {
       localStorage.setItem(`lingolive_tour_completed_${userId}`, "true");
     } else {
@@ -152,15 +195,26 @@ export const WelcomeTour: React.FC<WelcomeTourProps> = ({
     onClose();
   };
 
+  const handleBackdropClick = () => {
+    if (authUserId) {
+      trackEvent('welcome_tour_closed', {
+        tourType: 'onboarding_features',
+        currentStep: currentStep + 1,
+        totalSteps: steps.length
+      });
+    }
+    handleComplete();
+  };
+
   const step = steps[currentStep];
   const StepIcon = step.icon;
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden flex items-center justify-center p-4">
       {/* Dark backdrop overlay */}
-      <div 
+      <div
         className="absolute inset-0 bg-slate-950/80 backdrop-blur-xs transition-opacity duration-300"
-        onClick={handleComplete}
+        onClick={handleBackdropClick}
       />
 
       {/* Highlighter effect on element */}

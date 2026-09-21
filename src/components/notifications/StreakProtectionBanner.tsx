@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Flame, Snowflake, Zap, AlertTriangle, CheckCircle2, X, Bell, ShieldAlert, Sparkles, Coins } from 'lucide-react';
 import { StreakData } from '../../types';
 import { requestNotificationPermission, showLocalWebNotification, isPushNotificationSupported } from '../../lib/pushNotifications';
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 interface StreakProtectionBannerProps {
   streakData: StreakData;
@@ -18,6 +21,9 @@ export const StreakProtectionBanner: React.FC<StreakProtectionBannerProps> = ({
   onDismiss,
   compact = false
 }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
   const [permission, setPermission] = useState<string>('default');
   const [isDismissed, setIsDismissed] = useState(false);
   const [isActivating, setIsActivating] = useState(false);
@@ -41,10 +47,27 @@ export const StreakProtectionBanner: React.FC<StreakProtectionBannerProps> = ({
     }
   }, []);
 
+  useEffect(() => {
+    if (isStreakAtRisk && !isDismissed && userId) {
+      trackEvent('streak_protection_banner_displayed', {
+        streakCount: streakData.count,
+        practicePoints: streakData.practicePoints ?? 0,
+        streakFreezes: streakData.streakFreezes ?? 0,
+        layout: compact ? 'compact' : 'full'
+      });
+    }
+  }, [isStreakAtRisk, isDismissed, userId, trackEvent, streakData.count, streakData.practicePoints, streakData.streakFreezes, compact]);
+
   const handleRequestPermission = async () => {
     try {
       const res = await requestNotificationPermission();
       setPermission(res);
+      if (userId) {
+        trackEvent('streak_protection_notification_permission_requested', {
+          result: res,
+          streakCount: streakData.count
+        });
+      }
       if (res === 'granted') {
         showLocalWebNotification(
           '🔔 Notificações Ativadas!',
@@ -53,11 +76,26 @@ export const StreakProtectionBanner: React.FC<StreakProtectionBannerProps> = ({
       }
     } catch (err) {
       console.warn('Could not request notification permission:', err);
+      if (userId) {
+        trackEvent('streak_protection_notification_permission_error', {
+          error: String(err)
+        });
+      }
     }
   };
 
   const handleFreezeClick = () => {
     setIsActivating(true);
+    if (userId) {
+      const practicePoints = streakData.practicePoints ?? 0;
+      const streakFreezes = streakData.streakFreezes ?? 0;
+      trackEvent('streak_protection_freeze_activated', {
+        streakCount: streakData.count,
+        usedFreeShield: streakFreezes > 0,
+        practicePointsSpent: streakFreezes > 0 ? 0 : 50,
+        remainingPoints: Math.max(0, practicePoints - 50)
+      });
+    }
     try {
       onActivateInstantFreeze();
     } finally {
@@ -104,7 +142,15 @@ export const StreakProtectionBanner: React.FC<StreakProtectionBannerProps> = ({
             <span>{streakFreezes > 0 ? 'Usar Grátis' : 'Congelar (50 pts)'}</span>
           </button>
           <button
-            onClick={onStartPractice}
+            onClick={() => {
+              if (userId) {
+                trackEvent('streak_protection_practice_clicked', {
+                  streakCount: streakData.count,
+                  layout: 'compact'
+                });
+              }
+              onStartPractice();
+            }}
             className="px-2.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer shadow-xs"
           >
             <Zap className="w-3.5 h-3.5" />
@@ -195,7 +241,15 @@ export const StreakProtectionBanner: React.FC<StreakProtectionBannerProps> = ({
 
             {/* Quick Practice Button */}
             <button
-              onClick={onStartPractice}
+              onClick={() => {
+                if (userId) {
+                  trackEvent('streak_protection_practice_clicked', {
+                    streakCount: streakData.count,
+                    layout: 'full'
+                  });
+                }
+                onStartPractice();
+              }}
               className="flex-1 sm:flex-none px-4 py-3 rounded-2xl bg-white hover:bg-amber-50 text-slate-900 font-bold text-xs md:text-sm shadow-lg shadow-black/10 transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer"
               id="btn-streak-risk-practice"
             >
@@ -218,6 +272,11 @@ export const StreakProtectionBanner: React.FC<StreakProtectionBannerProps> = ({
             {onDismiss && (
               <button
                 onClick={() => {
+                  if (userId) {
+                    trackEvent('streak_protection_dismissed', {
+                      streakCount: streakData.count
+                    });
+                  }
                   setIsDismissed(true);
                   onDismiss();
                 }}
