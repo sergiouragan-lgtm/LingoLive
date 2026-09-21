@@ -1,5 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { AlertCircle } from 'lucide-react';
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 type CurrentLanguageWidgetProps = {
   name?: string | null;
@@ -14,6 +17,19 @@ export const CurrentLanguageWidget: React.FC<CurrentLanguageWidgetProps> = ({
   isLoading = false,
   isError = false,
 }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId && name) {
+      trackEvent('current_language_widget_displayed', {
+        language: name,
+        hasFlag: !!flag,
+        widgetType: 'language_selector'
+      });
+    }
+  }, [userId, name, flag, trackEvent]);
   if (isLoading) {
     return (
       <div className="animate-pulse bg-slate-200 h-8 w-32 rounded-full" aria-hidden="true" />

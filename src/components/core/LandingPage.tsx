@@ -1,8 +1,24 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useLocalization } from '../../context/LocalizationContext';
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 export default function LandingPage({ onSelectPlan }: { onSelectPlan: (plan: string) => void }) {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
   const { setLocalization, localization, t } = useLocalization();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('landing_page_viewed', {
+        currentLanguage: localization.language,
+        pageType: 'pricing_selection'
+      });
+    }
+  }, [userId, localization.language, trackEvent]);
+
   const plans = [
     { id: 'test', name: 'Plano de Teste', price: 0 },
     { id: 'individual', name: 'Professor Individual', price: 10000 },
@@ -11,7 +27,28 @@ export default function LandingPage({ onSelectPlan }: { onSelectPlan: (plan: str
 
   const toggleLanguage = () => {
     const newLang = localization.language === 'en' ? 'pt' : 'en';
+    if (userId) {
+      trackEvent('landing_page_language_toggled', {
+        fromLanguage: localization.language,
+        toLanguage: newLang,
+        pageType: 'pricing_selection'
+      });
+    }
     setLocalization({ ...localization, language: newLang });
+  };
+
+  const handleSelectPlan = (planId: string) => {
+    const selectedPlan = plans.find(p => p.id === planId);
+    if (userId) {
+      trackEvent('landing_page_plan_selected', {
+        planId: planId,
+        planName: selectedPlan?.name || 'Unknown',
+        planPrice: selectedPlan?.price || 0,
+        currentLanguage: localization.language,
+        pageType: 'pricing_selection'
+      });
+    }
+    onSelectPlan(planId);
   };
 
   return (
@@ -32,9 +69,9 @@ export default function LandingPage({ onSelectPlan }: { onSelectPlan: (plan: str
             <p className="text-xl font-semibold mb-6">
               {plan.price === 0 ? (localization.language === 'en' ? 'Free' : 'Grátis') : `${plan.price.toLocaleString(localization.language === 'en' ? 'en-US' : 'pt-AO', { style: 'currency', currency: localization.currency })}/mês`}
             </p>
-            <button 
-              onClick={() => onSelectPlan(plan.id)}
-              className="px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700"
+            <button
+              onClick={() => handleSelectPlan(plan.id)}
+              className="px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 cursor-pointer transition-all"
             >
               {localization.language === 'en' ? 'Select' : 'Selecionar'}
             </button>
