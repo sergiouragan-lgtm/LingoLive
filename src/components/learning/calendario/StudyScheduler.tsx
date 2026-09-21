@@ -1,19 +1,35 @@
 import React, { useState } from 'react';
 import { Bell } from 'lucide-react';
 import { useToast } from '../../../context/ToastContext';
+import { auth } from '../../../firebase';
+import { useAnalytics } from '../../../hooks/useAnalytics';
+import { useMonitoring } from '../../../hooks/useMonitoring';
 
 export const StudyScheduler: React.FC = () => {
   const [time, setTime] = useState('');
   const { addToast } = useToast();
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
 
   const setReminder = async () => {
     if (!time) {
       addToast('Por favor, selecione um horário.', 'error');
+      if (userId) {
+        trackEvent('study_reminder_set_failed', {
+          reason: 'no_time_selected'
+        });
+      }
       return;
     }
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') {
       addToast('Permissão de notificação negada.', 'error');
+      if (userId) {
+        trackEvent('study_reminder_permission_denied', {
+          permission: permission
+        });
+      }
       return;
     }
 
@@ -27,7 +43,7 @@ export const StudyScheduler: React.FC = () => {
     }
 
     const delay = reminderTime.getTime() - now.getTime();
-    
+
     // Simple client-side reminder for now
     setTimeout(() => {
       new Notification('Hora de estudar!', {
@@ -35,6 +51,13 @@ export const StudyScheduler: React.FC = () => {
       });
     }, delay);
 
+    if (userId) {
+      trackEvent('study_reminder_set', {
+        reminderTime: time,
+        reminderType: 'study_session',
+        delayMinutes: Math.round(delay / 60000)
+      });
+    }
     addToast(`Lembrete definido para ${time}`, 'success');
   };
 
