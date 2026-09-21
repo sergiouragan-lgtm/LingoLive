@@ -30,6 +30,8 @@ import { auditLogger, AuditActionType, AuditSeverity } from '../../services/comp
 import { hipaaCompliance, StudentPHIMetadata } from '../../services/compliance/HIPAACompliance';
 import { dataGovernanceAudit, DataSensitivity, GovernanceAuditRecord } from '../../services/compliance/DataGovernanceAudit';
 import { Database, Search, FileSignature } from 'lucide-react';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 interface SecurityLog {
   id?: string;
@@ -43,6 +45,9 @@ interface SecurityLog {
 }
 
 export default function SecurityDashboard() {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
   const [activeTab, setActiveTab] = useState<'overview' | 'rbac' | 'secrets' | 'threats' | 'compliance'>('overview');
   const [securityLogs, setSecurityLogs] = useState<SecurityLog[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
@@ -273,6 +278,16 @@ export default function SecurityDashboard() {
       setLoadingLogs(false);
     }
   };
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('security_dashboard_viewed', {
+        activeTab,
+        zeroTrustEnabled,
+        mfaEnforced
+      });
+    }
+  }, [userId, trackEvent, activeTab, zeroTrustEnabled, mfaEnforced]);
 
   useEffect(() => {
     loadLogs();

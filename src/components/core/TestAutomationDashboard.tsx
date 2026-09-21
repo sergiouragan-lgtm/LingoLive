@@ -1,21 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Play, 
-  CheckCircle, 
-  XCircle, 
-  AlertTriangle, 
-  ShieldAlert, 
-  Activity, 
-  Terminal, 
-  FileText, 
-  Cpu, 
-  Settings, 
-  Layers, 
-  Sparkles, 
-  FileCode, 
-  Clock, 
-  Zap, 
-  RefreshCw, 
+import {
+  Play,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  ShieldAlert,
+  Activity,
+  Terminal,
+  FileText,
+  Cpu,
+  Settings,
+  Layers,
+  Sparkles,
+  FileCode,
+  Clock,
+  Zap,
+  RefreshCw,
   Search,
   Eye,
   Lock,
@@ -24,6 +24,9 @@ import {
   BarChart2,
   GitBranch
 } from 'lucide-react';
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 interface TestCase {
   id: string;
@@ -44,6 +47,9 @@ interface CoverageItem {
 }
 
 export default function TestAutomationDashboard() {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
   const [activeTab, setActiveTab] = useState<'suites' | 'pipelines' | 'coverage' | 'load-test' | 'auditor'>('suites');
   const [filterCategory, setFilterCategory] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -106,6 +112,16 @@ export default function TestAutomationDashboard() {
     { id: 'A001', name: 'WCAG Contrast - Valida contraste AA de elementos interativos e textos', category: 'accessibility', status: 'idle', durationMs: 65, assertion: 'expect(contrastRatio).toBeGreaterThanOrEqual(4.5)' },
     { id: 'A002', name: 'AriaAttributes - Valida conformidade em leitores de tela para formulários de cadastro', category: 'accessibility', status: 'idle', durationMs: 34, assertion: 'expect(input.ariaLabel).not.toBeNull()' }
   ];
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('test_automation_dashboard_viewed', {
+        activeTab,
+        filterCategory,
+        testCasesCount: initialTestCases.length
+      });
+    }
+  }, [userId, trackEvent, activeTab, filterCategory]);
 
   useEffect(() => {
     setTestCases(initialTestCases);
