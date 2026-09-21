@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Scanner } from '@yudiel/react-qr-scanner';
 import { QrCode, Scan, Info, Camera, Sparkles, Check, AlertCircle } from 'lucide-react';
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 interface AdminQRScannerProps {
   onScanSuccess: (text: string) => void;
@@ -13,8 +16,21 @@ export const AdminQRScanner: React.FC<AdminQRScannerProps> = ({
   onScanError,
   onClose
 }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [cameraState, setCameraState] = useState<'scanning' | 'permission-denied' | 'error' | 'simulated'>('scanning');
   const [errorMessage, setErrorMessage] = useState<string>('');
+
+  // Lifecycle tracking
+  useEffect(() => {
+    if (userId) {
+      trackEvent('qr_scanner_accessed', {
+        initialCameraState: cameraState,
+      });
+    }
+  }, [userId, trackEvent]);
 
   // Predefined demo admin keys that can be simulated/copied
   const demoKeys = [
@@ -23,6 +39,11 @@ export const AdminQRScanner: React.FC<AdminQRScannerProps> = ({
   ];
 
   const handleSimulatedScan = (keyText: string) => {
+    if (userId) {
+      trackEvent('qr_simulated_scan', {
+        keyName: demoKeys.find(k => k.key === keyText)?.name || 'unknown',
+      });
+    }
     onScanSuccess(keyText);
   };
 
@@ -65,13 +86,24 @@ export const AdminQRScanner: React.FC<AdminQRScannerProps> = ({
             <Scanner
               onResult={(result) => {
                 if (result) {
-                  onScanSuccess(result.getText());
+                  const scannedText = result.getText();
+                  if (userId) {
+                    trackEvent('qr_scan_successful', {
+                      textLength: scannedText.length,
+                    });
+                  }
+                  onScanSuccess(scannedText);
                 }
               }}
               onError={(err) => {
                 console.warn("Camera QR Scanner error or permission denied:", err);
                 setErrorMessage(err?.message || "Não foi possível aceder à câmara.");
                 setCameraState('permission-denied');
+                if (userId) {
+                  trackEvent('qr_camera_permission_denied', {
+                    errorMessage: err?.message || 'permission_denied',
+                  });
+                }
                 if (onScanError) onScanError(err);
               }}
             />
@@ -148,7 +180,16 @@ export const AdminQRScanner: React.FC<AdminQRScannerProps> = ({
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Credenciais Rápidas de Teste</span>
           <button
             type="button"
-            onClick={() => setCameraState(cameraState === 'simulated' ? 'scanning' : 'simulated')}
+            onClick={() => {
+              const newMode = cameraState === 'simulated' ? 'scanning' : 'simulated';
+              if (userId) {
+                trackEvent('qr_scanner_mode_switched', {
+                  newMode,
+                  previousMode: cameraState,
+                });
+              }
+              setCameraState(newMode);
+            }}
             className="text-[9px] font-extrabold text-indigo-400 hover:text-indigo-300 flex items-center gap-1 cursor-pointer transition-colors"
           >
             <Camera className="w-3 h-3" />

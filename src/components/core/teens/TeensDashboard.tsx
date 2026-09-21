@@ -16,6 +16,8 @@ import { useToast } from "../../../context/ToastContext";
 import { AgeGroup } from "../../../types";
 import { auth, db } from "../../../firebase";
 import { collection, query, where, onSnapshot, orderBy, limit } from "firebase/firestore";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useMonitoring } from "../../../hooks/useMonitoring";
 
 interface TeensDashboardProps {
   selectedAgeGroup: AgeGroup;
@@ -28,6 +30,10 @@ export const TeensDashboard: React.FC<TeensDashboardProps> = ({
   onNavigate,
   onStartActivity,
 }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [streak, setStreak] = useState(0);
   const [ranking, setRanking] = useState("Top 15%");
   const [dailyGoalProgress, setDailyGoalProgress] = useState(65);
@@ -35,6 +41,17 @@ export const TeensDashboard: React.FC<TeensDashboardProps> = ({
   const [level, setLevel] = useState(24);
   const [weeklyMinutes, setWeeklyMinutes] = useState(320);
   const { showToast } = useToast();
+
+  // Lifecycle tracking
+  useEffect(() => {
+    if (userId) {
+      trackEvent('teens_dashboard_accessed', {
+        selectedAgeGroup,
+        level,
+        weeklyMinutes,
+      });
+    }
+  }, [userId, trackEvent, selectedAgeGroup, level, weeklyMinutes]);
 
   useEffect(() => {
     if (!auth.currentUser) return;
@@ -64,16 +81,32 @@ export const TeensDashboard: React.FC<TeensDashboardProps> = ({
   }, []);
 
   const handleStartChallenge = () => {
+    if (userId) {
+      trackEvent('teens_daily_challenge_started', {
+        currentLevel: level,
+        currentStreak: streak,
+      });
+    }
     onStartActivity?.("daily-challenge");
     showToast("🔥 Desafio diário iniciado!", "success");
   };
 
   const handleStartConversation = () => {
+    if (userId) {
+      trackEvent('teens_ai_conversation_started', {
+        currentLevel: level,
+      });
+    }
     onNavigate?.("live-chat");
     showToast("💬 Iniciando conversa com IA...", "success");
   };
 
   const handleViewRanking = () => {
+    if (userId) {
+      trackEvent('teens_ranking_viewed', {
+        currentRanking: ranking,
+      });
+    }
     onNavigate?.("ranking");
   };
 

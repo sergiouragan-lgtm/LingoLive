@@ -13,6 +13,9 @@ import {
 } from "lucide-react";
 import { useToast } from "../../../context/ToastContext";
 import { AgeGroup } from "../../../types";
+import { auth } from "../../../firebase";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useMonitoring } from "../../../hooks/useMonitoring";
 
 interface KidsDashboardProps {
   selectedAgeGroup: AgeGroup;
@@ -25,10 +28,23 @@ export const KidsDashboard: React.FC<KidsDashboardProps> = ({
   onNavigate,
   onStartActivity,
 }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [stars, setStars] = useState(48);
   const [presents, setPresents] = useState(12);
   const [hearts, setHearts] = useState(3);
   const { showToast } = useToast();
+
+  // Lifecycle tracking
+  useEffect(() => {
+    if (userId) {
+      trackEvent('kids_dashboard_accessed', {
+        selectedAgeGroup: selectedAgeGroup,
+      });
+    }
+  }, [userId, trackEvent, selectedAgeGroup]);
 
   const missions = [
     {
@@ -69,16 +85,33 @@ export const KidsDashboard: React.FC<KidsDashboardProps> = ({
 
   const handleStartMission = (missionId: number) => {
     const mission = missions.find((m) => m.id === missionId);
+    if (userId) {
+      trackEvent('kids_mission_started', {
+        missionId,
+        missionTitle: mission?.title || 'unknown',
+        progress: mission?.progress || 0,
+      });
+    }
     onStartActivity?.(`mission-${missionId}`);
     showToast(`🚀 ${mission?.title} iniciada!`, "success");
   };
 
   const handleTalkToCharacter = (character: string) => {
+    if (userId) {
+      trackEvent('kids_character_interaction', {
+        character,
+      });
+    }
     onStartActivity?.("talk-to-character");
     showToast(`Conversando com ${character}...`, "success");
   };
 
   const handlePlayGame = () => {
+    if (userId) {
+      trackEvent('kids_game_started', {
+        gameType: 'jogos',
+      });
+    }
     onNavigate?.("jogos");
     showToast("🎮 Vamos jogar!", "success");
   };
