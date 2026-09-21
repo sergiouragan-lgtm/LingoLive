@@ -1,15 +1,17 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { db, auth } from "../../firebase";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { signOut, User } from "firebase/auth";
-import { 
-  ShieldAlert, 
-  LogOut, 
-  Unlock, 
+import {
+  ShieldAlert,
+  LogOut,
+  Unlock,
   HelpCircle,
-  RefreshCw 
+  RefreshCw
 } from "lucide-react";
 import { motion } from "motion/react";
+import { useAnalytics } from "../../hooks/useAnalytics";
+import { useMonitoring } from "../../hooks/useMonitoring";
 
 interface SuspendedScreenProps {
   user: User;
@@ -17,17 +19,31 @@ interface SuspendedScreenProps {
   onUnlocked: (updatedProfile: any) => void;
 }
 
-export const SuspendedScreen: React.FC<SuspendedScreenProps> = ({ 
-  user, 
-  userProfile, 
-  onUnlocked 
+export const SuspendedScreen: React.FC<SuspendedScreenProps> = ({
+  user,
+  userProfile,
+  onUnlocked
 }) => {
+  const { trackEvent } = useAnalytics(user.uid);
+  const { monitors } = useMonitoring();
+
   const [isUnlocking, setIsUnlocking] = useState(false);
   const [supportMessage, setSupportMessage] = useState(false);
+
+  // Lifecycle tracking
+  useEffect(() => {
+    trackEvent('suspended_screen_accessed', {
+      userEmail: user.email || '',
+    });
+  }, [user.uid, trackEvent, user.email]);
 
   const handleSimulateUnlock = async () => {
     setIsUnlocking(true);
     try {
+      trackEvent('account_unlock_initiated', {
+        userEmail: user.email || '',
+      });
+
       await new Promise(resolve => setTimeout(resolve, 1500));
 
       const userRef = doc(db, "users", user.uid);
@@ -48,10 +64,17 @@ export const SuspendedScreen: React.FC<SuspendedScreenProps> = ({
       const cacheKey = `lingolive_user_sub_${user.uid}`;
       localStorage.setItem(cacheKey, JSON.stringify(updatedProfile));
 
+      trackEvent('account_unlocked', {
+        userEmail: user.email || '',
+      });
+
       // Callback
       onUnlocked(updatedProfile);
     } catch (err) {
       console.error("Error unlocking account:", err);
+      trackEvent('account_unlock_error', {
+        errorMessage: String(err),
+      });
     } finally {
       setIsUnlocking(false);
     }
