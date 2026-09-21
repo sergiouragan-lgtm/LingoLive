@@ -1,21 +1,40 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Building2, Users, BookOpen, GraduationCap, BarChart3, 
+import {
+  Building2, Users, BookOpen, GraduationCap, BarChart3,
   Calendar, CreditCard, Shield, Settings, Sparkles,
   TrendingUp, AlertTriangle, CheckCircle, Globe, Search,
   Activity, Map, LayoutDashboard, BrainCircuit, FileText,
   Clock, Server, Lock, Download, ChevronRight, Zap
 } from 'lucide-react';
-import { 
-  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, 
+import {
+  ResponsiveContainer, AreaChart, Area, XAxis, YAxis,
   Tooltip as RechartsTooltip, BarChart, Bar, Legend, PieChart, Pie, Cell, LineChart, Line
 } from 'recharts';
+import { auth } from '@/firebase';
+import { useAnalytics } from '@/hooks/useAnalytics';
+import { useMonitoring } from '@/hooks/useMonitoring';
 
 type SEPSection = 'dashboard' | 'command-center' | 'students' | 'teachers' | 'classes' | 'financial' | 'analytics' | 'security';
 
 export const SchoolEnterprisePlatform: React.FC<{ activeView?: string; setView?: (v: any) => void }> = ({ activeView = "dashboard", setView }) => {
   const [activeSection, setActiveSection] = useState<SEPSection>('dashboard');
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('school_enterprise_platform_viewed', {
+        platform: 'SEP',
+        initialSection: activeSection,
+        schoolType: 'multi-campus',
+        totalStudents: 4250,
+        totalTeachers: 142,
+        activeSection: activeSection
+      });
+    }
+  }, [userId, trackEvent]);
 
   useEffect(() => {
     if (activeView === 'dashboard' || activeView === 'school-management' || activeView === 'area-escolar-b2b') setActiveSection('dashboard');
@@ -27,6 +46,23 @@ export const SchoolEnterprisePlatform: React.FC<{ activeView?: string; setView?:
     else if (activeView === 'ia-escolar') setActiveSection('command-center');
     else if (activeView === 'configuracoes-escola') setActiveSection('security');
   }, [activeView]);
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('sep_section_selected', {
+        sectionId: activeSection,
+        sectionName: activeSection === 'dashboard' ? 'Dashboard Executivo' :
+                     activeSection === 'command-center' ? 'AI Command Center' :
+                     activeSection === 'students' ? 'Gestão de Alunos' :
+                     activeSection === 'teachers' ? 'Corpo Docente' :
+                     activeSection === 'classes' ? 'Turmas & Cursos' :
+                     activeSection === 'financial' ? 'Financeiro B2B' :
+                     activeSection === 'analytics' ? 'Analytics' :
+                     'Segurança & Auditoria',
+        platform: 'SEP'
+      });
+    }
+  }, [activeSection, userId, trackEvent]);
 
   return (
     <div className="min-h-screen bg-slate-50 pt-8 pb-20">
@@ -112,7 +148,24 @@ export const SchoolEnterprisePlatform: React.FC<{ activeView?: string; setView?:
 
 // --- SUBCOMPONENTS ---
 
-const SEPDashboard = () => (
+const SEPDashboard = () => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const [enrollmentYear, setEnrollmentYear] = useState('Ano Letivo 2026/2027');
+
+  const handleYearChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newYear = e.target.value;
+    setEnrollmentYear(newYear);
+    if (userId) {
+      trackEvent('sep_enrollment_year_selected', {
+        year: newYear,
+        section: 'dashboard',
+        chartType: 'enrollment_growth'
+      });
+    }
+  };
+
+  return (
   <div className="space-y-6">
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       {[
@@ -121,7 +174,20 @@ const SEPDashboard = () => (
         { title: 'Nível Médio (CEFR)', value: 'B1+', trend: 'Aumento desde A2', icon: Activity, color: 'indigo' },
         { title: 'Licenças Ativas', value: '4,500', trend: '250 disponíveis', icon: Shield, color: 'amber' }
       ].map((kpi, i) => (
-        <div key={i} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden group">
+        <div
+          key={i}
+          className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden group cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => {
+            if (userId) {
+              trackEvent('sep_kpi_card_viewed', {
+                kpiTitle: kpi.title,
+                kpiValue: kpi.value,
+                kpiCategory: kpi.color,
+                section: 'dashboard'
+              });
+            }
+          }}
+        >
           <div className={`absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform text-${kpi.color}-500`}>
             <kpi.icon className="w-24 h-24" />
           </div>
@@ -136,7 +202,11 @@ const SEPDashboard = () => (
       <div className="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-lg font-bold text-slate-800">Crescimento de Matrículas</h3>
-          <select className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-sm font-bold text-slate-600 outline-none">
+          <select
+            value={enrollmentYear}
+            onChange={handleYearChange}
+            className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-sm font-bold text-slate-600 outline-none"
+          >
             <option>Ano Letivo 2026/2027</option>
             <option>Ano Letivo 2025/2026</option>
           </select>
@@ -170,34 +240,54 @@ const SEPDashboard = () => (
           Alertas Institucionais
         </h3>
         <div className="flex-1 space-y-4">
-          <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl flex gap-3">
-            <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0" />
-            <div>
-              <h4 className="font-bold text-slate-800 text-sm">Risco de Evasão Aumentado</h4>
-              <p className="text-xs text-slate-600 mt-1">IA detetou 45 alunos no Campus Norte com queda abrupta de frequência.</p>
+          {[
+            { type: 'evasion', icon: AlertTriangle, color: 'rose', title: 'Risco de Evasão Aumentado', desc: 'IA detetou 45 alunos no Campus Norte com queda abrupta de frequência.' },
+            { type: 'licenses', icon: Clock, color: 'amber', title: 'Licenças Próximas do Fim', desc: 'Renovação do pacote B2B de 5.000 licenças agendada para daqui a 15 dias.' },
+            { type: 'achievement', icon: CheckCircle, color: 'emerald', title: 'Meta CEFR Atingida', desc: 'A Turma "Avançado C1" atingiu a proficiência esperada com 2 meses de antecedência.' }
+          ].map((alert, i) => (
+            <div
+              key={i}
+              className={`p-4 bg-${alert.color}-50 border border-${alert.color}-100 rounded-2xl flex gap-3 cursor-pointer hover:shadow-sm transition-shadow`}
+              onClick={() => {
+                if (userId) {
+                  trackEvent('sep_alert_viewed', {
+                    alertType: alert.type,
+                    alertTitle: alert.title,
+                    section: 'dashboard'
+                  });
+                }
+              }}
+            >
+              <alert.icon className={`w-5 h-5 text-${alert.color}-500 shrink-0`} />
+              <div>
+                <h4 className="font-bold text-slate-800 text-sm">{alert.title}</h4>
+                <p className="text-xs text-slate-600 mt-1">{alert.desc}</p>
+              </div>
             </div>
-          </div>
-          <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl flex gap-3">
-            <Clock className="w-5 h-5 text-amber-500 shrink-0" />
-            <div>
-              <h4 className="font-bold text-slate-800 text-sm">Licenças Próximas do Fim</h4>
-              <p className="text-xs text-slate-600 mt-1">Renovação do pacote B2B de 5.000 licenças agendada para daqui a 15 dias.</p>
-            </div>
-          </div>
-          <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex gap-3">
-            <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0" />
-            <div>
-              <h4 className="font-bold text-slate-800 text-sm">Meta CEFR Atingida</h4>
-              <p className="text-xs text-slate-600 mt-1">A Turma "Avançado C1" atingiu a proficiência esperada com 2 meses de antecedência.</p>
-            </div>
-          </div>
+          ))}
         </div>
       </div>
     </div>
   </div>
-);
+  );
+};
 
-const SEPCommandCenter = () => (
+const SEPCommandCenter = () => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('sep_ai_command_center_viewed', {
+        section: 'command-center',
+        featureName: 'School AI Command Center',
+        features: ['enrollment_projections', 'operational_optimization'],
+        aiConfidence: 92
+      });
+    }
+  }, [userId, trackEvent]);
+
+  return (
   <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 py-16 relative overflow-hidden">
     <div className="absolute top-0 right-0 p-8 opacity-10">
       <BrainCircuit className="w-64 h-64 text-blue-400" />
@@ -212,9 +302,21 @@ const SEPCommandCenter = () => (
           <p className="text-blue-400 font-medium text-sm">Controlo Institucional & Previsões Estratégicas</p>
         </div>
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-6 rounded-2xl">
+        <div
+          className="bg-white/5 backdrop-blur-sm border border-white/10 p-6 rounded-2xl cursor-pointer hover:border-blue-400/30 transition-colors"
+          onClick={() => {
+            if (userId) {
+              trackEvent('sep_enrollment_projection_viewed', {
+                projectionType: 'quarterly',
+                projectedIncrease: '18%',
+                aiConfidence: 92,
+                section: 'command-center'
+              });
+            }
+          }}
+        >
           <h3 className="text-white font-bold mb-4 flex items-center gap-2"><TrendingUp className="w-4 h-4 text-blue-400"/> Projeções de Matrícula (Próx. Trimestre)</h3>
           <p className="text-slate-300 text-sm leading-relaxed mb-4">
             Com base nos dados históricos e taxa de conversão atual das campanhas de admissão, a IA prevê um <strong>aumento de 18%</strong> nas novas matrículas para o Q4.
@@ -225,7 +327,18 @@ const SEPCommandCenter = () => (
           <span className="text-xs text-blue-300 mt-2 block">Confiança da IA: 92%</span>
         </div>
 
-        <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-6 rounded-2xl">
+        <div
+          className="bg-white/5 backdrop-blur-sm border border-white/10 p-6 rounded-2xl cursor-pointer hover:border-emerald-400/30 transition-colors"
+          onClick={() => {
+            if (userId) {
+              trackEvent('sep_operational_optimization_viewed', {
+                optimizationCount: 2,
+                suggestedSavings: '20%',
+                section: 'command-center'
+              });
+            }
+          }}
+        >
            <h3 className="text-white font-bold mb-4 flex items-center gap-2"><Settings className="w-4 h-4 text-emerald-400"/> Otimização Operacional Sugerida</h3>
            <ul className="space-y-3">
              <li className="flex items-start gap-3">
@@ -245,9 +358,24 @@ const SEPCommandCenter = () => (
       </div>
     </div>
   </div>
-);
+  );
+};
 
-const SEPStudents = () => (
+const SEPStudents = () => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('sep_students_section_accessed', {
+        section: 'students',
+        sectionName: 'Gestão Centralizada de Alunos',
+        features: ['enrollment', 'academic_history', 'guardian_portal', 'bulk_import', 'lifecycle_tracking']
+      });
+    }
+  }, [userId, trackEvent]);
+
+  return (
   <div className="bg-white p-8 rounded-3xl border border-slate-200 text-center py-20">
     <div className="w-20 h-20 bg-blue-50 text-blue-500 rounded-3xl flex items-center justify-center mx-auto mb-6">
       <Users className="w-10 h-10" />
@@ -257,9 +385,24 @@ const SEPStudents = () => (
       Matrículas, histórico académico, portal para encarregados de educação, importação em massa (CSV/API) e tracking completo do ciclo de vida estudantil.
     </p>
   </div>
-);
+  );
+};
 
-const SEPTeachers = () => (
+const SEPTeachers = () => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('sep_teachers_section_accessed', {
+        section: 'teachers',
+        sectionName: 'Gestão do Corpo Docente',
+        features: ['hiring', 'workload_distribution', 'specialties', 'availability', 'performance_tracking']
+      });
+    }
+  }, [userId, trackEvent]);
+
+  return (
   <div className="bg-white p-8 rounded-3xl border border-slate-200 text-center py-20">
     <div className="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-3xl flex items-center justify-center mx-auto mb-6">
       <GraduationCap className="w-10 h-10" />
@@ -269,9 +412,25 @@ const SEPTeachers = () => (
       Contratação, distribuição de carga horária, perfis de especialidade, gestão de disponibilidade e acompanhamento de avaliações de desempenho.
     </p>
   </div>
-);
+  );
+};
 
-const SEPClasses = () => (
+const SEPClasses = () => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('sep_classes_section_accessed', {
+        section: 'classes',
+        sectionName: 'Turmas & Gestão Curricular',
+        features: ['curriculum_creation', 'online_classes', 'hybrid_classes', 'classroom_classes', 'multi_campus'],
+        supportedFormats: 3
+      });
+    }
+  }, [userId, trackEvent]);
+
+  return (
   <div className="bg-white p-8 rounded-3xl border border-slate-200 text-center py-20">
     <div className="w-20 h-20 bg-indigo-50 text-indigo-500 rounded-3xl flex items-center justify-center mx-auto mb-6">
       <BookOpen className="w-10 h-10" />
@@ -281,9 +440,24 @@ const SEPClasses = () => (
       Crie currículos próprios ou utilize a framework global. Aloque turmas online, híbridas ou presenciais, com suporte total multi-campus.
     </p>
   </div>
-);
+  );
+};
 
-const SEPFinancial = () => (
+const SEPFinancial = () => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('sep_financial_section_accessed', {
+        section: 'financial',
+        sectionName: 'Módulo Financeiro & Licenciamento',
+        features: ['centralized_billing', 'subscriptions', 'per_student_licensing', 'per_teacher_licensing', 'site_license', 'erp_integration', 'roi_reporting']
+      });
+    }
+  }, [userId, trackEvent]);
+
+  return (
   <div className="bg-white p-8 rounded-3xl border border-slate-200 text-center py-20">
     <div className="w-20 h-20 bg-amber-50 text-amber-500 rounded-3xl flex items-center justify-center mx-auto mb-6">
       <CreditCard className="w-10 h-10" />
@@ -293,9 +467,25 @@ const SEPFinancial = () => (
       Controlo total B2B. Faturação centralizada, gestão de subscrições (por aluno, professor ou site license), integrações com ERPs e relatórios de ROI.
     </p>
   </div>
-);
+  );
+};
 
-const SEPAnalytics = () => (
+const SEPAnalytics = () => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('sep_analytics_section_accessed', {
+        section: 'analytics',
+        sectionName: 'Analytics Institucionais (Macro)',
+        features: ['campus_comparison', 'class_performance', 'teacher_performance', 'executive_reports'],
+        reportLevel: 'institutional'
+      });
+    }
+  }, [userId, trackEvent]);
+
+  return (
   <div className="bg-white p-8 rounded-3xl border border-slate-200 text-center py-20">
     <div className="w-20 h-20 bg-fuchsia-50 text-fuchsia-500 rounded-3xl flex items-center justify-center mx-auto mb-6">
       <BarChart3 className="w-10 h-10" />
@@ -305,9 +495,25 @@ const SEPAnalytics = () => (
       Dashboards consolidados comparando o desempenho entre campus, turmas e professores, gerando relatórios formatados para as direções e órgãos executivos.
     </p>
   </div>
-);
+  );
+};
 
-const SEPSecurity = () => (
+const SEPSecurity = () => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('sep_security_section_accessed', {
+        section: 'security',
+        sectionName: 'Zero Trust Security & Auditoria',
+        features: ['multi_tenant_isolation', 'rbac', 'immutable_logs', 'sso', 'gdpr_compliance', 'rgpd_compliance'],
+        securityModel: 'zero_trust'
+      });
+    }
+  }, [userId, trackEvent]);
+
+  return (
   <div className="bg-white p-8 rounded-3xl border border-slate-200 text-center py-20">
     <div className="w-20 h-20 bg-slate-800 text-slate-300 rounded-3xl flex items-center justify-center mx-auto mb-6">
       <Shield className="w-10 h-10" />
@@ -317,4 +523,5 @@ const SEPSecurity = () => (
       Isolamento absoluto Multi-Tenant, Role-Based Access Control (RBAC) granular, logs imutáveis, SSO e conformidade RGPD/GDPR out-of-the-box.
     </p>
   </div>
-);
+  );
+};
