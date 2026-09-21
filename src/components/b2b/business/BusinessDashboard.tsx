@@ -13,6 +13,9 @@ import {
   Settings,
 } from "lucide-react";
 import { useToast } from "../../../context/ToastContext";
+import { auth } from "@/firebase";
+import { useAnalytics } from "@/hooks/useAnalytics";
+import { useMonitoring } from "@/hooks/useMonitoring";
 
 interface BusinessDashboardProps {
   onNavigate?: (view: string) => void;
@@ -31,6 +34,21 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
   });
 
   const { showToast } = useToast();
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('business_dashboard_viewed', {
+        dashboardType: 'corporate',
+        totalEmployees: metrics.totalEmployees,
+        activeUsers: metrics.activeUsers,
+        completionRate: metrics.completionRate,
+        monthlySpend: metrics.monthlySpend
+      });
+    }
+  }, [userId, trackEvent, metrics.totalEmployees, metrics.activeUsers, metrics.completionRate, metrics.monthlySpend]);
 
   const departments = [
     { name: "Vendas", users: 450, completionRate: 92 },
@@ -47,11 +65,23 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
   ];
 
   const handleViewReports = () => {
+    if (userId) {
+      trackEvent('business_dashboard_view_reports_clicked', {
+        dashboardType: 'corporate',
+        navigationTarget: 'analytics-corp'
+      });
+    }
     onNavigate?.("analytics-corp");
     showToast("Abrindo relatórios detalhados...", "success");
   };
 
   const handleConfigureTeam = () => {
+    if (userId) {
+      trackEvent('business_dashboard_configure_teams_clicked', {
+        dashboardType: 'corporate',
+        navigationTarget: 'equipas'
+      });
+    }
     onNavigate?.("equipas");
     showToast("Abrindo configurações de equipas...", "success");
   };
@@ -78,7 +108,16 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <motion.div
             whileHover={{ scale: 1.02 }}
-            className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700"
+            className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => {
+              if (userId) {
+                trackEvent('business_dashboard_kpi_viewed', {
+                  kpiType: 'total_employees',
+                  value: metrics.totalEmployees,
+                  dashboardType: 'corporate'
+                });
+              }
+            }}
           >
             <div className="flex items-center justify-between">
               <div>
@@ -93,7 +132,16 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
 
           <motion.div
             whileHover={{ scale: 1.02 }}
-            className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700"
+            className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => {
+              if (userId) {
+                trackEvent('business_dashboard_kpi_viewed', {
+                  kpiType: 'active_users',
+                  value: metrics.activeUsers,
+                  dashboardType: 'corporate'
+                });
+              }
+            }}
           >
             <div className="flex items-center justify-between">
               <div>
@@ -108,7 +156,16 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
 
           <motion.div
             whileHover={{ scale: 1.02 }}
-            className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700"
+            className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => {
+              if (userId) {
+                trackEvent('business_dashboard_kpi_viewed', {
+                  kpiType: 'completion_rate',
+                  value: metrics.completionRate,
+                  dashboardType: 'corporate'
+                });
+              }
+            }}
           >
             <div className="flex items-center justify-between">
               <div>
@@ -123,7 +180,16 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
 
           <motion.div
             whileHover={{ scale: 1.02 }}
-            className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700"
+            className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => {
+              if (userId) {
+                trackEvent('business_dashboard_kpi_viewed', {
+                  kpiType: 'remaining_budget',
+                  value: metrics.remainingBudget,
+                  dashboardType: 'corporate'
+                });
+              }
+            }}
           >
             <div className="flex items-center justify-between">
               <div>
@@ -158,7 +224,17 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.05 }}
-                  className="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-700 rounded-lg"
+                  className="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-700 rounded-lg cursor-pointer hover:shadow-sm transition-shadow"
+                  onClick={() => {
+                    if (userId) {
+                      trackEvent('business_dashboard_department_viewed', {
+                        departmentName: dept.name,
+                        users: dept.users,
+                        completionRate: dept.completionRate,
+                        dashboardType: 'corporate'
+                      });
+                    }
+                  }}
                 >
                   <div className="flex-1">
                     <p className="font-semibold text-slate-900 dark:text-white">{dept.name}</p>
@@ -245,7 +321,19 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: idx * 0.1 }}
-                className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700 rounded-lg"
+                className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700 rounded-lg cursor-pointer hover:shadow-sm transition-shadow"
+                onClick={() => {
+                  if (userId) {
+                    trackEvent('business_dashboard_activity_viewed', {
+                      activityDate: activity.date,
+                      activityType: activity.action.toLowerCase().includes('aula') ? 'course_completion' :
+                                   activity.action.toLowerCase().includes('speaking') ? 'speaking_practice' :
+                                   'learning_hours',
+                      activityCount: activity.count,
+                      dashboardType: 'corporate'
+                    });
+                  }
+                }}
               >
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-slate-600 dark:text-slate-400">
