@@ -5,6 +5,9 @@ import AnalyticsList from '../../growth/AnalyticsList';
 import SubscriptionModal from '../../growth/SubscriptionModal';
 import { TranscriptModal } from '../../ai-tutor/TranscriptModal';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { auth } from '@/firebase';
+import { useAnalytics } from '@/hooks/useAnalytics';
+import { useMonitoring } from '@/hooks/useMonitoring';
 
 interface EducatorDashboardProps {
   report: ClassReport;
@@ -16,12 +19,26 @@ export default function EducatorDashboard({ report, setView }: EducatorDashboard
   const [filterLanguage, setFilterLanguage] = useState<string>("Todos");
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
   const [transcriptModalData, setTranscriptModalData] = useState<{name: string, transcripts: TranscriptItem[]} | null>(null);
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
 
-  const filteredStudents = filterLanguage === "Todos" 
-      ? report.students 
+  const filteredStudents = filterLanguage === "Todos"
+      ? report.students
       : report.students.filter(s => s.targetLanguage === filterLanguage);
 
   const [selectedStudent, setSelectedStudent] = useState<StudentPerformance>(filteredStudents[0]);
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('educator_dashboard_viewed', {
+        totalStudents: report.students.length,
+        classSize: report.students.length,
+        commonErrorsCount: report.commonErrors.length,
+        dashboardType: 'educator'
+      });
+    }
+  }, [userId, trackEvent, report.students.length, report.commonErrors.length]);
 
   // Mocking trend data as it's not directly in StudentPerformance
   const mockTrendData = [
@@ -47,11 +64,24 @@ export default function EducatorDashboard({ report, setView }: EducatorDashboard
 
   useEffect(() => {
     localStorage.setItem('class_lang_of_week', langOfTheWeek);
-  }, [langOfTheWeek]);
+    if (userId) {
+      trackEvent('educator_dashboard_language_of_week_changed', {
+        newLanguage: langOfTheWeek,
+        dashboardType: 'educator'
+      });
+    }
+  }, [langOfTheWeek, userId, trackEvent]);
 
   useEffect(() => {
       setSelectedStudent(filteredStudents[0]);
-  }, [filterLanguage]);
+      if (userId) {
+        trackEvent('educator_dashboard_language_filter_changed', {
+          selectedLanguage: filterLanguage,
+          filteredStudentCount: filteredStudents.length,
+          dashboardType: 'educator'
+        });
+      }
+  }, [filterLanguage, userId, trackEvent, filteredStudents.length]);
 
   const availableLanguages = ["Todos", ...Array.from(new Set(report.students.map(s => s.targetLanguage)))];
 
@@ -63,8 +93,15 @@ export default function EducatorDashboard({ report, setView }: EducatorDashboard
           <h1 className="text-3xl font-bold text-slate-900">Painel do Educador</h1>
         </div>
         <div className="flex items-center gap-3">
-            <button 
-                onClick={() => setIsSubscriptionModalOpen(true)}
+            <button
+                onClick={() => {
+                  if (userId) {
+                    trackEvent('educator_dashboard_subscription_clicked', {
+                      dashboardType: 'educator'
+                    });
+                  }
+                  setIsSubscriptionModalOpen(true);
+                }}
                 className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-indigo-700"
             >
                 <CreditCard className="w-4 h-4" />
@@ -101,11 +138,19 @@ export default function EducatorDashboard({ report, setView }: EducatorDashboard
             </h2>
             <div className="space-y-2">
                 {filteredStudents.map((s, i) => (
-                    <button 
-                        key={i} 
+                    <button
+                        key={i}
                         onClick={() => {
-                            setSelectedStudent(s);
-                            setTranscriptModalData({ name: s.studentName, transcripts: s.transcripts.slice(-5) });
+                          if (userId) {
+                            trackEvent('educator_dashboard_student_selected', {
+                              studentName: s.studentName,
+                              performanceScore: s.performanceScore,
+                              targetLanguage: s.targetLanguage,
+                              dashboardType: 'educator'
+                            });
+                          }
+                          setSelectedStudent(s);
+                          setTranscriptModalData({ name: s.studentName, transcripts: s.transcripts.slice(-5) });
                         }}
                         className={`w-full text-left p-3 rounded-xl transition-all ${selectedStudent.studentName === s.studentName ? "bg-indigo-50 text-indigo-700" : "hover:bg-slate-50"}`}
                     >
@@ -116,7 +161,18 @@ export default function EducatorDashboard({ report, setView }: EducatorDashboard
         </div>
         
         <div className="md:col-span-2 space-y-8">
-            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+            <div
+              className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => {
+                if (userId) {
+                  trackEvent('educator_dashboard_performance_trend_viewed', {
+                    studentName: selectedStudent.studentName,
+                    currentScore: selectedStudent.performanceScore,
+                    dashboardType: 'educator'
+                  });
+                }
+              }}
+            >
                 <h2 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
                     <TrendingUp className="w-5 h-5 text-indigo-500" />
                     Tendência de Desempenho
@@ -149,7 +205,21 @@ export default function EducatorDashboard({ report, setView }: EducatorDashboard
                 </div>
             </div>
 
-            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+            <div
+              className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => {
+                if (userId) {
+                  trackEvent('educator_dashboard_vocabulary_viewed', {
+                    studentName: selectedStudent.studentName,
+                    vocabularyCount: selectedStudent.vocabularyMastery.length,
+                    avgMasteryLevel: selectedStudent.vocabularyMastery.length > 0
+                      ? Math.round(selectedStudent.vocabularyMastery.reduce((sum, v) => sum + v.masteryLevel, 0) / selectedStudent.vocabularyMastery.length)
+                      : 0,
+                    dashboardType: 'educator'
+                  });
+                }
+              }}
+            >
                 <h2 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
                     <Languages className="w-5 h-5 text-indigo-500" />
                     Vocabulário Masterizado
@@ -166,7 +236,17 @@ export default function EducatorDashboard({ report, setView }: EducatorDashboard
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+          <div
+            className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => {
+              if (userId) {
+                trackEvent('educator_dashboard_common_errors_viewed', {
+                  errorCount: report.commonErrors.length,
+                  dashboardType: 'educator'
+                });
+              }
+            }}
+          >
             <h2 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
                 <AlertCircle className="w-5 h-5 text-amber-500" />
                 Erros Comuns
@@ -177,8 +257,21 @@ export default function EducatorDashboard({ report, setView }: EducatorDashboard
                 ))}
             </ul>
             </div>
-            
-            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+
+            <div
+              className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => {
+                if (userId) {
+                  trackEvent('educator_dashboard_class_performance_viewed', {
+                    classSize: filteredStudents.length,
+                    avgPerformance: filteredStudents.length > 0
+                      ? Math.round(filteredStudents.reduce((sum, s) => sum + s.performanceScore, 0) / filteredStudents.length)
+                      : 0,
+                    dashboardType: 'educator'
+                  });
+                }
+              }}
+            >
                 <h2 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
                     <BarChart3 className="w-5 h-5 text-indigo-500" />
                     Desempenho da Turma
