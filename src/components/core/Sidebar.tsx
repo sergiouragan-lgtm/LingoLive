@@ -7,6 +7,8 @@ import { ServiceHealthStatus } from '../../types';
 import { sidebarConfig, SidebarItem } from './SidebarConfig';
 import { useUserRole } from '../../context/UserRoleContext';
 import { GlobalSearch } from './GlobalSearch';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 interface SidebarProps {
   view: string;
@@ -19,16 +21,19 @@ interface SidebarProps {
   selectedLanguage?: any;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ 
-  view, 
-  setView, 
-  healthStatus, 
-  isOpen = false, 
+export const Sidebar: React.FC<SidebarProps> = ({
+  view,
+  setView,
+  healthStatus,
+  isOpen = false,
   onClose,
   savedWords = [],
   streakHistory = [],
   selectedLanguage
 }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
   const { role } = useUserRole();
   const roleKey = (role as keyof typeof sidebarConfig) || 'student';
   const menuItems = (sidebarConfig[roleKey] || sidebarConfig.student) as SidebarItem[];
@@ -55,13 +60,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const handleItemClick = (id: any) => {
     setView(id);
+    if (userId) {
+      trackEvent('sidebar_navigation_clicked', {
+        viewId: id,
+        userRole: role || 'student',
+      });
+    }
     if (onClose) {
       onClose();
     }
   };
 
   const toggleGroup = (groupId: string) => {
-    setOpenGroups((prev) => ({ ...prev, [groupId]: !prev[groupId] }));
+    const newOpenState = !openGroups[groupId];
+    setOpenGroups((prev) => ({ ...prev, [groupId]: newOpenState }));
+    if (userId) {
+      trackEvent('sidebar_group_toggled', {
+        groupId,
+        isOpen: newOpenState,
+        userRole: role || 'student',
+      });
+    }
   };
 
   return (
