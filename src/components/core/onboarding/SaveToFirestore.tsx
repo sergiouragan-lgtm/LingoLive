@@ -1,12 +1,37 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useOnboardingFlow } from '../../../context/OnboardingFlowContext';
+import { auth } from '../../../firebase';
+import { useAnalytics } from '../../../hooks/useAnalytics';
+import { useMonitoring } from '../../../hooks/useMonitoring';
 
 const SaveToFirestore = () => {
   const { setStep } = useOnboardingFlow();
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('onboarding_save_to_firestore_viewed', {
+        onboardingStep: 'data_persistence'
+      });
+    }
+  }, [userId, trackEvent]);
 
   const handleSave = () => {
+    if (userId) {
+      trackEvent('onboarding_firestore_save_started', {
+        onboardingStep: 'data_persistence'
+      });
+    }
     // Simulate API call to Firestore
     console.log("Saving to Firestore...");
+    if (userId) {
+      trackEvent('onboarding_firestore_save_completed', {
+        onboardingStep: 'data_persistence',
+        success: true
+      });
+    }
     setStep("CONFIRM_CREATION");
   };
 

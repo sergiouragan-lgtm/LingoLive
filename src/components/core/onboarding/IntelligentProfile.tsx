@@ -1,10 +1,31 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useOnboardingFlow } from '../../../context/OnboardingFlowContext';
+import { auth } from '../../../firebase';
+import { useAnalytics } from '../../../hooks/useAnalytics';
+import { useMonitoring } from '../../../hooks/useMonitoring';
 
 const IntelligentProfile = () => {
   const { setStep, setProfileData } = useOnboardingFlow();
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('onboarding_intelligent_profile_viewed', {
+        onboardingStep: 'profile_creation'
+      });
+    }
+  }, [userId, trackEvent]);
 
   const handleCreateProfile = () => {
+    if (userId) {
+      trackEvent('onboarding_intelligent_profile_created', {
+        onboardingStep: 'profile_creation',
+        profileType: 'intelligent',
+        aiTutorMode: 'child'
+      });
+    }
     // Simulating profile data creation
     setProfileData({
       uid: "user123",

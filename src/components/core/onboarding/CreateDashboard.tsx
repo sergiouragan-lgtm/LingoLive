@@ -1,15 +1,27 @@
 import React, { useEffect } from 'react';
+import { auth } from '../../../firebase';
+import { useAnalytics } from '../../../hooks/useAnalytics';
+import { useMonitoring } from '../../../hooks/useMonitoring';
 
 interface CreateDashboardProps {
   setView?: (view: any) => void;
 }
 
 const CreateDashboard: React.FC<CreateDashboardProps> = ({ setView }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   useEffect(() => {
+    if (userId) {
+      trackEvent('onboarding_create_dashboard_started', {
+        onboardingStep: 'dashboard_initialization'
+      });
+    }
     if (setView) {
       setView("dashboard");
     }
-  }, [setView]);
+  }, [setView, userId, trackEvent]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] p-4 text-center">

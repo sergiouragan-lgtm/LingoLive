@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useOnboardingFlow } from '../../../context/OnboardingFlowContext';
-import { db } from '../../../firebase';
+import { auth, db } from '../../../firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { User } from 'firebase/auth';
+import { useAnalytics } from '../../../hooks/useAnalytics';
+import { useMonitoring } from '../../../hooks/useMonitoring';
 
 interface ActivateAccountProps {
   user: User | null;
@@ -10,15 +12,48 @@ interface ActivateAccountProps {
 
 const ActivateAccount = ({ user }: ActivateAccountProps) => {
   const { setStep } = useOnboardingFlow();
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('onboarding_activate_account_viewed', {
+        onboardingStep: 'account_activation',
+        hasUser: !!user
+      });
+    }
+  }, [userId, user, trackEvent]);
 
   const handleActivate = async () => {
-    if (user) {
-      const userRef = doc(db, 'users', user.uid);
-      await updateDoc(userRef, {
-        status: 'ACTIVE',
-        'accountStatus.paymentStatus': 'PAID',
-        updatedAt: new Date()
+    if (userId) {
+      trackEvent('onboarding_account_activation_started', {
+        userId: user?.uid,
+        onboardingStep: 'account_activation'
       });
+    }
+    if (user) {
+      try {
+        const userRef = doc(db, 'users', user.uid);
+        await updateDoc(userRef, {
+          status: 'ACTIVE',
+          'accountStatus.paymentStatus': 'PAID',
+          updatedAt: new Date()
+        });
+        if (userId) {
+          trackEvent('onboarding_account_activated', {
+            userId: user.uid,
+            success: true
+          });
+        }
+      } catch (error) {
+        if (userId) {
+          trackEvent('onboarding_account_activation_failed', {
+            userId: user.uid,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+        }
+      }
     }
     setStep("DASHBOARD");
   };
