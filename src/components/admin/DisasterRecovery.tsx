@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Database, 
-  RefreshCw, 
-  AlertTriangle, 
-  CheckCircle, 
-  Server, 
-  Globe, 
-  Activity, 
-  Clock, 
-  ShieldAlert, 
-  ArrowRight, 
-  Terminal, 
-  Zap, 
-  Play, 
+import {
+  Database,
+  RefreshCw,
+  AlertTriangle,
+  CheckCircle,
+  Server,
+  Globe,
+  Activity,
+  Clock,
+  ShieldAlert,
+  ArrowRight,
+  Terminal,
+  Zap,
+  Play,
   Heart,
   ChevronRight,
   Sparkles,
@@ -22,9 +22,11 @@ import {
   CheckCircle2,
   AlertCircle
 } from 'lucide-react';
-import { db } from '../../firebase';
+import { db, auth } from '../../firebase';
 import { collection, addDoc, getDocs, limit, query, orderBy } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 interface BackupRecord {
   id?: string;
@@ -49,6 +51,10 @@ interface ServiceFailoverState {
 }
 
 export function DisasterRecovery() {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [backups, setBackups] = useState<BackupRecord[]>([]);
   const [loadingBackups, setLoadingBackups] = useState(false);
   const [isBackingUp, setIsBackingUp] = useState(false);
@@ -181,6 +187,15 @@ export function DisasterRecovery() {
     setMinutesSinceLastBackup(diffMinutes);
   };
 
+  // Lifecycle tracking
+  useEffect(() => {
+    if (userId) {
+      trackEvent('disaster_recovery_accessed', {
+        hasBackups: backups.length > 0,
+      });
+    }
+  }, [userId, trackEvent]);
+
   useEffect(() => {
     loadBackups();
     
@@ -197,6 +212,13 @@ export function DisasterRecovery() {
   const triggerManualBackup = async () => {
     if (isBackingUp) return;
     setIsBackingUp(true);
+
+    if (userId) {
+      trackEvent('disaster_recovery_backup_initiated', {
+        backupType: 'MANUAL',
+      });
+    }
+
     setBackupProgress(5);
     setBackupLogs(['Iniciando snaphot manual...', 'Bloqueando transações de gravação secundárias...']);
     addDrLog('Backup manual do banco de dados iniciado pelo administrador.', 'info');
