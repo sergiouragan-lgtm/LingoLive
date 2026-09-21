@@ -1,19 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Users, BookOpen, Calendar, MessageSquare, TrendingUp, Award, 
-  HeartHandshake, Settings, Plus, Search, HelpCircle, ArrowRight, 
-  Sparkles, ShieldCheck, CheckSquare, Sliders, ChevronRight, Play, 
-  CheckCircle, AlertCircle, RefreshCw, Send, Trash2, Filter, Download, 
-  Edit2, Check, BarChart2, PieChart, Trophy, BookOpenCheck, 
-  FileSignature, ThumbsUp, Volume2, Layers, ListTodo, Bookmark, 
+import {
+  Users, BookOpen, Calendar, MessageSquare, TrendingUp, Award,
+  HeartHandshake, Settings, Plus, Search, HelpCircle, ArrowRight,
+  Sparkles, ShieldCheck, CheckSquare, Sliders, ChevronRight, Play,
+  CheckCircle, AlertCircle, RefreshCw, Send, Trash2, Filter, Download,
+  Edit2, Check, BarChart2, PieChart, Trophy, BookOpenCheck,
+  FileSignature, ThumbsUp, Volume2, Layers, ListTodo, Bookmark,
   Newspaper, ClipboardList, Target, Library, ShoppingCart, Globe, Image,
   Eye, PlayCircle, Database, Clock, Cpu
 } from 'lucide-react';
-import { 
-  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, 
+import {
+  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, BarChart as RechartsBarChart, Bar, Cell, PieChart as RechartsPieChart, Pie
 } from 'recharts';
+import { auth } from '../../../firebase';
+import { useAnalytics } from '../../../hooks/useAnalytics';
+import { useMonitoring } from '../../../hooks/useMonitoring';
 
 interface ViewProps {
   triggerToast: (msg: string) => void;
@@ -25,10 +28,20 @@ interface ViewProps {
 // 1. ALUNOS VIEW
 // ----------------------------------------------------
 export const AlunosView: React.FC<ViewProps> = ({ triggerToast }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
   const [aiFeedback, setAiFeedback] = useState('');
   const [sendingMsg, setSendingMsg] = useState(false);
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('creator_alunos_view_accessed', {});
+    }
+  }, [userId, trackEvent]);
 
   const students = [
     { id: 's1', name: 'Marta Rebelo', avatar: '👩‍💼', fluencyScore: 84, attendance: 96, streak: 12, lastActive: 'Hoje', confidence: 'Alta', email: 'marta.r@company.com', class: 'Turma Alfa', activeMinutes: 240, audioCount: 42, commonErrors: 'Uso de preposições (agree in vs. agree on)' },
@@ -46,6 +59,13 @@ export const AlunosView: React.FC<ViewProps> = ({ triggerToast }) => {
     e.preventDefault();
     if (!aiFeedback.trim()) return;
     setSendingMsg(true);
+    if (userId) {
+      trackEvent('creator_ai_feedback_sent', {
+        studentId: selectedStudent?.id,
+        studentName: selectedStudent?.name,
+        feedbackLength: aiFeedback.length,
+      });
+    }
     setTimeout(() => {
       triggerToast(`✉️ Dica de IA enviada para o e-mail de ${selectedStudent.name}!`);
       setAiFeedback('');
@@ -112,9 +132,16 @@ export const AlunosView: React.FC<ViewProps> = ({ triggerToast }) => {
                         </span>
                       </td>
                       <td className="py-3.5 text-right">
-                        <button 
+                        <button
                           onClick={() => {
                             setSelectedStudent(s);
+                            if (userId) {
+                              trackEvent('creator_student_details_clicked', {
+                                studentId: s.id,
+                                studentName: s.name,
+                                fluencyScore: s.fluencyScore,
+                              });
+                            }
                             triggerToast(`🔍 Perfil de ${s.name} carregado no painel lateral!`);
                           }}
                           className="px-2.5 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 rounded-lg text-[10px] font-bold transition-all cursor-pointer"
@@ -202,9 +229,19 @@ export const AlunosView: React.FC<ViewProps> = ({ triggerToast }) => {
 // 2. AULAS VIEW
 // ----------------------------------------------------
 export const AulasView: React.FC<ViewProps> = ({ triggerToast }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [syllabusClass, setSyllabusClass] = useState('Turma Alfa');
   const [selectedTopic, setSelectedTopic] = useState('');
   const [creatingLesson, setCreatingLesson] = useState(false);
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('creator_aulas_view_accessed', {});
+    }
+  }, [userId, trackEvent]);
 
   const lessons = [
     { id: 'l1', title: 'Pitching Commercial Achievements', class: 'Turma Alfa', duration: '50 min', date: 'Hoje, 19:00', type: 'Conversação', status: 'Agendada' },
@@ -217,6 +254,12 @@ export const AulasView: React.FC<ViewProps> = ({ triggerToast }) => {
     e.preventDefault();
     if (!selectedTopic.trim()) return;
     setCreatingLesson(true);
+    if (userId) {
+      trackEvent('creator_lesson_scheduled', {
+        topic: selectedTopic,
+        class: syllabusClass,
+      });
+    }
     setTimeout(() => {
       triggerToast(`📅 Aula "${selectedTopic}" agendada com sucesso para a ${syllabusClass}!`);
       setSelectedTopic('');
@@ -247,8 +290,18 @@ export const AulasView: React.FC<ViewProps> = ({ triggerToast }) => {
                   </div>
                   <div className="flex items-center gap-3 self-end sm:self-auto">
                     <span className="text-xs font-mono text-indigo-300 font-bold">{l.date}</span>
-                    <button 
-                      onClick={() => triggerToast(`🚀 Iniciando sala virtual de conversação para "${l.title}"...`)}
+                    <button
+                      onClick={() => {
+                        if (userId) {
+                          trackEvent('creator_lesson_entered', {
+                            lessonId: l.id,
+                            lessonTitle: l.title,
+                            lessonClass: l.class,
+                            lessonType: l.type,
+                          });
+                        }
+                        triggerToast(`🚀 Iniciando sala virtual de conversação para "${l.title}"...`);
+                      }}
                       className="px-3 py-1.5 bg-indigo-500 hover:bg-indigo-400 text-slate-950 font-black text-[10px] uppercase tracking-wider rounded-lg transition-all cursor-pointer flex items-center gap-1"
                     >
                       <Play className="w-3 h-3 fill-slate-950" /> Entrar
@@ -316,8 +369,18 @@ export const AulasView: React.FC<ViewProps> = ({ triggerToast }) => {
 // 3. CALENDÁRIO VIEW
 // ----------------------------------------------------
 export const CalendarioView: React.FC<ViewProps> = ({ triggerToast }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [currentMonth, setCurrentMonth] = useState('Julho 2026');
-  
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('creator_calendario_view_accessed', {});
+    }
+  }, [userId, trackEvent]);
+
   const daysInMonth = Array.from({ length: 31 }, (_, i) => i + 1);
 
   // Scheduled events on specific days
@@ -356,9 +419,16 @@ export const CalendarioView: React.FC<ViewProps> = ({ triggerToast }) => {
           {daysInMonth.map((day) => {
             const hasEvent = events[day];
             return (
-              <div 
-                key={day} 
+              <div
+                key={day}
                 onClick={() => {
+                  if (userId) {
+                    trackEvent('creator_calendar_day_clicked', {
+                      day,
+                      hasEvent: !!hasEvent,
+                      eventType: hasEvent?.type,
+                    });
+                  }
                   if (hasEvent) {
                     triggerToast(`📅 Evento em ${day} de Julho: ${hasEvent.title} (${hasEvent.class})`);
                   } else {
@@ -392,6 +462,10 @@ export const CalendarioView: React.FC<ViewProps> = ({ triggerToast }) => {
 // 4. CHAT VIEW
 // ----------------------------------------------------
 export const ChatView: React.FC<ViewProps> = ({ triggerToast }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [activeChannel, setActiveChannel] = useState('Turma Alfa');
   const [messages, setMessages] = useState<any[]>([
     { sender: 'Marta Rebelo', text: 'Professor, posso enviar meu pitch gravado de novo para a IA reavaliar?', time: '14:20', isTeacher: false },
@@ -400,9 +474,21 @@ export const ChatView: React.FC<ViewProps> = ({ triggerToast }) => {
   ]);
   const [newMsg, setNewMsg] = useState('');
 
+  useEffect(() => {
+    if (userId) {
+      trackEvent('creator_chat_view_accessed', {});
+    }
+  }, [userId, trackEvent]);
+
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMsg.trim()) return;
+    if (userId) {
+      trackEvent('creator_message_sent', {
+        channel: activeChannel,
+        messageLength: newMsg.length,
+      });
+    }
     const msg = {
       sender: 'Professor (Você)',
       text: newMsg,
@@ -430,6 +516,11 @@ export const ChatView: React.FC<ViewProps> = ({ triggerToast }) => {
               key={ch}
               onClick={() => {
                 setActiveChannel(ch);
+                if (userId) {
+                  trackEvent('creator_chat_channel_switched', {
+                    channel: ch,
+                  });
+                }
                 triggerToast(`💬 Canal alterado para: ${ch}`);
               }}
               className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
@@ -504,12 +595,22 @@ export const ChatView: React.FC<ViewProps> = ({ triggerToast }) => {
 // 5. RELATÓRIOS GERAIS VIEW
 // ----------------------------------------------------
 export const RelatoriosGeraisView: React.FC<ViewProps> = ({ triggerToast }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const chartData = [
     { name: 'Semana 1', 'Média Geral': 68, 'Taxa Retenção': 95 },
     { name: 'Semana 2', 'Média Geral': 72, 'Taxa Retenção': 94 },
     { name: 'Semana 3', 'Média Geral': 74, 'Taxa Retenção': 96 },
     { name: 'Semana 4', 'Média Geral': 78, 'Taxa Retenção': 98 },
   ];
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('creator_relatorios_view_accessed', {});
+    }
+  }, [userId, trackEvent]);
 
   return (
     <div className="space-y-6">
@@ -520,6 +621,9 @@ export const RelatoriosGeraisView: React.FC<ViewProps> = ({ triggerToast }) => {
         </div>
         <button
           onClick={() => {
+            if (userId) {
+              trackEvent('creator_reports_exported', {});
+            }
             triggerToast('📥 Compilando Excel consolidado de notas e frequências...');
             setTimeout(() => triggerToast('✓ Planilha de desempenho exportada com sucesso!'), 1500);
           }}
@@ -585,12 +689,22 @@ export const RelatoriosGeraisView: React.FC<ViewProps> = ({ triggerToast }) => {
 // 6. CERTIFICAÇÕES VIEW
 // ----------------------------------------------------
 export const CertificacoesView: React.FC<ViewProps> = ({ triggerToast }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const certifications = [
     { title: 'IELTS Academic Ready', target: 'CEFR B2-C1', studentsReady: 18, totalStudents: 28, passRate: '89%' },
     { title: 'TOEFL iBT Speaking Prep', target: 'CEFR C1', studentsReady: 12, totalStudents: 15, passRate: '92%' },
     { title: 'Cambridge C1 Business Higher', target: 'CEFR C1', studentsReady: 8, totalStudents: 10, passRate: '80%' },
     { title: 'Cambridge B2 First', target: 'CEFR B2', studentsReady: 22, totalStudents: 35, passRate: '78%' },
   ];
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('creator_certificacoes_view_accessed', {});
+    }
+  }, [userId, trackEvent]);
 
   return (
     <div className="space-y-6">
@@ -648,11 +762,21 @@ export const CertificacoesView: React.FC<ViewProps> = ({ triggerToast }) => {
 // 7. EMBAIXADORES VIEW
 // ----------------------------------------------------
 export const EmbaixadoresView: React.FC<ViewProps> = ({ triggerToast }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const ambassadors = [
     { name: 'Sara Costa', avatar: '👩‍🔬', class: 'Turma Alfa', referrals: 4, points: 420, activeChallenges: 'Concluir 15 sessões orais seguidas' },
     { name: 'Ana Filipa', avatar: '👩‍💻', class: 'Turma Alfa', referrals: 3, points: 310, activeChallenges: 'Ajudar um colega com feedback de áudio' },
     { name: 'Beatriz Lima', avatar: '👩‍⚕️', class: 'Turma Beta', referrals: 1, points: 210, activeChallenges: 'Grave seu primeiro case de vídeo corporativo' }
   ];
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('creator_embaixadores_view_accessed', {});
+    }
+  }, [userId, trackEvent]);
 
   return (
     <div className="space-y-6">
@@ -717,8 +841,18 @@ export const EmbaixadoresView: React.FC<ViewProps> = ({ triggerToast }) => {
 // 8. CONFIGURAÇÕES VIEW
 // ----------------------------------------------------
 export const ConfiguracoesView: React.FC<ViewProps> = ({ triggerToast }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [threshold, setThreshold] = useState(70);
   const [autoGrading, setAutoGrading] = useState(true);
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('creator_configuracoes_view_accessed', {});
+    }
+  }, [userId, trackEvent]);
 
   return (
     <div className="space-y-6">
@@ -768,8 +902,16 @@ export const ConfiguracoesView: React.FC<ViewProps> = ({ triggerToast }) => {
         </div>
 
         <div className="pt-6 border-t border-slate-850 flex justify-end gap-3 text-xs font-bold">
-          <button 
-            onClick={() => triggerToast('✓ Configurações salvas com sucesso!')}
+          <button
+            onClick={() => {
+              if (userId) {
+                trackEvent('creator_settings_saved', {
+                  threshold,
+                  autoGrading,
+                });
+              }
+              triggerToast('✓ Configurações salvas com sucesso!');
+            }}
             className="px-5 py-2.5 bg-indigo-500 hover:bg-indigo-400 text-slate-950 rounded-xl transition-all font-black uppercase tracking-wider cursor-pointer"
           >
             Salvar Configurações
@@ -784,6 +926,18 @@ export const ConfiguracoesView: React.FC<ViewProps> = ({ triggerToast }) => {
 // 9. ASSESSMENT STUDIO (EXTENDED FOR EXERCISES / RUBRICS / MARKETPLACE)
 // ----------------------------------------------------
 export const AssessmentStudioExtendedView: React.FC<ViewProps & { activeSubTab: string }> = ({ triggerToast, activeSubTab }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('creator_assessment_studio_view_accessed', {
+        activeSubTab,
+      });
+    }
+  }, [userId, trackEvent, activeSubTab]);
+
   return (
     <div className="space-y-6">
       {activeSubTab === 'exercicios' && (
@@ -962,6 +1116,18 @@ export const AssessmentStudioExtendedView: React.FC<ViewProps & { activeSubTab: 
 
 // Creator Assessment Sub-tabs View
 export const CreatorAssessmentView: React.FC<ViewProps & { activeSubTab: string }> = ({ triggerToast, activeSubTab }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('creator_assessment_view_accessed', {
+        activeSubTab,
+      });
+    }
+  }, [userId, trackEvent, activeSubTab]);
+
   return (
     <div className="space-y-6">
       <div>
@@ -1037,6 +1203,10 @@ export const CreatorAssessmentView: React.FC<ViewProps & { activeSubTab: string 
 
 // Course Builder View
 export const CourseBuilderView: React.FC<ViewProps> = ({ triggerToast }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [courseTitle, setCourseTitle] = useState('');
   const [selectedLevel, setSelectedLevel] = useState('C1');
   const [modules, setModules] = useState([
@@ -1045,9 +1215,21 @@ export const CourseBuilderView: React.FC<ViewProps> = ({ triggerToast }) => {
     { id: 3, title: 'Product Pitching & Commercial Achievements', level: 'C1', units: 5, published: false }
   ]);
 
+  useEffect(() => {
+    if (userId) {
+      trackEvent('creator_course_builder_view_accessed', {});
+    }
+  }, [userId, trackEvent]);
+
   const handleAddModule = (e: React.FormEvent) => {
     e.preventDefault();
     if (!courseTitle.trim()) return;
+    if (userId) {
+      trackEvent('creator_module_added', {
+        moduleTitle: courseTitle,
+        level: selectedLevel,
+      });
+    }
     const newMod = {
       id: Date.now(),
       title: courseTitle,
@@ -1167,6 +1349,10 @@ export const CourseBuilderView: React.FC<ViewProps> = ({ triggerToast }) => {
 
 // Lesson Builder View
 export const LessonBuilderView: React.FC<ViewProps> = ({ triggerToast }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [slides, setSlides] = useState([
     { id: 1, title: 'Boas-vindas & Vocabulário Chave', type: 'Explicativo', duration: '3 min' },
     { id: 2, title: 'Exemplo Prático: Ouvindo o Diretor', type: 'Áudio Nativo', duration: '5 min' },
@@ -1175,9 +1361,21 @@ export const LessonBuilderView: React.FC<ViewProps> = ({ triggerToast }) => {
   const [newTitle, setNewTitle] = useState('');
   const [newType, setNewType] = useState('Fônica');
 
+  useEffect(() => {
+    if (userId) {
+      trackEvent('creator_lesson_builder_view_accessed', {});
+    }
+  }, [userId, trackEvent]);
+
   const handleAddSlide = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
+    if (userId) {
+      trackEvent('creator_lesson_slide_added', {
+        slideTitle: newTitle,
+        slideType: newType,
+      });
+    }
     setSlides(prev => [...prev, {
       id: Date.now(),
       title: newTitle,
@@ -1275,6 +1473,10 @@ export const LessonBuilderView: React.FC<ViewProps> = ({ triggerToast }) => {
 
 // Activity Builder View
 export const ActivityBuilderView: React.FC<ViewProps> = ({ triggerToast }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [activities, setActivities] = useState([
     { id: 1, text: 'Complete standard negotiation conditionals: If we ________ (accept) this price, we will reduce our margin.', type: 'Preenchimento' },
     { id: 2, text: 'Record your introduction pitches using active professional voice.', type: 'Fala Livre' }
@@ -1282,9 +1484,21 @@ export const ActivityBuilderView: React.FC<ViewProps> = ({ triggerToast }) => {
   const [actText, setActText] = useState('');
   const [actType, setActType] = useState('Preenchimento');
 
+  useEffect(() => {
+    if (userId) {
+      trackEvent('creator_activity_builder_view_accessed', {});
+    }
+  }, [userId, trackEvent]);
+
   const handleAddAct = (e: React.FormEvent) => {
     e.preventDefault();
     if (!actText.trim()) return;
+    if (userId) {
+      trackEvent('creator_activity_added', {
+        activityType: actType,
+        activityLength: actText.length,
+      });
+    }
     setActivities(prev => [...prev, { id: Date.now(), text: actText, type: actType }]);
     setActText('');
     triggerToast('✓ Nova atividade prática cadastrada!');
@@ -1353,6 +1567,10 @@ export const ActivityBuilderView: React.FC<ViewProps> = ({ triggerToast }) => {
 
 // Flashcard Builder View
 export const FlashcardBuilderView: React.FC<ViewProps> = ({ triggerToast }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [cards, setCards] = useState([
     { id: 1, word: 'Leverage', translation: 'Alavancar / Aproveitar', ipa: '/ˈliːvərɪdʒ/', dialect: 'US English' },
     { id: 2, word: 'Endeavour', translation: 'Esforço / Empreendimento', ipa: '/ɪnˈdɛvər/', dialect: 'UK English' }
@@ -1362,9 +1580,21 @@ export const FlashcardBuilderView: React.FC<ViewProps> = ({ triggerToast }) => {
   const [ipa, setIpa] = useState('');
   const [dialect, setDialect] = useState('US English');
 
+  useEffect(() => {
+    if (userId) {
+      trackEvent('creator_flashcard_builder_view_accessed', {});
+    }
+  }, [userId, trackEvent]);
+
   const handleAddCard = (e: React.FormEvent) => {
     e.preventDefault();
     if (!word.trim() || !translation.trim()) return;
+    if (userId) {
+      trackEvent('creator_flashcard_added', {
+        word,
+        dialect,
+      });
+    }
     setCards(prev => [...prev, { id: Date.now(), word, translation, ipa, dialect }]);
     setWord('');
     setTranslation('');
@@ -1461,13 +1691,28 @@ export const FlashcardBuilderView: React.FC<ViewProps> = ({ triggerToast }) => {
 
 // Story Builder View
 export const StoryBuilderView: React.FC<ViewProps> = ({ triggerToast }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [nodes, setNodes] = useState([
     { id: 1, title: 'Início: Reunião Inesperada', speaker: 'Diretor Geral', dialogue: 'Good morning, we need to address our Q3 drop immediately.', optionsCount: 3 }
   ]);
 
+  useEffect(() => {
+    if (userId) {
+      trackEvent('creator_story_builder_view_accessed', {});
+    }
+  }, [userId, trackEvent]);
+
   const handleCreateNode = () => {
     const title = prompt('Qual o título do novo cenário / decisão?');
     if (!title) return;
+    if (userId) {
+      trackEvent('creator_story_node_added', {
+        nodeTitle: title,
+      });
+    }
     setNodes(prev => [...prev, {
       id: Date.now(),
       title,
@@ -1525,6 +1770,10 @@ export const StoryBuilderView: React.FC<ViewProps> = ({ triggerToast }) => {
 
 // Pronunciation Builder View
 export const PronunciationBuilderView: React.FC<ViewProps> = ({ triggerToast }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [phonemes, setPhonemes] = useState([
     { id: 1, phoneme: '/θ/', example: 'Thought, Think, Month', difficulty: 'Fácil para nativos, Difícil para Português L1' },
     { id: 2, phoneme: '/æ/', example: 'Cat, Bad, Back', difficulty: 'Média tolerância necessária' }
@@ -1532,9 +1781,21 @@ export const PronunciationBuilderView: React.FC<ViewProps> = ({ triggerToast }) 
   const [targetWord, setTargetWord] = useState('');
   const [phonemeText, setPhonemeText] = useState('/r/');
 
+  useEffect(() => {
+    if (userId) {
+      trackEvent('creator_pronunciation_builder_view_accessed', {});
+    }
+  }, [userId, trackEvent]);
+
   const handleAddPhoneme = (e: React.FormEvent) => {
     e.preventDefault();
     if (!targetWord.trim()) return;
+    if (userId) {
+      trackEvent('creator_phoneme_added', {
+        phoneme: phonemeText,
+        targetWord,
+      });
+    }
     setPhonemes(prev => [...prev, {
       id: Date.now(),
       phoneme: phonemeText,
@@ -1608,6 +1869,10 @@ export const PronunciationBuilderView: React.FC<ViewProps> = ({ triggerToast }) 
 
 // Conversation Builder View
 export const ConversationBuilderView: React.FC<ViewProps> = ({ triggerToast }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [blueprints, setBlueprints] = useState([
     { id: 1, title: 'Commercial Contract Negotiation', role: 'Chief Legal Officer', prompt: 'Be extremely stubborn about clause 4.2.' },
     { id: 2, title: 'Job Interview Pitch', role: 'HR Manager', prompt: 'Check for technical skill adequacy first.' }
@@ -1616,9 +1881,21 @@ export const ConversationBuilderView: React.FC<ViewProps> = ({ triggerToast }) =
   const [role, setRole] = useState('');
   const [prompt, setPrompt] = useState('');
 
+  useEffect(() => {
+    if (userId) {
+      trackEvent('creator_conversation_builder_view_accessed', {});
+    }
+  }, [userId, trackEvent]);
+
   const handleAddBlueprint = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !role.trim()) return;
+    if (userId) {
+      trackEvent('creator_conversation_blueprint_added', {
+        title,
+        role,
+      });
+    }
     setBlueprints(prev => [...prev, { id: Date.now(), title, role, prompt }]);
     setTitle('');
     setRole('');
@@ -1698,12 +1975,22 @@ export const ConversationBuilderView: React.FC<ViewProps> = ({ triggerToast }) =
 
 // Assignment Builder View
 export const AssignmentBuilderView: React.FC<ViewProps> = ({ triggerToast }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [assignments, setAssignments] = useState([
     { id: 1, title: 'Executive Presentation Video', weight: '30%', deadline: '24 Julho 2026' },
     { id: 2, title: 'Corporate Report Synthesis', weight: '20%', deadline: '30 Julho 2026' }
   ]);
   const [title, setTitle] = useState('');
   const [weight, setWeight] = useState('20%');
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('creator_assignment_builder_view_accessed', {});
+    }
+  }, [userId, trackEvent]);
 
   const handleAddAssignment = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1779,15 +2066,30 @@ export const AssignmentBuilderView: React.FC<ViewProps> = ({ triggerToast }) => 
 
 // Homework Builder View
 export const HomeworkBuilderView: React.FC<ViewProps> = ({ triggerToast }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [tasks, setTasks] = useState([
     { id: 1, title: 'Vocabulary Review: Tech Synonyms', dueDays: 2 },
     { id: 2, title: '30-second Audio Pitch: Project Proposal', dueDays: 3 }
   ]);
   const [hTitle, setHTitle] = useState('');
 
+  useEffect(() => {
+    if (userId) {
+      trackEvent('creator_homework_builder_view_accessed', {});
+    }
+  }, [userId, trackEvent]);
+
   const handleAddHomework = (e: React.FormEvent) => {
     e.preventDefault();
     if (!hTitle.trim()) return;
+    if (userId) {
+      trackEvent('creator_homework_task_added', {
+        taskTitle: hTitle,
+      });
+    }
     setTasks(prev => [...prev, { id: Date.now(), title: hTitle, dueDays: 2 }]);
     setHTitle('');
     triggerToast('✓ Nova Tarefa de Casa cadastrada e agendada!');
@@ -1846,15 +2148,32 @@ export const HomeworkBuilderView: React.FC<ViewProps> = ({ triggerToast }) => {
 
 // AI Content Generator View
 export const AIContentGeneratorView: React.FC<ViewProps> = ({ triggerToast }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [topic, setTopic] = useState('');
   const [level, setLevel] = useState('B2');
   const [type, setType] = useState('Dialogue');
   const [generating, setGenerating] = useState(false);
   const [generatedText, setGeneratedText] = useState('');
 
+  useEffect(() => {
+    if (userId) {
+      trackEvent('creator_ai_content_generator_view_accessed', {});
+    }
+  }, [userId, trackEvent]);
+
   const handleGenerate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!topic.trim()) return;
+    if (userId) {
+      trackEvent('creator_ai_content_generated', {
+        topic,
+        level,
+        type,
+      });
+    }
     setGenerating(true);
     setTimeout(() => {
       let content = '';
@@ -1974,13 +2293,28 @@ export const AIContentGeneratorView: React.FC<ViewProps> = ({ triggerToast }) =>
 
 // Media Library View
 export const MediaLibraryView: React.FC<ViewProps> = ({ triggerToast }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [medias, setMedias] = useState([
     { id: 1, name: 'Sample Pitch Audio.mp3', size: '1.2 MB', ext: 'MP3' },
     { id: 2, name: 'IPA Phonetic Diagram.png', size: '420 KB', ext: 'PNG' },
     { id: 3, name: 'Customer Interview Script.pdf', size: '150 KB', ext: 'PDF' }
   ]);
 
+  useEffect(() => {
+    if (userId) {
+      trackEvent('creator_media_library_view_accessed', {});
+    }
+  }, [userId, trackEvent]);
+
   const handleUploadSim = () => {
+    if (userId) {
+      trackEvent('creator_media_uploaded', {
+        mediaCount: medias.length + 1,
+      });
+    }
     const name = prompt('Qual o nome do arquivo para upload?');
     if (!name) return;
     setMedias(prev => [...prev, {
@@ -2036,15 +2370,30 @@ export const MediaLibraryView: React.FC<ViewProps> = ({ triggerToast }) => {
 
 // Question Bank View
 export const QuestionBankView: React.FC<ViewProps> = ({ triggerToast }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [questions, setQuestions] = useState([
     { id: 1, text: 'Introduce yourself in a formal business context. Focus on /θ/ sounds.', level: 'B2', dialect: 'UK English' },
     { id: 2, text: 'How do you handle a budget overflow in your department?', level: 'C1', dialect: 'US English' },
     { id: 3, text: 'Discuss the benefits of remote work compared to on-site work.', level: 'B1', dialect: 'AU English' }
   ]);
 
+  useEffect(() => {
+    if (userId) {
+      trackEvent('creator_question_bank_view_accessed', {});
+    }
+  }, [userId, trackEvent]);
+
   const handleAddQuestion = () => {
     const text = prompt('Escreva a pergunta fonológica do exame:');
     if (!text) return;
+    if (userId) {
+      trackEvent('creator_question_added', {
+        questionLength: text.length,
+      });
+    }
     setQuestions(prev => [...prev, {
       id: Date.now(),
       text,
@@ -2097,6 +2446,16 @@ export const QuestionBankView: React.FC<ViewProps> = ({ triggerToast }) => {
 
 // Resource Marketplace View
 export const ResourceMarketplaceView: React.FC<ViewProps> = ({ triggerToast }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('creator_resource_marketplace_view_accessed', {});
+    }
+  }, [userId, trackEvent]);
+
   return (
     <div className="space-y-6">
       <div>
@@ -2136,7 +2495,17 @@ export const ResourceMarketplaceView: React.FC<ViewProps> = ({ triggerToast }) =
 
 // Publishing Center View
 export const PublishingCenterView: React.FC<ViewProps> = ({ triggerToast }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [targetClass, setTargetClass] = useState('Turma Alfa');
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('creator_publishing_center_view_accessed', {});
+    }
+  }, [userId, trackEvent]);
 
   return (
     <div className="space-y-6">
@@ -2196,6 +2565,10 @@ export const PublishingCenterView: React.FC<ViewProps> = ({ triggerToast }) => {
 // 11. LINGOLIVE AI REVIEW SYSTEM (LARS) VIEW
 // ----------------------------------------------------
 export const LarsView: React.FC<ViewProps> = ({ triggerToast }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [activeSubTab, setActiveSubTab] = useState<'pending' | 'rules' | 'metrics'>('pending');
   const [selectedReview, setSelectedReview] = useState<any | null>({
     id: 'r1',
@@ -2273,8 +2646,23 @@ export const LarsView: React.FC<ViewProps> = ({ triggerToast }) => {
     }
   }, [selectedReview]);
 
+  useEffect(() => {
+    if (userId) {
+      trackEvent('creator_lars_view_accessed', {
+        activeSubTab,
+        pendingReviewsCount: pendingReviews.length,
+      });
+    }
+  }, [userId, trackEvent, activeSubTab, pendingReviews.length]);
+
   const handleApprove = () => {
     if (!selectedReview) return;
+    if (userId) {
+      trackEvent('lars_evaluation_approved', {
+        studentId: selectedReview.id,
+        studentName: selectedReview.student,
+      });
+    }
     triggerToast(`✓ LARS: Avaliação para ${selectedReview.student} aprovada com sucesso!`);
     const remaining = pendingReviews.filter(r => r.id !== selectedReview.id);
     setPendingReviews(remaining);
@@ -2286,6 +2674,11 @@ export const LarsView: React.FC<ViewProps> = ({ triggerToast }) => {
   };
 
   const handleRegenerate = () => {
+    if (userId) {
+      trackEvent('lars_feedback_regenerated', {
+        studentId: selectedReview?.id,
+      });
+    }
     triggerToast('⚡ LARS: Re-solicitando geração do relatório oratório com o modelo Gemini...');
     setTimeout(() => {
       setEditedFeedback(prev => prev + '\n\n*Nota Adicional da IA:* Focando prioritariamente na clareza vocal e velocidade de fala.');
