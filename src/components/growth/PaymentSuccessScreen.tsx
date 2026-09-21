@@ -1,19 +1,37 @@
 import React, { useEffect } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { motion } from "motion/react";
+import { auth } from "../../firebase";
+import { useAnalytics } from "../../hooks/useAnalytics";
+import { useMonitoring } from "../../hooks/useMonitoring";
 
 interface PaymentSuccessScreenProps {
   onComplete: () => void;
 }
 
 export const PaymentSuccessScreen: React.FC<PaymentSuccessScreenProps> = ({ onComplete }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('payment_success_screen_shown', {});
+    }
+  }, [userId, trackEvent]);
+
   useEffect(() => {
     // Automatically redirect after a short delay
     const timer = setTimeout(() => {
+      if (userId) {
+        trackEvent('payment_completion_auto_redirect', {
+          delayMs: 3000,
+        });
+      }
       onComplete();
     }, 3000);
     return () => clearTimeout(timer);
-  }, [onComplete]);
+  }, [onComplete, userId, trackEvent]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-950 p-4">
