@@ -1,24 +1,27 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { 
-  Mic, 
-  Square, 
-  Volume2, 
-  Sparkles, 
-  TrendingUp, 
-  Award, 
-  AlertCircle, 
-  RefreshCw, 
-  Wifi, 
-  WifiOff, 
-  CheckCircle, 
-  Clock, 
-  BookOpen, 
-  Users, 
-  Target, 
-  ChevronRight, 
-  Activity, 
-  Globe, 
+import { auth } from "../../firebase";
+import { useAnalytics } from "../../hooks/useAnalytics";
+import { useMonitoring } from "../../hooks/useMonitoring";
+import {
+  Mic,
+  Square,
+  Volume2,
+  Sparkles,
+  TrendingUp,
+  Award,
+  AlertCircle,
+  RefreshCw,
+  Wifi,
+  WifiOff,
+  CheckCircle,
+  Clock,
+  BookOpen,
+  Users,
+  Target,
+  ChevronRight,
+  Activity,
+  Globe,
   HelpCircle,
   FileText,
   Play,
@@ -26,14 +29,14 @@ import {
   Flame,
   ArrowRight
 } from "lucide-react";
-import { 
-  AreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer 
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer
 } from "recharts";
 import { PronunciationService } from "../../services/pronunciation.service";
 import { PronunciationResult, PronunciationReport } from "../../types/pronunciation";
@@ -67,6 +70,10 @@ const PRESET_SCENARIOS = [
 ];
 
 export const PronunciationModule: React.FC<PronunciationModuleProps> = ({ onAddXp }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const service = React.useMemo(() => new PronunciationService(), []);
 
   // System status
@@ -120,6 +127,16 @@ export const PronunciationModule: React.FC<PronunciationModuleProps> = ({ onAddX
       window.removeEventListener("offline", handleStatusChange);
     };
   }, [service]);
+
+  // Track module view
+  useEffect(() => {
+    if (userId) {
+      trackEvent('pronunciation_module_viewed', {
+        moduleName: 'Pronunciation Module',
+        moduleType: 'pronunciation_system'
+      });
+    }
+  }, [userId, trackEvent]);
 
   // Load history and reports
   useEffect(() => {
@@ -183,6 +200,13 @@ export const PronunciationModule: React.FC<PronunciationModuleProps> = ({ onAddX
       const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
       mediaRecorderRef.current = recorder;
 
+      if (userId) {
+        trackEvent('pronunciation_recording_started', {
+          scenarioId: isCustomMode ? 'custom' : selectedScenario.id,
+          pronunciationModuleType: 'pronunciation_system'
+        });
+      }
+
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           audioChunksRef.current.push(event.data);
@@ -210,6 +234,12 @@ export const PronunciationModule: React.FC<PronunciationModuleProps> = ({ onAddX
       setIsRecording(true);
     } catch (err) {
       console.error("Failed to access microphone:", err);
+      if (userId) {
+        trackEvent('pronunciation_microphone_access_denied', {
+          pronunciationModuleType: 'pronunciation_system',
+          errorType: 'microphone_permission'
+        });
+      }
       alert("Para utilizar a avaliação de pronúncia, por favor permita o acesso ao microfone no seu navegador.");
     }
   };
@@ -218,6 +248,12 @@ export const PronunciationModule: React.FC<PronunciationModuleProps> = ({ onAddX
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
+      if (userId) {
+        trackEvent('pronunciation_recording_stopped', {
+          recordingDuration: recordingDuration,
+          pronunciationModuleType: 'pronunciation_system'
+        });
+      }
     }
   };
 
@@ -239,6 +275,17 @@ export const PronunciationModule: React.FC<PronunciationModuleProps> = ({ onAddX
         "audio/webm"
       );
 
+      if (userId) {
+        trackEvent('pronunciation_evaluated', {
+          overallScore: evaluation.overallScore,
+          pronunciationScore: evaluation.pronunciationScore,
+          fluencyScore: evaluation.fluencyScore,
+          intonationScore: evaluation.intonationScore,
+          scenarioId: isCustomMode ? 'custom' : selectedScenario.id,
+          pronunciationModuleType: 'pronunciation_system'
+        });
+      }
+
       setResult(evaluation);
       if (onAddXp) {
         onAddXp(evaluation.overallScore >= 80 ? 100 : 50);
@@ -246,9 +293,21 @@ export const PronunciationModule: React.FC<PronunciationModuleProps> = ({ onAddX
     } catch (err: any) {
       if (err.message === "OFFLINE_MODE_SAVED") {
         setOfflineQueueCount(service.getOfflineQueue().length);
+        if (userId) {
+          trackEvent('pronunciation_evaluation_offline_queued', {
+            pronunciationModuleType: 'pronunciation_system',
+            offlineQueueSize: service.getOfflineQueue().length
+          });
+        }
         alert("Modo Offline Ativado! O seu áudio foi gravado de forma segura localmente e será analisado automaticamente assim que reestabelecer a sua ligação à internet.");
       } else {
         console.error("Evaluation error:", err);
+        if (userId) {
+          trackEvent('pronunciation_evaluation_failed', {
+            errorMessage: err.message,
+            pronunciationModuleType: 'pronunciation_system'
+          });
+        }
         alert(`Não foi possível completar a análise: ${err.message}`);
       }
     } finally {
