@@ -54,7 +54,7 @@ export function useOfflineSync(schoolId: string) {
   const queueOperation = useCallback(
     async (
       type: 'create' | 'update' | 'delete',
-      collection: string,
+      collectionPath: string,
       data: Record<string, any>,
       docId?: string
     ) => {
@@ -63,7 +63,7 @@ export function useOfflineSync(schoolId: string) {
           schoolId,
           userId: 'current-user-id', // Will be replaced with actual userId from auth
           type,
-          collection,
+          collection: collectionPath,
           docId,
           data,
           timestamp: Timestamp.now(),
