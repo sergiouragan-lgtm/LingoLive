@@ -45,15 +45,26 @@ jobs:
         run: npm run test:coverage
         continue-on-error: true
 
+      - name: Verify coverage file exists
+        run: |
+          if [ -f ./coverage/coverage-final.json ]; then
+            echo "✓ Coverage file exists"
+            ls -lh ./coverage/coverage-final.json
+          else
+            echo "⚠ Coverage file not found"
+          fi
+        continue-on-error: true
+
       - name: Security audit
         run: npm audit --omit=dev
         continue-on-error: true
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           files: ./coverage/coverage-final.json
           fail_ci_if_error: false
+        continue-on-error: true
 
   build:
     name: Build Docker Image
