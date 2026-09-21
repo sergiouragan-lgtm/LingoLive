@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Flame } from 'lucide-react';
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 type StudyStreakTrackerProps = {
   history?: string[];
@@ -8,11 +11,15 @@ type StudyStreakTrackerProps = {
   timezone?: string | null;
 };
 
-export const StudyStreakTracker: React.FC<StudyStreakTrackerProps> = ({ 
-  history = [], 
-  isLoading = false, 
-  isError = false 
+export const StudyStreakTracker: React.FC<StudyStreakTrackerProps> = ({
+  history = [],
+  isLoading = false,
+  isError = false
 }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const streak = useMemo(() => {
     if (!history || history.length === 0) return 0;
     
@@ -52,6 +59,22 @@ export const StudyStreakTracker: React.FC<StudyStreakTrackerProps> = ({
     }
     return currentStreak;
   }, [history]);
+
+  useEffect(() => {
+    if (userId && streak > 0) {
+      trackEvent('study_streak_displayed', {
+        streakDays: streak,
+        trackerType: 'daily_streak'
+      });
+      // Track milestone streaks
+      if (streak === 7 || streak === 14 || streak === 30 || streak === 100 || streak % 30 === 0) {
+        trackEvent('streak_milestone_reached', {
+          streakDays: streak,
+          isMilestone: true
+        });
+      }
+    }
+  }, [streak, userId, trackEvent]);
 
   if (isLoading) {
     return <div className="animate-pulse bg-orange-50 h-12 rounded-xl" aria-hidden="true" />;
