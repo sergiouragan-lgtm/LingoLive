@@ -1,7 +1,20 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Gift, Share2, Tag, Percent, Megaphone } from 'lucide-react';
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 export const MarketingView: React.FC = () => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('marketing_view_accessed', {});
+    }
+  }, [userId, trackEvent]);
+
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold">Marketing</h1>
