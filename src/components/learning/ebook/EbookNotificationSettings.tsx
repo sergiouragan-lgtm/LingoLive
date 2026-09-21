@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Bell, BellOff, BookOpen, TrendingUp, RefreshCw, CheckCircle } from "lucide-react";
 import { auth } from "../../../firebase";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useMonitoring } from "../../../hooks/useMonitoring";
 
 interface NotificationPrefs {
   studentId: string;
@@ -65,6 +67,10 @@ function Toggle({
 }
 
 export function EbookNotificationSettings() {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [prefs, setPrefs] = useState<NotificationPrefs | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -72,10 +78,26 @@ export function EbookNotificationSettings() {
 
   useEffect(() => {
     apiFetch("/preferences")
-      .then((d) => setPrefs(d.prefs))
-      .catch(console.error)
+      .then((d) => {
+        setPrefs(d.prefs);
+        if (userId) {
+          trackEvent('ebook_notification_settings_loaded', {
+            studyRemindersEnabled: d.prefs.studyReminders,
+            reminderHour: d.prefs.reminderHour,
+            newEbookAlertsEnabled: d.prefs.newEbookAlerts,
+            progressMilestonesEnabled: d.prefs.progressMilestones,
+            fcmTokenCount: d.prefs.fcmTokens.length,
+          });
+        }
+      })
+      .catch((err) => {
+        console.error(err);
+        if (userId) {
+          trackEvent('ebook_notification_settings_load_failed', {});
+        }
+      })
       .finally(() => setLoading(false));
-  }, []);
+  }, [userId, trackEvent]);
 
   const updatePref = async (key: keyof NotificationPrefs, value: unknown) => {
     if (!prefs) return;
@@ -88,10 +110,23 @@ export function EbookNotificationSettings() {
         method: "PUT",
         body: JSON.stringify({ [key]: value }),
       });
+
+      if (userId) {
+        trackEvent('ebook_notification_preference_changed', {
+          preferenceKey: key,
+          newValue: typeof value === 'boolean' ? value : (typeof value === 'number' ? value : String(value)),
+        });
+      }
+
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch {
       setPrefs(prefs); // rollback
+      if (userId) {
+        trackEvent('ebook_notification_preference_change_failed', {
+          preferenceKey: key,
+        });
+      }
     } finally {
       setSaving(false);
     }
