@@ -1,16 +1,41 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Store, ShoppingBag, ShoppingCart, TrendingUp, DollarSign, 
-  Settings, Sparkles, BookOpen, Star, 
+import {
+  Store, ShoppingBag, ShoppingCart, TrendingUp, DollarSign,
+  Settings, Sparkles, BookOpen, Star,
   BarChart3, Shield, Globe, Award, Briefcase, FileText,
   MessageCircle, LayoutDashboard, Search, Zap, CheckCircle, Users
 } from 'lucide-react';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
+import { auth } from '../../firebase';
 
 type LGMPSection = 'dashboard' | 'catalog' | 'services' | 'subscriptions' | 'analytics' | 'lars';
 
 export const MarketplacePlatform: React.FC<{ activeView?: string; setView?: (v: any) => void }> = ({ activeView = "marketplace", setView }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [activeSection, setActiveSection] = useState<LGMPSection>('dashboard');
+
+  // Lifecycle tracking
+  useEffect(() => {
+    if (userId) {
+      trackEvent('marketplace_platform_accessed', {
+        initialSection: 'dashboard',
+      });
+    }
+  }, [userId, trackEvent]);
+
+  // Track section changes
+  useEffect(() => {
+    if (userId && activeSection) {
+      trackEvent('marketplace_section_changed', {
+        newSection: activeSection,
+      });
+    }
+  }, [activeSection, userId, trackEvent]);
 
   useEffect(() => {
     if (activeView === 'marketplace' || activeView === 'marketplace-dashboard') setActiveSection('dashboard');
