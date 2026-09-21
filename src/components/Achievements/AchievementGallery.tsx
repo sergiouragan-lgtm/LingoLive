@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Award, Lock, Trophy, Star } from 'lucide-react';
 import { Achievement } from './types';
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 const iconMap: Record<string, React.ElementType> = {
   Award,
@@ -14,6 +17,20 @@ interface AchievementGalleryProps {
 }
 
 export const AchievementGallery: React.FC<AchievementGalleryProps> = ({ achievements }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      const unlockedCount = achievements.filter(a => a.unlockedAt).length;
+      trackEvent('achievement_gallery_displayed', {
+        totalAchievements: achievements.length,
+        unlockedAchievements: unlockedCount,
+        galleryType: 'all_achievements'
+      });
+    }
+  }, [userId, achievements.length, trackEvent]);
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4">
       {achievements.map((achievement) => {
