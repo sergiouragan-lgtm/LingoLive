@@ -2,12 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { Clock, AlertCircle } from 'lucide-react';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 export interface StudyTimeTrackerProps {
   userId: string;
 }
 
 export const StudyTimeTracker: React.FC<StudyTimeTrackerProps> = ({ userId }) => {
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
   const [totalMinutes, setTotalMinutes] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +25,7 @@ export const StudyTimeTracker: React.FC<StudyTimeTrackerProps> = ({ userId }) =>
       try {
         const q = query(collection(db, "users_practice_sessions"), where("userId", "==", userId));
         const querySnapshot = await getDocs(q);
-        
+
         const sessions: any[] = [];
         const seenIds = new Set<string>();
 
@@ -30,7 +34,7 @@ export const StudyTimeTracker: React.FC<StudyTimeTrackerProps> = ({ userId }) =>
           foundAnyData = true;
           const data = doc.data();
           const sessionId = data.sessionId || doc.id;
-          
+
           if (!seenIds.has(sessionId)) {
             seenIds.add(sessionId);
             sessions.push({ ...data, id: doc.id });
@@ -55,17 +59,26 @@ export const StudyTimeTracker: React.FC<StudyTimeTrackerProps> = ({ userId }) =>
           return acc + durationSeconds;
         }, 0);
 
-        setTotalMinutes(Math.round(totalSeconds / 60));
+        const minutes = Math.round(totalSeconds / 60);
+        setTotalMinutes(minutes);
+        trackEvent('study_time_tracker_loaded', {
+          totalMinutes: minutes,
+          sessionCount: sessions.length,
+          trackerType: 'study_time'
+        });
       } catch (err) {
         console.error("Error fetching study time:", err);
         setError("studyTime.error");
+        trackEvent('study_time_tracker_load_failed', {
+          error: err instanceof Error ? err.message : 'Unknown error'
+        });
       } finally {
         setLoading(false);
       }
     };
 
     fetchStudyTime();
-  }, [userId]);
+  }, [userId, trackEvent]);
 
   if (loading) return <div className="animate-pulse bg-slate-200 h-10 w-24 rounded" aria-hidden="true"></div>;
   if (error) return <div className="text-rose-500 text-xs flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {error}</div>;
