@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'motion/react';
 import {
   BarChart,
@@ -21,6 +21,9 @@ import {
 } from 'recharts';
 import { Download, Calendar, TrendingUp, Users, BookOpen, Zap, Settings } from 'lucide-react';
 import { useRealtimeSync } from '@/hooks/useRealtimeSync';
+import { auth } from '@/firebase';
+import { useAnalytics } from '@/hooks/useAnalytics';
+import { useMonitoring } from '@/hooks/useMonitoring';
 
 interface AnalyticsData {
   id: string;
@@ -75,6 +78,9 @@ export const AdvancedAnalytics: React.FC<AdvancedAnalyticsProps> = ({
   classId,
   timeRange = '30d',
 }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
   const [selectedMetric, setSelectedMetric] = useState<string>('progress');
   const [selectedCohort, setSelectedCohort] = useState<string>('');
 
@@ -97,6 +103,16 @@ export const AdvancedAnalytics: React.FC<AdvancedAnalyticsProps> = ({
     schoolId ? `analytics/trends/${schoolId}` : `analytics/trends/global`,
     (data) => data || []
   );
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('advanced_analytics_viewed', {
+        schoolId: schoolId || 'global',
+        timeRange,
+        hasClassFilter: !!classId
+      });
+    }
+  }, [userId, trackEvent, schoolId, classId, timeRange]);
 
   const selectedCohortData = useMemo(
     () => cohortMetrics?.find((c) => c.cohortId === selectedCohort) || cohortMetrics?.[0],
@@ -123,7 +139,25 @@ export const AdvancedAnalytics: React.FC<AdvancedAnalyticsProps> = ({
     })) || [];
   }, [trendData]);
 
+  const handleCohortChange = (cohortId: string) => {
+    setSelectedCohort(cohortId);
+    if (userId) {
+      trackEvent('analytics_cohort_selected', {
+        cohortId: cohortId || 'all',
+        schoolId: schoolId || 'global'
+      });
+    }
+  };
+
   const handleExportReport = async (format: 'pdf' | 'csv' | 'excel') => {
+    if (userId) {
+      trackEvent('analytics_export_initiated', {
+        format,
+        timeRange,
+        schoolId: schoolId || 'global'
+      });
+    }
+
     try {
       const token = await (window as any).auth?.currentUser?.getIdToken?.();
       const url = schoolId
@@ -140,8 +174,24 @@ export const AdvancedAnalytics: React.FC<AdvancedAnalyticsProps> = ({
       link.href = downloadUrl;
       link.download = `analytics-report-${Date.now()}.${format === 'pdf' ? 'pdf' : format === 'csv' ? 'csv' : 'xlsx'}`;
       link.click();
+
+      if (userId) {
+        trackEvent('analytics_export_completed', {
+          format,
+          timeRange,
+          schoolId: schoolId || 'global'
+        });
+      }
     } catch (error) {
       console.error('Export failed:', error);
+      if (userId) {
+        trackEvent('analytics_export_failed', {
+          format,
+          timeRange,
+          schoolId: schoolId || 'global',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
     }
   };
 
@@ -284,7 +334,7 @@ export const AdvancedAnalytics: React.FC<AdvancedAnalyticsProps> = ({
             </h2>
             <select
               value={selectedCohort}
-              onChange={(e) => setSelectedCohort(e.target.value)}
+              onChange={(e) => handleCohortChange(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:border-indigo-500 mb-6"
             >
               <option value="">Todas as turmas</option>

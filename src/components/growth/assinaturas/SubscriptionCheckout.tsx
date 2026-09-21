@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Check, Sparkles, ArrowLeft, ChevronRight } from 'lucide-react';
 import { useLocalization } from "../../../context/LocalizationContext";
 import { navigateToExternalCheckout } from "../../../utils/navigationUtils";
+import { auth } from '../../../firebase';
+import { useAnalytics } from '../../../hooks/useAnalytics';
+import { useMonitoring } from '../../../hooks/useMonitoring';
 
 interface Plan {
   id: string;
@@ -14,6 +17,9 @@ interface Plan {
 }
 
 export default function SubscriptionCheckout({ setView, user }: { setView: (v: string) => void, user?: any }) {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
   const [loading, setLoading] = useState<string | null>(null);
   const { ot } = useLocalization();
 
@@ -53,28 +59,54 @@ export default function SubscriptionCheckout({ setView, user }: { setView: (v: s
     },
   ];
 
+  useEffect(() => {
+    if (userId) {
+      trackEvent('subscription_checkout_viewed', {
+        plansAvailable: plans.length,
+        userAuthenticated: !!user
+      });
+    }
+  }, [userId, trackEvent, user, plans.length]);
+
   const handleCheckout = async (plan: any) => {
     if (plan.id === 'free') {
+      if (userId) {
+        trackEvent('subscription_free_plan_selected', {
+          planId: 'free'
+        });
+      }
       setView('dashboard');
       return;
     }
     if (!user) {
       alert('Você precisa estar autenticado para realizar uma assinatura.');
+      if (userId) {
+        trackEvent('subscription_checkout_failed_not_authenticated', {
+          planId: plan.id
+        });
+      }
       return;
     }
+    if (userId) {
+      trackEvent('subscription_checkout_initiated', {
+        planId: plan.id,
+        planName: plan.name,
+        price: plan.price
+      });
+    }
     setLoading(plan.id);
-    
+
     try {
         const token = await user.getIdToken();
         const response = await fetch('/api/create-checkout-session', {
           method: 'POST',
-          headers: { 
+          headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({ 
+          body: JSON.stringify({
             planId: plan.id,
-            priceId: plan.priceId 
+            priceId: plan.priceId
           }),
         });
 
@@ -84,14 +116,26 @@ export default function SubscriptionCheckout({ setView, user }: { setView: (v: s
         }
 
         const session = await response.json();
-        
+
         if (session.url) {
+          if (userId) {
+            trackEvent('subscription_checkout_session_created', {
+              planId: plan.id,
+              sessionId: session.id
+            });
+          }
           navigateToExternalCheckout(session.url);
         } else {
           throw new Error('Checkout session URL missing');
         }
     } catch (error: any) {
       console.error('Checkout error:', error);
+      if (userId) {
+        trackEvent('subscription_checkout_error', {
+          planId: plan.id,
+          error: error.message
+        });
+      }
       alert(error.message || 'Erro ao iniciar pagamento');
       setLoading(null);
     }
