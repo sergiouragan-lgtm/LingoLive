@@ -1,10 +1,12 @@
 import { Request, Response } from 'express';
-import * as admin from 'firebase-admin';
-import * as functions from 'firebase-functions';
+import { initializeApp } from 'firebase-admin/app';
+import { getFirestore, Timestamp, FieldValue } from 'firebase-admin/firestore';
+import { onDocumentCreated } from 'firebase-functions/v2/firestore';
+import { https } from 'firebase-functions/v2';
 
 // Initialize Firebase Admin SDK
-admin.initializeApp();
-const db = admin.firestore();
+initializeApp();
+const db = getFirestore();
 
 /**
  * Enterprise Cloud Functions v2 Interfaces (Compiled with Node/Express handlers)
@@ -24,8 +26,8 @@ interface ClassroomData {
   teacherUid: string;
   schoolId: string;
   studentCount: number;
-  createdAt: admin.firestore.Timestamp;
-  updatedAt: admin.firestore.Timestamp;
+  createdAt: any;
+  updatedAt: any;
 }
 
 interface StudentData {
@@ -35,8 +37,8 @@ interface StudentData {
   schoolId: string;
   classId?: string;
   cefrLevel?: string;
-  createdAt: admin.firestore.Timestamp;
-  updatedAt: admin.firestore.Timestamp;
+  createdAt: any;
+  updatedAt: any;
 }
 
 interface StudentProgress {
@@ -46,9 +48,9 @@ interface StudentProgress {
   lessonsCompleted: number;
   averageScore: number;
   streakDays: number;
-  lastActivityDate: admin.firestore.Timestamp;
-  createdAt: admin.firestore.Timestamp;
-  updatedAt: admin.firestore.Timestamp;
+  lastActivityDate: any;
+  createdAt: any;
+  updatedAt: any;
 }
 
 const buildResponse = (success: boolean, message: string, data?: any, error?: string): EnterpriseFunctionResponse => ({
@@ -70,8 +72,8 @@ export async function onUserCreated(userRecord: any, context: any): Promise<void
       uid: userRecord.uid,
       email: userRecord.email,
       displayName: userRecord.displayName || '',
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
       role: 'student', // Default role
       isActive: true
     };
@@ -104,17 +106,16 @@ export async function onUserDeleted(userRecord: any, context: any): Promise<void
  * Triggered when a new classroom document is created in Firestore
  * Initializes all related data structures for the classroom
  */
-export const onClassroomCreated = functions.firestore
-  .document('schools/{schoolId}/classrooms/{classroomId}')
-  .onCreate(async (snap, context) => {
-    const classroomData = snap.data() as ClassroomData;
-    const { schoolId, classroomId } = context.params;
+export const onClassroomCreated = onDocumentCreated('schools/{schoolId}/classrooms/{classroomId}', async (event) => {
+    const classroomData = event.data?.data() as ClassroomData;
+    const schoolId = event.params.schoolId;
+    const classroomId = event.params.classroomId;
 
     console.log(`[Functions - Classroom] New classroom created: ${classroomId} in school ${schoolId}`);
 
     try {
       const batch = db.batch();
-      const now = admin.firestore.FieldValue.serverTimestamp();
+      const now = FieldValue.serverTimestamp();
 
       // 1. Create classroom metadata document
       const classroomMetadataRef = db
@@ -186,8 +187,7 @@ export const onClassroomCreated = functions.firestore
       console.log(`[Functions - Classroom] Successfully initialized classroom ${classroomId} with metadata, analytics, settings, and students subcollection`);
     } catch (error) {
       console.error(`[Functions - Classroom] Error initializing classroom ${classroomId}: ${error}`);
-      throw new functions.https.HttpsError(
-        'internal',
+      throw new Error(
         `Failed to initialize classroom: ${error instanceof Error ? error.message : String(error)}`
       );
     }
@@ -198,17 +198,17 @@ export const onClassroomCreated = functions.firestore
  * Triggered when a student is added to a classroom
  * Creates student progress tracking and initializes achievement records
  */
-export const onStudentEnrolled = functions.firestore
-  .document('schools/{schoolId}/classrooms/{classroomId}/students/{studentId}')
-  .onCreate(async (snap, context) => {
-    const studentData = snap.data() as StudentData;
-    const { schoolId, classroomId, studentId } = context.params;
+export const onStudentEnrolled = onDocumentCreated('schools/{schoolId}/classrooms/{classroomId}/students/{studentId}', async (event) => {
+    const studentData = event.data?.data() as StudentData;
+    const schoolId = event.params.schoolId;
+    const classroomId = event.params.classroomId;
+    const studentId = event.params.studentId;
 
     console.log(`[Functions - Student] Student ${studentId} enrolled in classroom ${classroomId}`);
 
     try {
       const batch = db.batch();
-      const now = admin.firestore.FieldValue.serverTimestamp();
+      const now = FieldValue.serverTimestamp();
 
       // 1. Create student progress record
       const progressRef = db
@@ -297,7 +297,7 @@ export const onStudentEnrolled = functions.firestore
         .collection('classrooms').doc(classroomId);
 
       batch.update(classroomRef, {
-        studentCount: admin.firestore.FieldValue.increment(1),
+        studentCount: FieldValue.increment(1),
         updatedAt: now
       });
 
@@ -306,7 +306,7 @@ export const onStudentEnrolled = functions.firestore
         .collection('metadata').doc('stats');
 
       batch.update(classroomMetadataRef, {
-        totalStudents: admin.firestore.FieldValue.increment(1),
+        totalStudents: FieldValue.increment(1),
         updatedAt: now
       });
 
@@ -316,8 +316,7 @@ export const onStudentEnrolled = functions.firestore
       console.log(`[Functions - Student] Successfully initialized progress tracking, streaks, achievements, and assessments for student ${studentId}`);
     } catch (error) {
       console.error(`[Functions - Student] Error enrolling student ${studentId}: ${error}`);
-      throw new functions.https.HttpsError(
-        'internal',
+      throw new Error(
         `Failed to enroll student: ${error instanceof Error ? error.message : String(error)}`
       );
     }
@@ -356,7 +355,7 @@ export async function createClassroom(req: Request, res: Response): Promise<void
 
   try {
     const classroomRef = db.collection('schools').doc(schoolId).collection('classrooms').doc();
-    const now = admin.firestore.FieldValue.serverTimestamp();
+    const now = FieldValue.serverTimestamp();
 
     const classroomData = {
       id: classroomRef.id,
@@ -396,7 +395,7 @@ export async function updateClassroom(req: Request, res: Response): Promise<void
 
   try {
     const classroomRef = db.collection('schools').doc(schoolId).collection('classrooms').doc(classroomId);
-    const now = admin.firestore.FieldValue.serverTimestamp();
+    const now = FieldValue.serverTimestamp();
 
     const updateData: any = { updatedAt: now };
     if (name) updateData.name = name;
@@ -458,7 +457,7 @@ export async function addStudentToClassroom(req: Request, res: Response): Promis
       .collection('classrooms').doc(classroomId)
       .collection('students').doc(studentUid);
 
-    const now = admin.firestore.FieldValue.serverTimestamp();
+    const now = FieldValue.serverTimestamp();
 
     const studentData = {
       uid: studentUid,
@@ -538,17 +537,17 @@ export async function removeStudentFromClassroom(req: Request, res: Response): P
     const classroomRef = db
       .collection('schools').doc(schoolId)
       .collection('classrooms').doc(classroomId);
-    const now = admin.firestore.FieldValue.serverTimestamp();
+    const now = FieldValue.serverTimestamp();
 
     batch.update(classroomRef, {
-      studentCount: admin.firestore.FieldValue.increment(-1),
+      studentCount: FieldValue.increment(-1),
       updatedAt: now
     });
 
     // Update classroom metadata
     const classroomMetadataRef = classroomRef.collection('metadata').doc('stats');
     batch.update(classroomMetadataRef, {
-      totalStudents: admin.firestore.FieldValue.increment(-1),
+      totalStudents: FieldValue.increment(-1),
       updatedAt: now
     });
 
