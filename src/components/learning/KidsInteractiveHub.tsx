@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from "react";
+import { auth } from "../../firebase";
+import { useAnalytics } from "../../hooks/useAnalytics";
+import { useMonitoring } from "../../hooks/useMonitoring";
 import { Language } from "../../types";
-import { 
-  Volume2, 
-  Mic, 
-  MicOff, 
-  Sparkles, 
-  Star, 
-  Smile, 
-  Heart, 
-  Music, 
+import {
+  Volume2,
+  Mic,
+  MicOff,
+  Sparkles,
+  Star,
+  Smile,
+  Heart,
+  Music,
   CheckCircle,
   AlertCircle
 } from "lucide-react";
@@ -91,11 +94,25 @@ interface KidsInteractiveHubProps {
 }
 
 export default function KidsInteractiveHub({ language }: KidsInteractiveHubProps) {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
   const [selectedWordId, setSelectedWordId] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [micFeedback, setMicFeedback] = useState<string | null>(null);
   const [stars, setStars] = useState<number>(0);
   const [bounceId, setBounceId] = useState<string | null>(null);
+
+  // Track module view
+  useEffect(() => {
+    if (userId) {
+      trackEvent('kids_interactive_hub_viewed', {
+        moduleName: 'Kids Interactive Hub',
+        moduleType: 'kids_learning',
+        language: language.name
+      });
+    }
+  }, [userId, trackEvent, language]);
 
   // Synthesize a playful sound effect using Web Audio API
   const playBeep = (type: "success" | "chime" | "mic") => {
@@ -183,6 +200,14 @@ export default function KidsInteractiveHub({ language }: KidsInteractiveHubProps
     setStars(0);
     playBeep("mic");
 
+    if (userId) {
+      trackEvent('kids_speech_test_started', {
+        wordId: selectedWordId,
+        language: language.code,
+        kidsLearningType: 'kids_learning'
+      });
+    }
+
     // Standard webkitSpeechRecognition for real evaluation, with cute responsive simulation if offline/blocked
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     
@@ -236,6 +261,15 @@ export default function KidsInteractiveHub({ language }: KidsInteractiveHubProps
       "Espetacular! Nota 10! 🚀"
     ];
     setMicFeedback(feedbackPhrases[Math.floor(Math.random() * feedbackPhrases.length)]);
+
+    if (userId) {
+      trackEvent('kids_speech_test_completed', {
+        wordId: selectedWordId,
+        score,
+        language: language.code,
+        kidsLearningType: 'kids_learning'
+      });
+    }
   };
 
   const activeWordObj = KIDS_WORDS.find(w => w.id === selectedWordId);
