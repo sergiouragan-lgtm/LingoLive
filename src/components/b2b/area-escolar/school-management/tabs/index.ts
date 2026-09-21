@@ -1,0 +1,13 @@
+export { SchoolDashboard } from './SchoolDashboard';
+export { AcademicManagement } from './AcademicManagement';
+export { TeachersTab } from './TeachersTab';
+export { StudentsTab } from './StudentsTab';
+export { ParentsTab } from './ParentsTab';
+export { AITeachersTab } from './AITeachersTab';
+export { AIDirectorsTab } from './AIDirectorsTab';
+export { DigitalLibraryTab } from './DigitalLibraryTab';
+export { CommunicationTab } from './CommunicationTab';
+export { FinancialTab } from './FinancialTab';
+export { IntegrationsTab } from './IntegrationsTab';
+export { IntelligenceCenter } from './IntelligenceCenter';
+export { SettingsTab } from './SettingsTab';
