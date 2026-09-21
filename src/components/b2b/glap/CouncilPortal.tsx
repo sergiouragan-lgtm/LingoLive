@@ -3,6 +3,9 @@ import { ArrowLeft, BookOpen, AlertTriangle, CheckCircle, Save } from "lucide-re
 import { motion } from "motion/react";
 import { LanguagePolicy, ReviewConflict, ApprovalRequest } from "../../../types/glap";
 import { fetchActiveDialectReviews, updateLanguagePolicy, resolveConflict } from "../../../services/glapService";
+import { auth } from "@/firebase";
+import { useAnalytics } from "@/hooks/useAnalytics";
+import { useMonitoring } from "@/hooks/useMonitoring";
 
 interface CouncilPortalProps {
   onBack: () => void;
@@ -13,6 +16,18 @@ export const CouncilPortal: React.FC<CouncilPortalProps> = ({ onBack }) => {
   const [policies, setPolicies] = useState<LanguagePolicy[]>([]);
   const [conflicts, setConflicts] = useState<ReviewConflict[]>([]);
   const [approvals, setApprovals] = useState<ApprovalRequest[]>([]);
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('council_portal_viewed', {
+        portalType: 'glap_council',
+        initialTab: activeTab
+      });
+    }
+  }, [userId, trackEvent]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -24,6 +39,18 @@ export const CouncilPortal: React.FC<CouncilPortalProps> = ({ onBack }) => {
     fetchData();
   }, [activeTab]);
 
+  useEffect(() => {
+    if (userId) {
+      trackEvent('council_portal_tab_selected', {
+        tabId: activeTab,
+        tabLabel: activeTab === 'policies' ? 'Language Policy Management' :
+                  activeTab === 'conflicts' ? 'Conflict Resolution Queue' :
+                  'Dialect/Cultural Review',
+        portalType: 'glap_council'
+      });
+    }
+  }, [activeTab, userId, trackEvent]);
+
   return (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
@@ -31,7 +58,15 @@ export const CouncilPortal: React.FC<CouncilPortalProps> = ({ onBack }) => {
       className="space-y-6"
     >
       <button
-        onClick={onBack}
+        onClick={() => {
+          if (userId) {
+            trackEvent('council_portal_back_clicked', {
+              currentTab: activeTab,
+              portalType: 'glap_council'
+            });
+          }
+          onBack();
+        }}
         className="flex items-center gap-2 text-sm text-indigo-400 hover:text-indigo-200 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" /> Voltar para GLAP
@@ -65,7 +100,17 @@ export const CouncilPortal: React.FC<CouncilPortalProps> = ({ onBack }) => {
             <div className="space-y-4">
               <h3 className="font-bold text-lg mb-4">Language Policy Management</h3>
               <p className="text-slate-400 text-sm">Atualize as diretrizes oficiais de validação e normas de qualidade.</p>
-              <button className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-bold">
+              <button
+                onClick={() => {
+                  if (userId) {
+                    trackEvent('council_portal_save_policies_clicked', {
+                      policyCount: policies.length,
+                      portalType: 'glap_council'
+                    });
+                  }
+                }}
+                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-bold"
+              >
                 <Save className="w-4 h-4" /> Guardar Alterações
               </button>
             </div>
