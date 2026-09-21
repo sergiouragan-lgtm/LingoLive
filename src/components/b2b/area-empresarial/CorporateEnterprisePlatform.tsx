@@ -46,6 +46,9 @@ import {
   Line,
 } from "recharts";
 import { GlapModule } from "../glap/GlapModule";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useMonitoring } from "../../../hooks/useMonitoring";
+import { auth } from "../../../firebase";
 
 type CEPSection =
   | "dashboard"
@@ -62,7 +65,29 @@ export const CorporateEnterprisePlatform: React.FC<{
   activeView?: string;
   setView?: (v: any) => void;
 }> = ({ activeView = "dashboard", setView }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [activeSection, setActiveSection] = useState<CEPSection>("dashboard");
+
+  // Lifecycle tracking
+  useEffect(() => {
+    if (userId) {
+      trackEvent('corporate_enterprise_platform_accessed', {
+        initialSection: 'dashboard',
+      });
+    }
+  }, [userId, trackEvent]);
+
+  // Track section changes
+  useEffect(() => {
+    if (userId && activeSection) {
+      trackEvent('corporate_enterprise_section_changed', {
+        newSection: activeSection,
+      });
+    }
+  }, [activeSection, userId, trackEvent]);
 
   useEffect(() => {
     // Map router views to internal sections
