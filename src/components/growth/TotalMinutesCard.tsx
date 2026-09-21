@@ -1,17 +1,24 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Clock } from 'lucide-react';
 import { StreakData } from '../../types';
+import { auth } from '../../firebase';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { useMonitoring } from '../../hooks/useMonitoring';
 
 interface TotalMinutesCardProps {
   streakData: StreakData;
 }
 
 export const TotalMinutesCard: React.FC<TotalMinutesCardProps> = ({ streakData }) => {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   // Calculate total sessions in last 7 days
   const today = new Date();
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(today.getDate() - 7);
-  
+
   const recentSessions = streakData.history.filter(dateStr => {
     const d = new Date(dateStr);
     return d >= sevenDaysAgo && d <= today;
@@ -19,6 +26,15 @@ export const TotalMinutesCard: React.FC<TotalMinutesCardProps> = ({ streakData }
 
   // Assuming 20 minutes per session
   const totalMinutes = recentSessions.length * 20;
+
+  useEffect(() => {
+    if (userId) {
+      trackEvent('total_minutes_card_viewed', {
+        totalMinutes,
+        sessionCount: recentSessions.length,
+      });
+    }
+  }, [userId, trackEvent, totalMinutes, recentSessions.length]);
 
   return (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
