@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Trophy, Flame, Zap, Star, Users, RefreshCw, AlertCircle } from "lucide-react";
 import { auth } from "../../../firebase";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useMonitoring } from "../../../hooks/useMonitoring";
 
 interface Badge {
   id: string;
@@ -100,6 +102,10 @@ const ALL_BADGE_DEFS: Badge[] = [
 ];
 
 export function EbookAchievements() {
+  const userId = auth.currentUser?.uid || '';
+  const { trackEvent } = useAnalytics(userId);
+  const { monitors } = useMonitoring();
+
   const [tab, setTab] = useState<"badges" | "leaderboard">("badges");
   const [gamification, setGamification] = useState<StudentGamification | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -116,14 +122,33 @@ export function EbookAchievements() {
       ]);
       setGamification(gData);
       setLeaderboard(lData.entries);
+      if (userId) {
+        trackEvent('ebook_achievements_loaded', {
+          xp: gData.xp,
+          level: gData.level,
+          badgeCount: gData.badges.length,
+          streakDays: gData.streakDays,
+          chaptersRead: gData.totalChaptersRead,
+          ebooksCompleted: gData.totalEbooksCompleted,
+          leaderboardCount: lData.entries.length,
+        });
+      }
     } catch {
       setError("Não foi possível carregar os dados.");
+      if (userId) {
+        trackEvent('ebook_achievements_load_failed', {});
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    if (userId) {
+      trackEvent('ebook_achievements_viewed', {});
+    }
+  }, [userId, trackEvent]);
 
   const earnedIds = new Set(gamification?.badges.map((b) => b.id) ?? []);
 
@@ -136,7 +161,12 @@ export function EbookAchievements() {
           Conquistas & Progresso
         </h3>
         <button
-          onClick={load}
+          onClick={() => {
+            if (userId) {
+              trackEvent('ebook_achievements_refresh_clicked', {});
+            }
+            load();
+          }}
           disabled={loading}
           className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors disabled:opacity-50"
         >
@@ -208,7 +238,14 @@ export function EbookAchievements() {
           {/* Tabs */}
           <div className="flex gap-2">
             <button
-              onClick={() => setTab("badges")}
+              onClick={() => {
+                setTab("badges");
+                if (userId) {
+                  trackEvent('ebook_achievements_tab_changed', {
+                    tab: "badges",
+                  });
+                }
+              }}
               className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${
                 tab === "badges"
                   ? "bg-indigo-600 text-white"
@@ -219,7 +256,14 @@ export function EbookAchievements() {
               Conquistas ({gamification.badges.length}/{ALL_BADGE_DEFS.length})
             </button>
             <button
-              onClick={() => setTab("leaderboard")}
+              onClick={() => {
+                setTab("leaderboard");
+                if (userId) {
+                  trackEvent('ebook_achievements_tab_changed', {
+                    tab: "leaderboard",
+                  });
+                }
+              }}
               className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${
                 tab === "leaderboard"
                   ? "bg-indigo-600 text-white"
