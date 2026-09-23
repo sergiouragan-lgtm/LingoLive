@@ -22,10 +22,12 @@ WORKDIR /app
 RUN addgroup -g 1001 nodejs && \
     adduser -S nodejs -u 1001
 
-# Copy built assets from builder
+# Copy package files and install ONLY production dependencies
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+# Copy built assets
 COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
-COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=nodejs:nodejs /app/package*.json ./
 
 # Set environment
 ENV NODE_ENV=production
