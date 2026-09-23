@@ -3,7 +3,7 @@
  * Provider-agnostic voice conversation architecture
  */
 
-export { VoiceTutorProvider, VoiceTutorSessionConfig, VoiceTutorResponse, VoiceTutorMetrics, VoiceTutorSessionMetrics } from './types';
+export type { VoiceTutorProvider, VoiceTutorSessionConfig, VoiceTutorResponse, VoiceTutorMetrics, VoiceTutorSessionMetrics } from './types';
 export { CurrentVoiceProvider } from './CurrentVoiceProvider';
 export { GPTLiveAdapter } from './GPTLiveAdapter';
 export { VoiceProviderFactory } from './VoiceProviderFactory';
