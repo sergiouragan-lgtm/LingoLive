@@ -229,8 +229,8 @@ jobs:
             --to-tags canary=10 \
             --quiet
 
-      - name: "Aguardar janela de observação (15 minutos)"
-        run: sleep 900
+      - name: "Aguardar janela de observação (20 minutos)"
+        run: sleep 1200
 
       - name: "Verificação de saúde pós-canary"
         id: health_check
