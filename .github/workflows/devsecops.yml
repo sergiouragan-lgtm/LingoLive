@@ -235,31 +235,40 @@ jobs:
       - name: "Verificação de saúde pós-canary"
         id: health_check
         run: |
-          # Get the main service URL (auto-assigned domain)
+          # Get the main service URL (auto-assigned domain) - with fallback
           SERVICE_URL=$(gcloud run services describe lingolive-server \
             --region us-central1 \
             --project lingolive-ia-f5778 \
-            --format='value(status.url)')
+            --format='value(status.url)' 2>&1)
 
-          echo "Service URL: $SERVICE_URL"
+          echo "Raw gcloud output: $SERVICE_URL"
+
+          # Trim whitespace
+          SERVICE_URL=$(echo "$SERVICE_URL" | xargs)
+          echo "Service URL after trim: $SERVICE_URL"
 
           if [ -z "$SERVICE_URL" ]; then
-            echo "::error::Failed to retrieve Cloud Run service URL"
-            echo "status=000" >> "$GITHUB_OUTPUT"
-            exit 1
+            echo "::warning::Failed to retrieve Cloud Run service URL, using fallback"
+            # Fallback: use service name with default Cloud Run domain
+            SERVICE_URL="https://lingolive-server-us-central1.run.app"
+            echo "Using fallback URL: $SERVICE_URL"
           fi
 
-          # Perform health check with timeout
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$SERVICE_URL/api/service-health/public" || echo "000")
-          echo "Health check status: $STATUS"
+          # Perform health check with verbose output
+          echo "Testing health endpoint: $SERVICE_URL/api/service-health/public"
+
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$SERVICE_URL/api/service-health/public" 2>&1 || echo "000")
+
+          echo "Health check HTTP status: $STATUS"
           echo "status=$STATUS" >> "$GITHUB_OUTPUT"
 
-          if [ "$STATUS" != "200" ]; then
-            echo "::error::Health check da revisão canary falhou (HTTP $STATUS). URL: $SERVICE_URL"
+          # Accept 200 as success
+          if [ "$STATUS" = "200" ]; then
+            echo "::notice::Canary health check passed (HTTP 200)"
+          else
+            echo "::error::Health check failed (HTTP $STATUS)"
             exit 1
           fi
-
-          echo "::notice::Canary health check passed (HTTP 200)"
 
       - name: "Promover para 100% do tráfego (só se a verificação de saúde passou)"
         if: steps.health_check.outputs.status == '200'
