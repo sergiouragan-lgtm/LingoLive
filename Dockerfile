@@ -25,11 +25,8 @@ WORKDIR /app
 RUN addgroup -g 1001 nodejs && \
     adduser -S nodejs -u 1001
 
-# Copy package files and pruned node_modules
-COPY package*.json ./
-COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
-
-# Copy built assets
+# Copy ONLY the self-contained bundled server
+# (esbuild bundles all dependencies, no node_modules needed)
 COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
 
 # Set environment
