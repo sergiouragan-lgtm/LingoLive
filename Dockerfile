@@ -13,6 +13,9 @@ COPY . .
 RUN npm run build
 RUN npm run typecheck
 
+# Prune devDependencies (faster than reinstalling in runtime stage)
+RUN npm prune --omit=dev
+
 # Stage 2: Runtime
 FROM node:20-alpine
 
@@ -22,9 +25,9 @@ WORKDIR /app
 RUN addgroup -g 1001 nodejs && \
     adduser -S nodejs -u 1001
 
-# Copy package files and install ONLY production dependencies
+# Copy package files and pruned node_modules
 COPY package*.json ./
-RUN npm ci --omit=dev
+COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
 
 # Copy built assets
 COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
