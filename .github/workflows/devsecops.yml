@@ -197,11 +197,11 @@ jobs:
         uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f # v2
 
       - name: Configurar autenticação Docker para o Artifact Registry
-        run: gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
       - name: "Build e push da imagem Docker"
         run: |
-          IMAGE="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/lingolive/server:${{ github.sha }}"
+          IMAGE="us-central1-docker.pkg.dev/lingolive-ia-f5778/lingolive/server:${{ github.sha }}"
           docker build -t "$IMAGE" .
           docker push "$IMAGE"
           echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
@@ -209,14 +209,14 @@ jobs:
       - name: "Deploy das regras de segurança do Firestore"
         run: |
           npm install -g firebase-tools
-          firebase deploy --only firestore:rules --project ${{ secrets.GCP_PROJECT_ID }} --token "${{ secrets.FIREBASE_DEPLOY_TOKEN }}"
+          firebase deploy --only firestore:rules --project lingolive-ia-f5778 --token "${{ secrets.FIREBASE_DEPLOY_TOKEN }}"
 
       - name: "Canary Deploy — nova revisão SEM tráfego (tag: canary)"
         run: |
           gcloud run deploy lingolive-server \
             --image "$IMAGE" \
-            --region ${{ secrets.GCP_REGION }} \
-            --project ${{ secrets.GCP_PROJECT_ID }} \
+            --region us-central1 \
+            --project lingolive-ia-f5778 \
             --tag canary \
             --no-traffic \
             --quiet
@@ -224,8 +224,8 @@ jobs:
       - name: "Encaminhar 10% do tráfego para a revisão canary"
         run: |
           gcloud run services update-traffic lingolive-server \
-            --region ${{ secrets.GCP_REGION }} \
-            --project ${{ secrets.GCP_PROJECT_ID }} \
+            --region us-central1 \
+            --project lingolive-ia-f5778 \
             --to-tags canary=10 \
             --quiet
 
@@ -236,8 +236,8 @@ jobs:
         id: health_check
         run: |
           CANARY_URL=$(gcloud run services describe lingolive-server \
-            --region ${{ secrets.GCP_REGION }} \
-            --project ${{ secrets.GCP_PROJECT_ID }} \
+            --region us-central1 \
+            --project lingolive-ia-f5778 \
             --format="value(status.traffic[?tag=='canary'].url)" | head -1)
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$CANARY_URL/api/service-health/public" || echo "000")
           echo "status=$STATUS" >> "$GITHUB_OUTPUT"
@@ -250,8 +250,8 @@ jobs:
         if: steps.health_check.outputs.status == '200'
         run: |
           gcloud run services update-traffic lingolive-server \
-            --region ${{ secrets.GCP_REGION }} \
-            --project ${{ secrets.GCP_PROJECT_ID }} \
+            --region us-central1 \
+            --project lingolive-ia-f5778 \
             --to-latest \
             --quiet
 
@@ -259,8 +259,8 @@ jobs:
         if: failure()
         run: |
           gcloud run services update-traffic lingolive-server \
-            --region ${{ secrets.GCP_REGION }} \
-            --project ${{ secrets.GCP_PROJECT_ID }} \
+            --region us-central1 \
+            --project lingolive-ia-f5778 \
             --to-revisions STABLE=100 \
             --quiet || echo "::warning::Rollback automático falhou — requer intervenção manual imediata"
 
