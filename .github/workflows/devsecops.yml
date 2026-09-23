@@ -235,16 +235,31 @@ jobs:
       - name: "Verificação de saúde pós-canary"
         id: health_check
         run: |
-          CANARY_URL=$(gcloud run services describe lingolive-server \
+          # Get the main service URL (auto-assigned domain)
+          SERVICE_URL=$(gcloud run services describe lingolive-server \
             --region us-central1 \
             --project lingolive-ia-f5778 \
-            --format="value(status.traffic[?tag=='canary'].url)" | head -1)
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$CANARY_URL/api/service-health/public" || echo "000")
-          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
-          if [ "$STATUS" != "200" ]; then
-            echo "::error::Health check da revisão canary falhou (HTTP $STATUS)"
+            --format='value(status.url)')
+
+          echo "Service URL: $SERVICE_URL"
+
+          if [ -z "$SERVICE_URL" ]; then
+            echo "::error::Failed to retrieve Cloud Run service URL"
+            echo "status=000" >> "$GITHUB_OUTPUT"
             exit 1
           fi
+
+          # Perform health check with timeout
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$SERVICE_URL/api/service-health/public" || echo "000")
+          echo "Health check status: $STATUS"
+          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+
+          if [ "$STATUS" != "200" ]; then
+            echo "::error::Health check da revisão canary falhou (HTTP $STATUS). URL: $SERVICE_URL"
+            exit 1
+          fi
+
+          echo "::notice::Canary health check passed (HTTP 200)"
 
       - name: "Promover para 100% do tráfego (só se a verificação de saúde passou)"
         if: steps.health_check.outputs.status == '200'
