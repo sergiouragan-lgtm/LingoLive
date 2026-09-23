@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { signOut } from "firebase/auth";
 import { auth } from "../../../firebase";
 import { WhisperService } from "../../../services/audio/whisper";
+import { VoiceProviderFactory, VoiceTutorProvider, SpikeMetricsCollector } from "../../../services/voice";
 import { Language, Proficiency, AgeGroup, Scenario, Voice, TranscriptItem, SavedWord } from "../../../types";
 import { PronunciationTipModal } from '../PronunciationTipModal';
 import { AudioVisualizer } from '../AudioVisualizer';
@@ -95,6 +96,11 @@ export default function PracticeRoom({
   const { trackEvent } = useAnalytics(userId);
   const { monitors } = useMonitoring();
 
+  // Voice Provider setup (spike: supports current & gpt-live)
+  const voiceProvider = useMemo(() => VoiceProviderFactory.getProvider(), []);
+  const metricsCollector = useMemo(() => new SpikeMetricsCollector(), []);
+  const voiceSessionRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (userId) {
       trackEvent('practice_room_session_started', {
@@ -106,6 +112,18 @@ export default function PracticeRoom({
       });
     }
   }, [userId, trackEvent, language, scenario, proficiency, ageGroup]);
+
+  // Voice Provider cleanup on unmount or session end
+  useEffect(() => {
+    return () => {
+      if (voiceSessionRef.current) {
+        voiceProvider.endSession(voiceSessionRef.current).catch(err => {
+          console.warn('[PracticeRoom] Failed to end voice session:', err);
+        });
+        voiceSessionRef.current = null;
+      }
+    };
+  }, [voiceProvider]);
 
   // Session UI states
   const [sessionStatus, setSessionStatus] = useState<"connecting" | "ready" | "closed" | "error">("connecting");
@@ -165,21 +183,40 @@ export default function PracticeRoom({
       recorder.onstop = async () => {
         // Stop all tracks to release the microphone
         stream.getTracks().forEach((track) => track.stop());
-        
+
         // Restore mute state if desired, or keep muted
         setIsMuted(oldIsMuted);
 
         const audioBlob = new Blob(whisperChunksRef.current, { type: options.mimeType || "audio/webm" });
         if (audioBlob.size === 0) return;
-        
+
         setIsWhisperTranscribing(true);
         try {
-          const transcription = await WhisperService.transcribe(audioBlob, language.name);
-          if (transcription.trim()) {
-            setTextInput((prev) => (prev ? prev + " " + transcription : transcription));
+          // Start voice provider session if not already started
+          if (!voiceSessionRef.current) {
+            voiceSessionRef.current = await voiceProvider.startSession({
+              language: language.name || language.code,
+              dialect: language.code,
+              proficiency: proficiency,
+              userId: userId
+            });
+          }
+
+          // Process audio through voice provider
+          const startTime = Date.now();
+          const response = await voiceProvider.processAudio(voiceSessionRef.current, audioBlob);
+          const latencyMs = Date.now() - startTime;
+
+          // Collect spike metrics (for validation during spike phase)
+          metricsCollector.recordLatency(language.code || 'unknown', latencyMs);
+          metricsCollector.recordSession(true);
+
+          if (response.transcribedText.trim()) {
+            setTextInput((prev) => (prev ? prev + " " + response.transcribedText : response.transcribedText));
           }
         } catch (err: any) {
-          console.error("Whisper transcription failed:", err);
+          console.error("Voice provider transcription failed:", err);
+          metricsCollector.recordSession(false);
         } finally {
           setIsWhisperTranscribing(false);
         }

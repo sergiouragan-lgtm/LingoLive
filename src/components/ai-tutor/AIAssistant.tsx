@@ -1,15 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { MessageSquare, Sparkles, Send, Minus, Maximize2 } from 'lucide-react';
 import { useLocalization } from '../../context/LocalizationContext';
 import { auth } from '../../firebase';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import { useMonitoring } from '../../hooks/useMonitoring';
+import { VoiceProviderFactory, SpikeMetricsCollector } from '../../services/voice';
 
 export const AIAssistant: React.FC<{ userId?: string }> = () => {
   const { localization } = useLocalization();
   const userId = auth.currentUser?.uid || '';
   const { trackEvent } = useAnalytics(userId);
   const { monitors } = useMonitoring();
+
+  // Voice Provider support (spike: ready for voice input in future)
+  const voiceProvider = useMemo(() => VoiceProviderFactory.getProvider(), []);
+  const metricsCollector = useMemo(() => new SpikeMetricsCollector(), []);
+  const voiceSessionRef = useRef<string | null>(null);
 
   const [messages, setMessages] = useState<{ role: 'user' | 'assistant', text: string }[]>([
     { role: 'assistant', text: 'Olá! Sou o seu Professor Virtual. Como posso ajudar você hoje? Posso traduzir frases ou explicar conceitos.' }
@@ -26,6 +32,18 @@ export const AIAssistant: React.FC<{ userId?: string }> = () => {
       });
     }
   }, [isMinimized, userId, trackEvent, messages.length]);
+
+  // Voice Provider cleanup (ready for voice input feature)
+  useEffect(() => {
+    return () => {
+      if (voiceSessionRef.current) {
+        voiceProvider.endSession(voiceSessionRef.current).catch(err => {
+          console.warn('[AIAssistant] Failed to end voice session:', err);
+        });
+        voiceSessionRef.current = null;
+      }
+    };
+  }, [voiceProvider]);
 
   // Dynamic user profile loading
   const profile = (() => {
