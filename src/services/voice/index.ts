@@ -8,3 +8,5 @@ export { CurrentVoiceProvider } from './CurrentVoiceProvider';
 export { GPTLiveAdapter } from './GPTLiveAdapter';
 export { VoiceProviderFactory } from './VoiceProviderFactory';
 export { SpikeMetricsCollector } from './SpikeMetricsCollector';
+export { SpikeMetricsExporter } from './SpikMetricsExporter';
+export { SpikeTestHarness, quickStartSpikeTest } from './SpikeTestHarness';
