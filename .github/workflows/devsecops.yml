@@ -107,13 +107,12 @@ jobs:
       - name: Build de produção (frontend Vite + backend esbuild)
         run: npm run build
 
-      - name: Guardar artefactos de build (dist + node_modules para fase de deploy)
+      - name: Guardar artefactos de build (dist + package.json para fase de deploy)
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: build-artifacts
           path: |
             dist/
-            node_modules/
             package*.json
           retention-days: 7
 
@@ -199,10 +198,19 @@ jobs:
       - name: Setup Google Cloud SDK
         uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f # v2
 
-      - name: Download pre-built artifacts (dist + node_modules from Phase 2)
+      - name: Download pre-built artifacts (dist from Phase 2)
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4
         with:
           name: build-artifacts
+
+      - name: Setup Node.js para instalar dependências de produção
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Instalar apenas dependências de produção
+        run: npm ci --only=production
 
       - name: Configurar autenticação Docker para o Artifact Registry
         run: gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
