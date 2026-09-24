@@ -202,7 +202,17 @@ jobs:
       - name: "Build e push da imagem Docker"
         run: |
           IMAGE="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/lingolive/server:${{ github.sha }}"
-          docker build -t "$IMAGE" .
+          echo "Starting Docker build: $IMAGE"
+          echo "Listing build context:"
+          ls -la | head -20
+          echo "---"
+          docker build -t "$IMAGE" . 2>&1 | tee docker-build.log
+          if [ ${PIPESTATUS[0]} -ne 0 ]; then
+            echo "Docker build failed. Last 50 lines of build log:"
+            tail -50 docker-build.log
+            exit 1
+          fi
+          echo "Docker build successful, pushing image..."
           docker push "$IMAGE"
           echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
 
