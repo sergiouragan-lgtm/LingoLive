@@ -210,7 +210,7 @@ jobs:
           cache: "npm"
 
       - name: Instalar apenas dependências de produção
-        run: npm ci --only=production
+        run: npm ci --omit=dev
 
       - name: Configurar autenticação Docker para o Artifact Registry
         run: gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
