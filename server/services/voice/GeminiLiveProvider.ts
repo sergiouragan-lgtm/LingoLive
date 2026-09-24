@@ -10,8 +10,8 @@ export class GeminiLiveProvider extends VoiceProvider {
   private apiKey: string;
 
   private supportedLanguages = new Set([
-    'en', 'pt', 'pt-BR', 'pt-PT',
-    'es', 'es-MX', 'fr', 'de', 'it', 'ja', 'zh', 'ko', 'ru', 'ar',
+    'en', 'pt', 'pt-br', 'pt-pt',
+    'es', 'es-mx', 'fr', 'de', 'it', 'ja', 'zh', 'ko', 'ru', 'ar',
     'hi', 'th', 'vi', 'nl', 'pl', 'sv'
   ]);
 
