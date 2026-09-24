@@ -18,9 +18,6 @@ export class GeminiLiveProvider extends VoiceProvider {
   constructor(apiKey?: string) {
     super();
     this.apiKey = apiKey || process.env.GOOGLE_API_KEY || '';
-    if (!this.apiKey) {
-      throw new Error('GOOGLE_API_KEY environment variable is required for Gemini Live');
-    }
     this._initializeClient();
   }
 

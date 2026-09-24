@@ -17,9 +17,6 @@ export class ElevenLabsProvider extends VoiceProvider {
   constructor(apiKey?: string) {
     super();
     this.apiKey = apiKey || process.env.ELEVENLABS_API_KEY || '';
-    if (!this.apiKey) {
-      throw new Error('ELEVENLABS_API_KEY environment variable is required');
-    }
     this.initializeClient();
   }
 
