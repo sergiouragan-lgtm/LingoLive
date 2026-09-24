@@ -333,6 +333,7 @@ import { versioningService } from "./server/services/versioning.service";
 import learningGapsRouter from "./server/routes/learning-gaps.routes";
 import { learningGapAggregationService } from "./server/services/learning-gap-aggregation.service";
 import { scheduleAggregationJob } from "./server/jobs/learning-gap-aggregation.job";
+import continuousSessionRouter from "./server/routes/continuous-session.routes";
 
 const app = express();
 
@@ -569,6 +570,7 @@ app.use("/api/content", contentCurationGenerationRouter);
 app.use("/api/analytics/insights", analyticsDashboardRouter26);
 app.use("/api/mobile", mobileOfflineSyncRouter);
 app.use("/api/learning-gaps", learningGapsRouter);
+app.use(continuousSessionRouter);
 app.use("/api/learning-paths", adaptiveLearningPathsRouter);
 app.use("/api/tutor", aiTutorResponseRouter);
 app.use("/api/personalization", personalizationEngineRouter);
