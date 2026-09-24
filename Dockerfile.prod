@@ -1,5 +1,5 @@
 # Runtime-only Dockerfile — expects pre-built dist/ from CI/CD
-# node_modules are installed in CI/CD workflow (npm ci --only=production)
+# Installs production dependencies inside container (correct Node version for native modules)
 # Use this in production (Phase 4 deploy) to avoid redundant TypeScript/Vite builds
 
 FROM node:20-alpine
@@ -12,8 +12,10 @@ RUN addgroup -g 1001 nodejs && \
 
 # Copy pre-built artifacts from CI/CD workflow (already TypeScript compiled & bundled)
 COPY --chown=nodejs:nodejs dist ./dist
-COPY --chown=nodejs:nodejs node_modules ./node_modules
 COPY --chown=nodejs:nodejs package*.json ./
+
+# Install production dependencies (inside container for correct Node version)
+RUN npm ci --omit=dev --silent
 
 # Set environment
 ENV NODE_ENV=production

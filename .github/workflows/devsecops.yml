@@ -203,15 +203,6 @@ jobs:
         with:
           name: build-artifacts
 
-      - name: Setup Node.js para instalar dependências de produção
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
-
-      - name: Instalar apenas dependências de produção
-        run: npm ci --omit=dev
-
       - name: Configurar autenticação Docker para o Artifact Registry
         run: gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
 
