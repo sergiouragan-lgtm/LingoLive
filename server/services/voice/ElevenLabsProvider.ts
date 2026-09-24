@@ -21,8 +21,13 @@ export class ElevenLabsProvider extends VoiceProvider {
   }
 
   private initializeClient() {
-    // @ts-ignore
-    this.client = new (ElevenLabs.ElevenLabsClient || ElevenLabs)(this.apiKey);
+    try {
+      // @ts-ignore
+      this.client = new (ElevenLabs.ElevenLabsClient || ElevenLabs)(this.apiKey);
+    } catch (error) {
+      console.warn("[ElevenLabsProvider] Client initialization failed, using stub", error);
+      this.client = { generate: async () => [], voices: { get: async () => [] } };
+    }
   }
 
   async generateSpeech(text: string, options?: VoiceOptions): Promise<VoiceGenerationResult> {
