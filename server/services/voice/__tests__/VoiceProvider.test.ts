@@ -15,7 +15,7 @@ import { VoiceBenchmark } from "../VoiceBenchmark";
 describe("VoiceProvider System", () => {
   describe("VoiceProviderFactory", () => {
     it("should initialize with elevenlabs as default provider", () => {
-      const config = VoiceProviderFactory["globalConfig"];
+      const config = VoiceProviderFactory.getGlobalConfig();
       expect(config.activeProvider).toBe("elevenlabs");
     });
 
@@ -219,11 +219,11 @@ describe("VoiceProvider System", () => {
 
     it("should handle provider switching gracefully", () => {
       VoiceService.switchProvider("gemini-live");
-      let config1 = VoiceProviderFactory["globalConfig"];
+      let config1 = VoiceProviderFactory.getGlobalConfig();
       expect(config1.activeProvider).toBe("gemini-live");
 
       VoiceService.switchProvider("elevenlabs");
-      let config2 = VoiceProviderFactory["globalConfig"];
+      let config2 = VoiceProviderFactory.getGlobalConfig();
       expect(config2.activeProvider).toBe("elevenlabs");
     });
   });

@@ -84,6 +84,11 @@ export class VoiceProviderFactory {
     console.log(`[VoiceProvider] Initialized: ${provider.name} (${provider.modelId})`);
   }
 
+  // For testing: direct access to global config
+  static getGlobalConfig() {
+    return globalConfig;
+  }
+
   static async getConfig(): Promise<{
     activeProvider: string;
     benchmarkMode: boolean;
