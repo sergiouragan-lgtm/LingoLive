@@ -23,7 +23,11 @@ export class VoiceService {
     try {
       const result = await provider.generateSpeech(text, options);
 
-      const response = {
+      const response: {
+        audio: Buffer;
+        provider: string;
+        metrics?: Record<string, any>;
+      } = {
         audio: result.audio,
         provider: result.metadata.provider,
       };

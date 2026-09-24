@@ -6,8 +6,10 @@
  */
 
 export { VoiceService } from "./VoiceService";
-export { VoiceProvider, VoiceGenerationResult, VoiceOptions, VoiceMetrics } from "./VoiceProvider";
-export { VoiceProviderFactory, VoiceProviderType, VoiceProviderConfig } from "./VoiceProviderFactory";
+export type { VoiceProvider, VoiceGenerationResult, VoiceOptions, VoiceMetrics } from "./VoiceProvider";
+export { VoiceProviderFactory } from "./VoiceProviderFactory";
+export type { VoiceProviderType, VoiceProviderConfig } from "./VoiceProviderFactory";
 export { ElevenLabsProvider } from "./ElevenLabsProvider";
 export { GeminiLiveProvider } from "./GeminiLiveProvider";
-export { VoiceBenchmark, BenchmarkResult, BenchmarkComparison } from "./VoiceBenchmark";
+export { VoiceBenchmark } from "./VoiceBenchmark";
+export type { BenchmarkResult, BenchmarkComparison } from "./VoiceBenchmark";

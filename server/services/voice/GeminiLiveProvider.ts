@@ -1,11 +1,12 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+// Dynamic import to handle optional dependency
+// import { GoogleGenerativeAI } from "@google/generative-ai";
 import { VoiceProvider, VoiceGenerationResult, VoiceOptions } from "./VoiceProvider";
 
 export class GeminiLiveProvider extends VoiceProvider {
   name = "Gemini Live";
   modelId = "gemini-2.0-flash-exp"; // Or gemini-1.5-pro for TTS
 
-  private client: GoogleGenerativeAI;
+  private client: any;
   private apiKey: string;
 
   private supportedLanguages = new Set([
@@ -20,7 +21,19 @@ export class GeminiLiveProvider extends VoiceProvider {
     if (!this.apiKey) {
       throw new Error('GOOGLE_API_KEY environment variable is required for Gemini Live');
     }
-    this.client = new GoogleGenerativeAI(this.apiKey);
+    this._initializeClient();
+  }
+
+  private _initializeClient() {
+    try {
+      // Lazy load to handle optional dependency
+      const GoogleGenerativeAI = require("@google/generative-ai").GoogleGenerativeAI;
+      this.client = new GoogleGenerativeAI(this.apiKey);
+    } catch (error) {
+      console.warn("[GeminiLiveProvider] @google/generative-ai not installed. Install with: npm install @google/generative-ai");
+      // Stub out client for now
+      this.client = { getGenerativeModel: () => ({}) };
+    }
   }
 
   async generateSpeech(text: string, options?: VoiceOptions): Promise<VoiceGenerationResult> {
