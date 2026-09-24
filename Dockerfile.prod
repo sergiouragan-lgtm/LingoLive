@@ -1,0 +1,32 @@
+# Runtime-only Dockerfile — expects pre-built dist/ from CI/CD
+# Installs production dependencies inside container (correct Node version for native modules)
+# Use this in production (Phase 4 deploy) to avoid redundant TypeScript/Vite builds
+
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Security: non-root user
+RUN addgroup -g 1001 nodejs && \
+    adduser -S nodejs -u 1001
+
+# Copy pre-built artifacts from CI/CD workflow (already TypeScript compiled & bundled)
+COPY --chown=nodejs:nodejs dist ./dist
+COPY --chown=nodejs:nodejs package*.json ./
+
+# Install production dependencies (inside container for correct Node version)
+RUN npm install --production --silent
+
+# Set environment
+ENV NODE_ENV=production
+ENV PORT=8080
+
+USER nodejs
+
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:8080/api/service-health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
+
+CMD ["node", "dist/server.cjs"]

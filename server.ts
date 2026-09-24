@@ -330,6 +330,10 @@ import { monitoringService } from "./server/services/monitoring.service";
 import { alertingService } from "./server/services/alerting.service";
 import { schedulingService } from "./server/services/scheduling.service";
 import { versioningService } from "./server/services/versioning.service";
+import learningGapsRouter from "./server/routes/learning-gaps.routes";
+import { learningGapAggregationService } from "./server/services/learning-gap-aggregation.service";
+import { scheduleAggregationJob } from "./server/jobs/learning-gap-aggregation.job";
+import continuousSessionRouter from "./server/routes/continuous-session.routes";
 
 const app = express();
 
@@ -565,6 +569,8 @@ app.use("/api/social", socialLearningRouter);
 app.use("/api/content", contentCurationGenerationRouter);
 app.use("/api/analytics/insights", analyticsDashboardRouter26);
 app.use("/api/mobile", mobileOfflineSyncRouter);
+app.use("/api/learning-gaps", learningGapsRouter);
+app.use(continuousSessionRouter);
 app.use("/api/learning-paths", adaptiveLearningPathsRouter);
 app.use("/api/tutor", aiTutorResponseRouter);
 app.use("/api/personalization", personalizationEngineRouter);
@@ -803,6 +809,16 @@ async function startServer() {
   console.log('[Server] Initializing real-time notifications gateway...');
   notificationsGateway.initialize(io);
   console.log('[Server] Notifications gateway initialized successfully');
+
+  // Initialize Learning Gap Aggregation Job
+  console.log('[Server] Initializing learning gap aggregation job...');
+  try {
+    await scheduleAggregationJob();
+    console.log('[Server] Learning gap aggregation job scheduled successfully (every 6 hours)');
+  } catch (error) {
+    console.error('[Server] Failed to schedule learning gap aggregation job:', error);
+    // Non-fatal error - continue server startup
+  }
 
   // Initialize Job Queue Processors
   console.log('[Server] Initializing background job processors...');
