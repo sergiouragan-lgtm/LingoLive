@@ -15,7 +15,7 @@ COPY --chown=nodejs:nodejs dist ./dist
 COPY --chown=nodejs:nodejs package*.json ./
 
 # Install production dependencies (inside container for correct Node version)
-RUN npm ci --omit=dev --silent
+RUN npm install --production --silent
 
 # Set environment
 ENV NODE_ENV=production
