@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { authenticateFirebaseToken } from '../middleware/auth.middleware';
+import { requireAuth } from '../middleware/requireAuth';
 import { learningGapAggregationService } from '../services/learning-gap-aggregation.service';
 import { triggerAggregationNow, getAggregationQueueStats } from '../jobs/learning-gap-aggregation.job';
 
@@ -9,7 +9,7 @@ const router = Router();
  * Log a student error
  * POST /api/learning-gaps/errors
  */
-router.post('/errors', authenticateFirebaseToken, async (req: Request, res: Response) => {
+router.post('/errors', requireAuth, async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.uid;
     const {
@@ -62,7 +62,7 @@ router.post('/errors', authenticateFirebaseToken, async (req: Request, res: Resp
  * Get learning gaps for current user
  * GET /api/learning-gaps
  */
-router.get('/', authenticateFirebaseToken, async (req: Request, res: Response) => {
+router.get('/', requireAuth, async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.uid;
     const gaps = await learningGapAggregationService.getUserGaps(userId);
@@ -85,7 +85,7 @@ router.get('/', authenticateFirebaseToken, async (req: Request, res: Response) =
  * Get learning gaps by skill area
  * GET /api/learning-gaps/by-skill/:skillArea
  */
-router.get('/by-skill/:skillArea', authenticateFirebaseToken, async (req: Request, res: Response) => {
+router.get('/by-skill/:skillArea', requireAuth, async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.uid;
     const { skillArea } = req.params;
@@ -111,7 +111,7 @@ router.get('/by-skill/:skillArea', authenticateFirebaseToken, async (req: Reques
  * Manually trigger gap aggregation for current user
  * POST /api/learning-gaps/aggregate
  */
-router.post('/aggregate', authenticateFirebaseToken, async (req: Request, res: Response) => {
+router.post('/aggregate', requireAuth, async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.uid;
     const gaps = await learningGapAggregationService.aggregateUserGaps(userId);
@@ -134,7 +134,7 @@ router.post('/aggregate', authenticateFirebaseToken, async (req: Request, res: R
  * Close a learning gap
  * POST /api/learning-gaps/:skillArea/:skillSubArea/close
  */
-router.post('/:skillArea/:skillSubArea/close', authenticateFirebaseToken, async (req: Request, res: Response) => {
+router.post('/:skillArea/:skillSubArea/close', requireAuth, async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.uid;
     const { skillArea, skillSubArea } = req.params;
@@ -159,7 +159,7 @@ router.post('/:skillArea/:skillSubArea/close', authenticateFirebaseToken, async 
  * Admin: Trigger global aggregation
  * POST /api/learning-gaps/admin/trigger-aggregation
  */
-router.post('/admin/trigger-aggregation', authenticateFirebaseToken, async (req: Request, res: Response) => {
+router.post('/admin/trigger-aggregation', requireAuth, async (req: Request, res: Response) => {
   try {
     // Verify admin role (simplified - enhance in production)
     const userRole = (req as any).user.role;
@@ -188,7 +188,7 @@ router.post('/admin/trigger-aggregation', authenticateFirebaseToken, async (req:
  * Admin: Get aggregation queue stats
  * GET /api/learning-gaps/admin/stats
  */
-router.get('/admin/stats', authenticateFirebaseToken, async (req: Request, res: Response) => {
+router.get('/admin/stats', requireAuth, async (req: Request, res: Response) => {
   try {
     // Verify admin role
     const userRole = (req as any).user.role;
@@ -215,7 +215,7 @@ router.get('/admin/stats', authenticateFirebaseToken, async (req: Request, res: 
  * Admin: Get aggregation history
  * GET /api/learning-gaps/admin/history
  */
-router.get('/admin/history', authenticateFirebaseToken, async (req: Request, res: Response) => {
+router.get('/admin/history', requireAuth, async (req: Request, res: Response) => {
   try {
     // Verify admin role
     const userRole = (req as any).user.role;

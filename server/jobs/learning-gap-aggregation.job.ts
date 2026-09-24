@@ -1,12 +1,6 @@
 import Queue from 'bull';
-import redis from 'redis';
 import { learningGapAggregationService } from '../services/learning-gap-aggregation.service';
 import { logSecurityEvent } from '../services/security.event.logger';
-
-const redisClient = redis.createClient({
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-});
 
 /**
  * Bull queue for learning gap aggregation
@@ -17,43 +11,46 @@ export const learningGapAggregationQueue = new Queue('learning-gap-aggregation',
     host: process.env.REDIS_HOST || 'localhost',
     port: parseInt(process.env.REDIS_PORT || '6379'),
   },
-  settings: {
-    // Remove job after 1 week
-    removeOnComplete: { age: 604800 },
-    removeOnFail: { age: 1209600 },
+  defaultJobOptions: {
+    attempts: 2,
+    backoff: { type: 'exponential', delay: 2000 },
+    removeOnComplete: { age: 604800 }, // Remove after 1 week
+    removeOnFail: { age: 1209600 }, // Keep failed for 2 weeks
   },
 });
 
 /**
  * Process the aggregation job
  */
-learningGapAggregationQueue.process(async (job) => {
+learningGapAggregationQueue.process(async (job: any) => {
   try {
     console.log('[Learning Gap Aggregation] Starting aggregation job', job.id);
 
     // Track progress
-    job.progress(10);
+    await job.progress(10);
 
     const limitUsers = job.data?.limitUsers;
     const stats = await learningGapAggregationService.aggregateAllGaps(limitUsers);
 
-    job.progress(90);
+    await job.progress(90);
 
     console.log('[Learning Gap Aggregation] Completed:', stats);
     logSecurityEvent(
       'LEARNING_GAP_JOB_COMPLETED' as any,
       'info' as any,
-      `Job completed: ${stats.gapsCreated} gaps, ${stats.usersAffected} users, ${stats.executionTimeMs}ms`
+      `Job completed: ${stats.gapsCreated} gaps, ${stats.usersAffected} users, ${stats.executionTimeMs}ms`,
+      { jobId: job.id, stats }
     );
 
-    job.progress(100);
+    await job.progress(100);
     return { success: true, stats };
   } catch (error) {
     console.error('[Learning Gap Aggregation] Error:', error);
     logSecurityEvent(
       'LEARNING_GAP_JOB_FAILED' as any,
       'error' as any,
-      `Job failed: ${(error as Error).message}`
+      `Job failed: ${(error as Error).message}`,
+      { jobId: job.id, error: (error as Error).message }
     );
     throw error;
   }
@@ -128,14 +125,14 @@ export async function triggerAggregationNow(limitUsers?: number): Promise<any> {
 export async function getAggregationQueueStats(): Promise<any> {
   try {
     const counts = await learningGapAggregationQueue.getJobCounts();
-    const latestJobs = await learningGapAggregationQueue.getLatestCompleted(5);
+    const completedJobs = await learningGapAggregationQueue.getCompleted(0, 5);
 
     return {
       counts,
-      latestJobs: latestJobs.map(job => ({
+      latestJobs: completedJobs.map((job: any) => ({
         id: job.id,
         state: job._state,
-        progress: job.progress(),
+        progress: job.progress ? job.progress() : 0,
         finishedOn: job.finishedOn,
         failedReason: job.failedReason,
       })),

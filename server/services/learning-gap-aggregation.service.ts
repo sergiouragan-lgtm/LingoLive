@@ -70,19 +70,21 @@ class LearningGapAggregationService {
    */
   public async logStudentError(errorLog: Omit<StudentErrorLog, 'id'>): Promise<StudentErrorLog> {
     try {
-      const errorId = this.db.collection('student_error_logs').doc().id;
+      const docRef = this.db.collection('student_error_logs').doc();
+      const errorId = docRef.id;
       const log: StudentErrorLog = {
         ...errorLog,
         id: errorId,
         timestamp: errorLog.timestamp || new Date(),
       };
 
-      await this.db.collection('student_error_logs').doc(errorId).set(log);
+      await docRef.set(log);
 
       logSecurityEvent(
         'STUDENT_ERROR_LOGGED' as any,
         'info' as any,
-        `Error logged for user ${errorLog.userId} in ${errorLog.skillSubArea}`
+        `Error logged for user ${errorLog.userId} in ${errorLog.skillSubArea}`,
+        { userId: errorLog.userId }
       );
 
       return log;
@@ -225,12 +227,13 @@ class LearningGapAggregationService {
       };
 
       // Log aggregation stats
-      await this.db.collection('aggregation_stats').doc().set(stats);
+      await this.db.collection('aggregation_stats').add(stats);
 
       logSecurityEvent(
         'LEARNING_GAPS_AGGREGATED' as any,
         'info' as any,
-        `Aggregated ${stats.gapsCreated} gaps for ${stats.usersAffected} users`
+        `Aggregated ${stats.gapsCreated} gaps for ${stats.usersAffected} users`,
+        { stats }
       );
 
       return stats;
@@ -295,7 +298,8 @@ class LearningGapAggregationService {
       logSecurityEvent(
         'LEARNING_GAP_CLOSED' as any,
         'info' as any,
-        `Gap closed for user ${userId}`
+        `Gap closed for user ${userId}`,
+        { userId, skillArea, skillSubArea }
       );
     } catch (error) {
       console.error('Error closing gap:', error);
