@@ -92,15 +92,15 @@ Example GitHub Actions workflow:
 **Problem**: Tests fail with "Timed out waiting from config.webServer"
 **Solution**: Ensure dev server is running: `npm run dev`
 
-### Port 5173 already in use
-**Problem**: "EADDRINUSE: address already in use :::5173"
+### Port 3000 already in use
+**Problem**: "EADDRINUSE: address already in use :::3000"
 **Solution**: Kill existing process or use different port
 
 ### Chromium not found
-**Problem**: "Executable doesn't exist at /opt/pw-browsers/chromium"
+**Problem**: "Playwright cannot find its managed Chromium binary"
 **Solution**: This is environment-specific. On other systems, run:
 ```bash
-playwright install chromium
+npx playwright install chromium
 ```
 
 ### Media permission errors in tests
