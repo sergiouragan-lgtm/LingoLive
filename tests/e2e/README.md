@@ -69,7 +69,7 @@ Common helpers in `fixtures.ts`:
 
 ## CI/CD Integration
 
-GitHub Actions installs the Playwright-managed Chromium and runs the suite against the Express/Vite development server. On failures, the workflow retains HTML reports, screenshots, videos, and traces as artifacts.
+Baseline audit (main at 92c896e, 2026-09-23): the current DevSecOps workflow does not run Playwright. The suite must be run manually until the CI configuration change is implemented and merged.
 1. **Build + Preview** - Build the app and serve with `npm run preview`
 2. **Docker** - Run dev server in container for faster startup
 3. **Artifact Caching** - Cache node_modules and build artifacts
