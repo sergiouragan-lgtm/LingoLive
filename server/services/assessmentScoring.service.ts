@@ -4,6 +4,15 @@ export interface GeneratedAssessmentQuestion {
   correctAnswer: number;
 }
 
+export interface AssessmentScore {
+  correctCount: number;
+  percentage: number;
+  suggestedLevel: "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
+  passed: boolean;
+}
+
+const PLACEMENT_PASS_PERCENT = 60;
+
 export function validateGeneratedQuestions(value: unknown): GeneratedAssessmentQuestion[] {
   if (!Array.isArray(value) || value.length !== 5) {
     throw new Error("INVALID_ASSESSMENT_QUESTION_COUNT");
@@ -32,7 +41,7 @@ export function validateGeneratedQuestions(value: unknown): GeneratedAssessmentQ
   });
 }
 
-export function scoreAssessment(questions: GeneratedAssessmentQuestion[], answers: unknown) {
+export function scoreAssessment(questions: GeneratedAssessmentQuestion[], answers: unknown): AssessmentScore {
   if (!Array.isArray(answers) || answers.length !== questions.length) {
     throw new Error("INVALID_ASSESSMENT_ANSWERS");
   }
@@ -53,6 +62,7 @@ export function scoreAssessment(questions: GeneratedAssessmentQuestion[], answer
       : percentage >= 60 ? "B2"
         : percentage >= 40 ? "B1"
           : percentage >= 20 ? "A2" : "A1";
+  const passed = percentage >= PLACEMENT_PASS_PERCENT;
 
-  return { correctCount, percentage, suggestedLevel };
+  return { correctCount, percentage, suggestedLevel, passed };
 }

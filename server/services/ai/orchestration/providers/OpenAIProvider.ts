@@ -10,9 +10,7 @@ export class OpenAIProvider implements IProvider {
 
   constructor() {
     const apiKey = AI_CONFIG.providers.openai.apiKey;
-    if (apiKey) {
-      this.openai = new OpenAI({ apiKey, dangerouslyAllowBrowser: true });
-    }
+    if (apiKey) this.openai = new OpenAI({ apiKey });
   }
 
   getProviderName(): "openai" | "google" | "vertex" {
@@ -24,51 +22,46 @@ export class OpenAIProvider implements IProvider {
     const model = options?.model || AI_CONFIG.models.complex.id;
     const temperature = options?.temperature !== undefined ? options.temperature : 0.7;
     const maxTokens = options?.maxTokens || 1000;
+    const systemInstruction = options?.systemInstruction?.trim();
 
     AIOrchestrationLogger.info(`Sending request to OpenAI with model: ${model}`);
 
     if (!this.openai || !AI_CONFIG.providers.openai.apiKey) {
       throw new AIProviderError("AI_PROVIDER_NOT_CONFIGURED", "openai", "OPENAI_API_KEY is not configured.", false);
     }
+    if (!systemInstruction) {
+      throw new AIProviderError("AI_POLICY_NOT_CONFIGURED", "openai", "A composed system instruction is required for LingoLive AI requests.", false);
+    }
 
     try {
-      const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
-      
-      if (options?.systemInstruction) {
-        messages.push({ role: "system", content: options.systemInstruction });
-      }
-      messages.push({ role: "user", content: prompt });
-
+      const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+        { role: "system", content: systemInstruction },
+        { role: "user", content: prompt },
+      ];
       const responseFormat: any = options?.responseFormat === "json" ? { type: "json_object" } : undefined;
-
       const completion = await this.openai.chat.completions.create({
-        model: model,
-        messages: messages,
-        temperature: temperature,
+        model,
+        messages,
+        temperature,
         max_tokens: maxTokens,
         response_format: responseFormat,
       });
 
       const text = completion.choices[0]?.message?.content || "";
       const latencyMs = Date.now() - start;
-
-      const promptTokens = completion.usage?.prompt_tokens || Math.ceil(prompt.length / 4);
-      const completionTokens = completion.usage?.completion_tokens || Math.ceil(text.length / 4);
-      const totalTokens = promptTokens + completionTokens;
-
+      const promptTokens = completion.usage?.prompt_tokens;
+      const completionTokens = completion.usage?.completion_tokens;
+      const totalTokens = completion.usage?.total_tokens;
       const metadata = AI_CONFIG.models.complex;
-      const estimatedCost = 
-        ((promptTokens / 1000) * metadata.costPer1kInputTokens) +
-        ((completionTokens / 1000) * metadata.costPer1kOutputTokens);
+      const estimatedCost = promptTokens !== undefined && completionTokens !== undefined
+        ? ((promptTokens / 1000) * metadata.costPer1kInputTokens) + ((completionTokens / 1000) * metadata.costPer1kOutputTokens)
+        : undefined;
 
       return {
         text,
-        usage: {
-          promptTokens,
-          completionTokens,
-          totalTokens,
-          estimatedCostUsd: estimatedCost,
-        },
+        usage: promptTokens !== undefined && completionTokens !== undefined && totalTokens !== undefined
+          ? { promptTokens, completionTokens, totalTokens, estimatedCostUsd: estimatedCost || 0 }
+          : undefined,
         latencyMs,
         providerName: this.providerName,
         modelName: model,

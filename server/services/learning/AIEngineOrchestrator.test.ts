@@ -1,10 +1,54 @@
 import { describe, expect, it, vi } from "vitest";
 import { AIEngineOrchestrator, LearnerStateStore } from "./AIEngineOrchestrator";
-function createStore(overrides: Partial<LearnerStateStore> = {}): LearnerStateStore { return { getStudent: vi.fn().mockResolvedValue({ level: "A2", languageNative: "Portuguese", languageTarget: "English", xp: 20 }), getMemory: vi.fn().mockResolvedValue({ interactions: 2, recentTopics: ["travel"] }), saveProgress: vi.fn().mockResolvedValue(undefined), saveMemory: vi.fn().mockResolvedValue(undefined), appendInteraction: vi.fn().mockResolvedValue(undefined), ...overrides }; }
+
+function createStore(overrides: Partial<LearnerStateStore> = {}): LearnerStateStore {
+  return {
+    getStudent: vi.fn().mockResolvedValue({ level: "A2", languageNative: "Portuguese", languageTarget: "English", xp: 20 }),
+    getMemory: vi.fn().mockResolvedValue({ interactions: 2, recentTopics: ["travel"] }),
+    saveProgress: vi.fn().mockResolvedValue(undefined),
+    saveMemory: vi.fn().mockResolvedValue(undefined),
+    appendInteraction: vi.fn().mockResolvedValue(undefined),
+    ...overrides,
+  };
+}
+
 describe("AIEngineOrchestrator", () => {
-  it("executes tutor with GeoLinguistic context and persists progress", async () => { const store = createStore(); const tutor = vi.fn().mockResolvedValue("Good start."); const orchestrator = new AIEngineOrchestrator(store, tutor, () => new Date("2026-08-28T10:00:00.000Z")); const result = await orchestrator.processInteraction({ userId: "student-1", message: "I want coffee", task: "restaurant", context: { targetRegion: 'GB' } }); expect(tutor).toHaveBeenCalledWith(expect.objectContaining({ userId: "student-1", level: "A2", languageTarget: "English", geoLanguageVariant: 'en-GB', lessonContext: expect.stringContaining('en-GB') })); expect(result.evaluation.completed).toBe(true); expect(store.appendInteraction).toHaveBeenCalledWith(expect.objectContaining({ geoLanguageVariant: 'en-GB' })); });
-  it("honors explicit learner variant over location", async () => { const tutor = vi.fn().mockResolvedValue('Perfeito.'); const orchestrator = new AIEngineOrchestrator(createStore({ getStudent: vi.fn().mockResolvedValue({ languageNative: 'English', languageTarget: 'Portuguese' }) }), tutor); await orchestrator.processInteraction({ userId: 'student-1', message: 'Isso é legal', context: { explicitVariant: 'pt-BR', country: 'AO' } }); expect(tutor).toHaveBeenCalledWith(expect.objectContaining({ geoLanguageVariant: 'pt-BR', lessonContext: expect.stringContaining('Preserve valid regional vocabulary') })); });
-  it("advances one CEFR level after sustained high performance", async () => { const store = createStore({ getMemory: vi.fn().mockResolvedValue({ interactions: 9, averageScore: 90, recentTopics: [] }) }); const orchestrator = new AIEngineOrchestrator(store, vi.fn().mockResolvedValue("Excellent work.")); const result = await orchestrator.processInteraction({ userId: "student-1", message: "I would like to reserve a quiet table near the window, please." }); expect(result.evaluation.nextLevel).toBe("B1"); });
-  it("rejects an empty identity or message", async () => { const orchestrator = new AIEngineOrchestrator(createStore(), vi.fn()); await expect(orchestrator.processInteraction({ userId: "", message: "hello" })).rejects.toThrow("AUTHENTICATED_USER_REQUIRED"); await expect(orchestrator.processInteraction({ userId: "student-1", message: "   " })).rejects.toThrow("LEARNER_MESSAGE_REQUIRED"); });
-  it("does not persist when tutor returns empty response", async () => { const store = createStore(); const orchestrator = new AIEngineOrchestrator(store, vi.fn().mockResolvedValue("")); await expect(orchestrator.processInteraction({ userId: "student-1", message: "hello" })).rejects.toThrow("TUTOR_EMPTY_RESPONSE"); expect(store.saveProgress).not.toHaveBeenCalled(); });
+  it("executes tutor with GeoLinguistic context and persists observable interaction state", async () => {
+    const store = createStore();
+    const tutor = vi.fn().mockResolvedValue("Good start.");
+    const orchestrator = new AIEngineOrchestrator(store, tutor, () => new Date("2026-08-28T10:00:00.000Z"));
+    const result = await orchestrator.processInteraction({ userId: "student-1", message: "I want coffee", task: "restaurant", context: { targetRegion: "GB" } });
+    expect(tutor).toHaveBeenCalledWith(expect.objectContaining({ userId: "student-1", level: "A2", languageTarget: "English", geoLanguageVariant: "en-GB", lessonContext: expect.stringContaining("en-GB") }));
+    expect(result.evaluation.completed).toBe(true);
+    expect(result.evaluation.level).toBe("A2");
+    expect(store.appendInteraction).toHaveBeenCalledWith(expect.objectContaining({ geoLanguageVariant: "en-GB" }));
+  });
+
+  it("honors explicit learner variant over location", async () => {
+    const tutor = vi.fn().mockResolvedValue("Perfeito.");
+    const orchestrator = new AIEngineOrchestrator(createStore({ getStudent: vi.fn().mockResolvedValue({ level: "A2", languageNative: "English", languageTarget: "Portuguese", xp: 20 }) }), tutor);
+    await orchestrator.processInteraction({ userId: "student-1", message: "Isso é legal", context: { explicitVariant: "pt-BR", country: "AO" } });
+    expect(tutor).toHaveBeenCalledWith(expect.objectContaining({ geoLanguageVariant: "pt-BR", lessonContext: expect.stringContaining("Preserve valid regional vocabulary") }));
+  });
+
+  it("does not fabricate CEFR advancement from message heuristics", async () => {
+    const store = createStore({ getMemory: vi.fn().mockResolvedValue({ interactions: 9, averageScore: 90, recentTopics: [] }) });
+    const orchestrator = new AIEngineOrchestrator(store, vi.fn().mockResolvedValue("Excellent work."));
+    const result = await orchestrator.processInteraction({ userId: "student-1", message: "I would like to reserve a quiet table near the window, please." });
+    expect(result.evaluation.level).toBe("A2");
+    expect(result.evaluation).not.toHaveProperty("nextLevel");
+  });
+
+  it("rejects an empty identity or message", async () => {
+    const orchestrator = new AIEngineOrchestrator(createStore(), vi.fn());
+    await expect(orchestrator.processInteraction({ userId: "", message: "hello" })).rejects.toThrow("AUTHENTICATED_USER_REQUIRED");
+    await expect(orchestrator.processInteraction({ userId: "student-1", message: "   " })).rejects.toThrow("LEARNER_MESSAGE_REQUIRED");
+  });
+
+  it("does not persist when tutor returns empty response", async () => {
+    const store = createStore();
+    const orchestrator = new AIEngineOrchestrator(store, vi.fn().mockResolvedValue(""));
+    await expect(orchestrator.processInteraction({ userId: "student-1", message: "hello" })).rejects.toThrow("TUTOR_EMPTY_RESPONSE");
+    expect(store.saveProgress).not.toHaveBeenCalled();
+  });
 });

@@ -7,7 +7,8 @@ export interface ProviderUsage {
 
 export interface ProviderResponse {
   text: string;
-  usage: ProviderUsage;
+  /** Provider-reported usage only; omitted when reliable metadata is unavailable. */
+  usage?: ProviderUsage;
   latencyMs: number;
   providerName: "openai" | "google" | "vertex";
   modelName: string;
@@ -19,11 +20,11 @@ export interface ProviderOptions {
   maxTokens?: number;
   systemInstruction?: string;
   responseFormat?: "text" | "json";
-  schema?: any; // responseSchema definition
+  schema?: any;
 }
 
 export interface IProvider {
   getProviderName(): "openai" | "google" | "vertex";
   generateContent(prompt: string, options?: ProviderOptions): Promise<ProviderResponse>;
-  generateImage?(prompt: string, options?: ProviderOptions): Promise<string>; // returns base64 image URL or URI
+  generateImage?(prompt: string, options?: ProviderOptions): Promise<string>;
 }
