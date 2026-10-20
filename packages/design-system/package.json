@@ -1,0 +1,11 @@
+{
+  "name": "@lingolive/design-system",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": ["./tailwind.css"],
+  "exports": {
+    ".": "./index.ts",
+    "./tailwind.css": "./tailwind.css"
+  }
+}
