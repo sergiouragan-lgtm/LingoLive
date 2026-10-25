@@ -18,6 +18,7 @@ import { useMonitoring } from "../../../hooks/useMonitoring";
 import { useRecommendations } from "../../../hooks/useRecommendations";
 import jsPDF from "jspdf";
 import { BlockEditor, type Block, blocksToMarkdown, markdownToBlocks } from "./BlockEditor";
+import { renderSafeMarkdown } from "../../../utils/renderSafeMarkdown";
 
 // ─────────────────────────── types ───────────────────────────
 
@@ -2096,26 +2097,6 @@ function PreviewScreen({
   const [activeChapter, setActiveChapter] = useState(0);
   const totalWords = project.chapters.reduce((s, c) => s + (c.wordCount ?? 0), 0);
 
-  function escapeHtml(str: string): string {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-  }
-
-  function renderMarkdown(text: string) {
-    return text
-      .replace(/^# (.+)$/gm, (_match, p1) => `<h1 class="text-2xl font-bold text-slate-900 mt-6 mb-3">${escapeHtml(p1)}</h1>`)
-      .replace(/^## (.+)$/gm, (_match, p1) => `<h2 class="text-xl font-bold text-slate-800 mt-5 mb-2">${escapeHtml(p1)}</h2>`)
-      .replace(/^### (.+)$/gm, (_match, p1) => `<h3 class="text-lg font-semibold text-slate-700 mt-4 mb-2">${escapeHtml(p1)}</h3>`)
-      .replace(/\*\*(.+?)\*\*/g, (_match, p1) => `<strong class="font-bold text-slate-900">${escapeHtml(p1)}</strong>`)
-      .replace(/\*(.+?)\*/g, (_match, p1) => `<em class="italic">${escapeHtml(p1)}</em>`)
-      .replace(/^- (.+)$/gm, (_match, p1) => `<li class="ml-4 mb-1">• ${escapeHtml(p1)}</li>`)
-      .replace(/^(\d+)\. (.+)$/gm, (_match, p1, p2) => `<li class="ml-4 mb-1"><span class="font-bold">${escapeHtml(p1)}.</span> ${escapeHtml(p2)}</li>`)
-      .replace(/\n\n/g, '</p><p class="mb-3 text-slate-700 leading-relaxed">')
-      .replace(/^(?!<[hli])/, '<p class="mb-3 text-slate-700 leading-relaxed">')
-      .replace(/$/, '</p>');
-  }
-
   return (
     <div className="h-full flex bg-slate-900 overflow-hidden">
       {/* Sidebar */}
@@ -2187,7 +2168,7 @@ function PreviewScreen({
               <div
                 className="prose prose-slate max-w-none"
                 dangerouslySetInnerHTML={{
-                  __html: renderMarkdown(project.chapters[activeChapter].content)
+                  __html: renderSafeMarkdown(project.chapters[activeChapter].content)
                 }}
               />
             ) : (
