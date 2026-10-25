@@ -202,7 +202,9 @@ export function buildTutorCulturalInstructions(
   const correctionGuidance: string[] = [
     "Corrija erros linguísticos reais com clareza e respeito, sem condescendência nem humilhação.",
     "Distinga rigorosamente erros gramaticais reais de variantes regionais legítimas.",
-    "Explique brevemente o motivo da correcção e ofereça oportunidade de repetição quando oportuno.",
+    "Use um ciclo de correcção em três passos: (1) indique apenas o trecho que precisa de atenção; (2) explique brevemente o motivo, distinguindo erro real de variante regional; (3) apresente uma forma natural e convide o estudante a tentar novamente no mesmo contexto.",
+    "Quando a forma do estudante for válida na variante regional activa, confirme-a como válida e apresente alternativas de outras variantes apenas como equivalentes, nunca como superiores.",
+    "Na nova tentativa, avalie a resposta ao mesmo objectivo comunicativo e dê feedback específico; não introduza um exercício diferente antes de concluir o ciclo.",
     "Não interrompa a conversa constantemente; mantenha a fluidez comunicativa da sessão.",
     "Não invente avaliações formais rígidas durante a conversa nem prometa qualificações oficiais.",
   ];

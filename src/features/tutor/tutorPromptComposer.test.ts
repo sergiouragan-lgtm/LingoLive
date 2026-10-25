@@ -327,7 +327,40 @@ Your strict conversational guidelines:
     expect(t1 - t0).toBeLessThan(50);
   });
 
-  it("TESTE 17 — PESQUISA DE EXPRESSÕES PROIBIDAS", () => {
+  it("TESTE 17 — CICLO DE CORRECÇÃO EXPLICÁVEL E REPETÍVEL", () => {
+    const context = buildTutorSessionContext({
+      smartProfile: angolanProfile,
+      targetLanguage: "pt",
+      cefrLevel: "A1",
+    });
+
+    const instructions = buildTutorCulturalInstructions(context);
+    const correctionPolicy = instructions.correctionGuidance.join(" ");
+
+    expect(correctionPolicy).toContain("ciclo de correcção em três passos");
+    expect(correctionPolicy).toContain("apenas o trecho que precisa de atenção");
+    expect(correctionPolicy).toContain("convide o estudante a tentar novamente");
+    expect(correctionPolicy).toContain("mesmo objectivo comunicativo");
+  });
+
+  it("TESTE 18 — VARIANTE REGIONAL VÁLIDA NÃO É HIERARQUIZADA", () => {
+    const context = buildTutorSessionContext({
+      smartProfile: angolanProfile,
+      targetLanguage: "pt",
+      cefrLevel: "A1",
+    });
+
+    const result = composeTutorSystemInstruction({
+      baseInstruction: BASE_PROMPT_MOCK,
+      sessionContext: context,
+    });
+
+    expect(result).toContain("válida na variante regional activa");
+    expect(result).toContain("apenas como equivalentes, nunca como superiores");
+    expect(result).toContain("Português de Angola (pt-AO)");
+  });
+
+  it("TESTE 19 — PESQUISA DE EXPRESSÕES PROIBIDAS", () => {
     const context = buildTutorSessionContext({
       smartProfile: angolanProfile,
       targetLanguage: "pt",
