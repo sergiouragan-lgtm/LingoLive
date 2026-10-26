@@ -1,5 +1,8 @@
 import { defineConfig } from '@playwright/test';
 
+const port = process.env.PLAYWRIGHT_PORT ?? '3000';
+const baseURL = `http://127.0.0.1:${port}`;
+
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,
@@ -10,7 +13,9 @@ export default defineConfig({
   outputDir: 'output/playwright/results',
   timeout: 30000,
   use: {
-    baseURL: 'http://localhost:5173',
+    // E2E must exercise the same Express process that serves the API and SPA.
+    // `vite preview` alone cannot validate API security routes and returns 404.
+    baseURL,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
@@ -32,8 +37,8 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: 'npm run preview -- --host 127.0.0.1 --port 5173',
-    url: 'http://127.0.0.1:5173',
+    command: 'npm run build && NODE_ENV=production HOST=127.0.0.1 PORT=${PLAYWRIGHT_PORT:-3000} node dist/server.cjs',
+    url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
   },

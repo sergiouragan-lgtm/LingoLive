@@ -48,11 +48,26 @@ export interface ExportedData {
 
 class DataExportService {
   private db: Firestore;
-  private bucket: any;
+  private bucket: any | null = null;
 
   constructor() {
     this.db = getFirestore();
-    this.bucket = getStorage().bucket();
+  }
+
+  /**
+   * Storage is optional during process boot, but mandatory before an export is
+   * accepted. Resolving the bucket lazily keeps health/API startup available
+   * when a deployment has not configured Firebase Storage yet.
+   */
+  private getBucket(): any {
+    if (this.bucket) return this.bucket;
+
+    try {
+      this.bucket = getStorage().bucket();
+      return this.bucket;
+    } catch {
+      throw new Error('Data export storage is not configured');
+    }
   }
 
   public async requestExport(
@@ -60,6 +75,9 @@ class DataExportService {
     format: ExportFormat = 'json',
     dataTypes: DataType[] = ['all']
   ): Promise<DataExportRequest> {
+    // Fail before persisting a request that cannot be processed.
+    this.getBucket();
+
     const id = crypto.randomUUID();
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days
@@ -130,7 +148,7 @@ class DataExportService {
 
       // Upload to storage
       const filePath = `exports/${request.userId}/${fileName}`;
-      const file = this.bucket.file(filePath);
+      const file = this.getBucket().file(filePath);
 
       await file.save(fileContent, {
         contentType: request.format === 'json' ? 'application/json' : 'text/csv',
