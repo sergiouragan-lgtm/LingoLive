@@ -1,17 +1,10 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response } from 'express';
+import { requireAuth, requireSelfParam } from '../middleware/requireAuth';
 import { offlineFirstAnalyticsReportingService } from '../services/offline-first-analytics-reporting.service';
 
 const router = Router();
 
-const requireAuth = (req: Request, res: Response, next: NextFunction) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  next();
-};
-
-router.post('/record-analytics-event/:userId', requireAuth, async (req: Request, res: Response) => {
+router.post('/record-analytics-event/:userId', requireAuth, requireSelfParam, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const { eventType, eventName, eventData, deviceType, networkStatus } = req.body;
@@ -30,7 +23,7 @@ router.post('/record-analytics-event/:userId', requireAuth, async (req: Request,
   }
 });
 
-router.post('/generate-offline-report/:userId', requireAuth, async (req: Request, res: Response) => {
+router.post('/generate-offline-report/:userId', requireAuth, requireSelfParam, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const { reportType, periodStart, periodEnd } = req.body;
@@ -47,7 +40,7 @@ router.post('/generate-offline-report/:userId', requireAuth, async (req: Request
   }
 });
 
-router.post('/create-retention-policy/:userId', requireAuth, async (req: Request, res: Response) => {
+router.post('/create-retention-policy/:userId', requireAuth, requireSelfParam, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const { retentionDays, archiveAfterDays, deletionStrategy, eventTypes } = req.body;
@@ -65,7 +58,7 @@ router.post('/create-retention-policy/:userId', requireAuth, async (req: Request
   }
 });
 
-router.post('/detect-usage-patterns/:userId', requireAuth, async (req: Request, res: Response) => {
+router.post('/detect-usage-patterns/:userId', requireAuth, requireSelfParam, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
 
@@ -76,7 +69,7 @@ router.post('/detect-usage-patterns/:userId', requireAuth, async (req: Request, 
   }
 });
 
-router.post('/schedule-offline-report/:userId', requireAuth, async (req: Request, res: Response) => {
+router.post('/schedule-offline-report/:userId', requireAuth, requireSelfParam, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const { reportType, generationTime, recipients, exportFormat } = req.body;
@@ -94,7 +87,7 @@ router.post('/schedule-offline-report/:userId', requireAuth, async (req: Request
   }
 });
 
-router.post('/sync-offline-analytics/:userId', requireAuth, async (req: Request, res: Response) => {
+router.post('/sync-offline-analytics/:userId', requireAuth, requireSelfParam, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
 

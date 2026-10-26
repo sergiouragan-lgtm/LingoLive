@@ -1,17 +1,10 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response } from 'express';
+import { requireAuth, requireSelfParam } from '../middleware/requireAuth';
 import { mobilePerformanceOptimizationService } from '../services/mobile-performance-optimization.service';
 
 const router = Router();
 
-const requireAuth = (req: Request, res: Response, next: NextFunction) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  next();
-};
-
-router.post('/capture-performance-profile/:userId', requireAuth, async (req: Request, res: Response) => {
+router.post('/capture-performance-profile/:userId', requireAuth, requireSelfParam, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const { deviceType, osType, screenSize, connectionType, metadata } = req.body;
@@ -30,7 +23,7 @@ router.post('/capture-performance-profile/:userId', requireAuth, async (req: Req
   }
 });
 
-router.post('/measure-performance-metrics/:userId', requireAuth, async (req: Request, res: Response) => {
+router.post('/measure-performance-metrics/:userId', requireAuth, requireSelfParam, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
 
@@ -41,7 +34,7 @@ router.post('/measure-performance-metrics/:userId', requireAuth, async (req: Req
   }
 });
 
-router.post('/optimize-resources/:userId', requireAuth, async (req: Request, res: Response) => {
+router.post('/optimize-resources/:userId', requireAuth, requireSelfParam, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const { resourceType, originalSize, format } = req.body;
@@ -58,7 +51,7 @@ router.post('/optimize-resources/:userId', requireAuth, async (req: Request, res
   }
 });
 
-router.post('/configure-adaptive-content/:userId', requireAuth, async (req: Request, res: Response) => {
+router.post('/configure-adaptive-content/:userId', requireAuth, requireSelfParam, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const { connectionType, screenSize } = req.body;
@@ -74,7 +67,7 @@ router.post('/configure-adaptive-content/:userId', requireAuth, async (req: Requ
   }
 });
 
-router.post('/inline-critical-css/:userId', requireAuth, async (req: Request, res: Response) => {
+router.post('/inline-critical-css/:userId', requireAuth, requireSelfParam, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const { route } = req.body;
@@ -86,7 +79,7 @@ router.post('/inline-critical-css/:userId', requireAuth, async (req: Request, re
   }
 });
 
-router.post('/check-performance-budget/:userId', requireAuth, async (req: Request, res: Response) => {
+router.post('/check-performance-budget/:userId', requireAuth, requireSelfParam, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
 

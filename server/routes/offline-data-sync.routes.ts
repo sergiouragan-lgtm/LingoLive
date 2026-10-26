@@ -1,17 +1,10 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response } from 'express';
+import { requireAuth, requireSelfBody, requireSelfParam } from '../middleware/requireAuth';
 import { offlineDataSyncService } from '../services/offline-data-sync.service';
 
 const router = Router();
 
-const requireAuth = (req: Request, res: Response, next: NextFunction) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  next();
-};
-
-router.post('/initiate-sync-session/:userId', requireAuth, async (req: Request, res: Response) => {
+router.post('/initiate-sync-session/:userId', requireAuth, requireSelfParam, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const { collections } = req.body;
@@ -23,7 +16,7 @@ router.post('/initiate-sync-session/:userId', requireAuth, async (req: Request, 
   }
 });
 
-router.post('/detect-conflicts/:userId', requireAuth, async (req: Request, res: Response) => {
+router.post('/detect-conflicts/:userId', requireAuth, requireSelfParam, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const { collection } = req.body;
@@ -35,7 +28,7 @@ router.post('/detect-conflicts/:userId', requireAuth, async (req: Request, res: 
   }
 });
 
-router.post('/perform-delta-sync/:userId', requireAuth, async (req: Request, res: Response) => {
+router.post('/perform-delta-sync/:userId', requireAuth, requireSelfParam, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const { collection, checkpoint } = req.body;
@@ -47,7 +40,7 @@ router.post('/perform-delta-sync/:userId', requireAuth, async (req: Request, res
   }
 });
 
-router.post('/resolve-conflict/:conflictId', requireAuth, async (req: Request, res: Response) => {
+router.post('/resolve-conflict/:conflictId', requireAuth, requireSelfBody, async (req: Request, res: Response) => {
   try {
     const { conflictId } = req.params;
     const { userId, resolutionStrategy, mergeRules } = req.body;
@@ -64,7 +57,7 @@ router.post('/resolve-conflict/:conflictId', requireAuth, async (req: Request, r
   }
 });
 
-router.post('/define-conflict-resolution-policy/:userId', requireAuth, async (req: Request, res: Response) => {
+router.post('/define-conflict-resolution-policy/:userId', requireAuth, requireSelfParam, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const { collection, conflictType, strategy } = req.body;
@@ -81,7 +74,7 @@ router.post('/define-conflict-resolution-policy/:userId', requireAuth, async (re
   }
 });
 
-router.post('/record-sync-error/:userId', requireAuth, async (req: Request, res: Response) => {
+router.post('/record-sync-error/:userId', requireAuth, requireSelfParam, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const { collection, documentId, operation, errorType, errorMessage } = req.body;
@@ -100,7 +93,7 @@ router.post('/record-sync-error/:userId', requireAuth, async (req: Request, res:
   }
 });
 
-router.post('/record-sync-checkpoint/:userId', requireAuth, async (req: Request, res: Response) => {
+router.post('/record-sync-checkpoint/:userId', requireAuth, requireSelfParam, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const { collection, lastDocumentId } = req.body;

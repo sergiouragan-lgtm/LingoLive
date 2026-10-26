@@ -1,17 +1,10 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response } from 'express';
+import { requireAuth, requireSelfParam } from '../middleware/requireAuth';
 import { offlineFirstArchitectureService } from '../services/offline-first-architecture.service';
 
 const router = Router();
 
-const requireAuth = (req: Request, res: Response, next: NextFunction) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  next();
-};
-
-router.post('/initialize-offline-state/:userId', requireAuth, async (req: Request, res: Response) => {
+router.post('/initialize-offline-state/:userId', requireAuth, requireSelfParam, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const { dataTypes } = req.body;
@@ -23,7 +16,7 @@ router.post('/initialize-offline-state/:userId', requireAuth, async (req: Reques
   }
 });
 
-router.post('/queue-sync-operation/:userId', requireAuth, async (req: Request, res: Response) => {
+router.post('/queue-sync-operation/:userId', requireAuth, requireSelfParam, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const { operation, collection, documentId, data, priority } = req.body;
@@ -42,7 +35,7 @@ router.post('/queue-sync-operation/:userId', requireAuth, async (req: Request, r
   }
 });
 
-router.post('/resolve-sync-conflict/:userId', requireAuth, async (req: Request, res: Response) => {
+router.post('/resolve-sync-conflict/:userId', requireAuth, requireSelfParam, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const { collection, documentId, localVersion, remoteVersion, strategy } = req.body;
@@ -61,7 +54,7 @@ router.post('/resolve-sync-conflict/:userId', requireAuth, async (req: Request, 
   }
 });
 
-router.post('/update-data-cache/:userId', requireAuth, async (req: Request, res: Response) => {
+router.post('/update-data-cache/:userId', requireAuth, requireSelfParam, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const { collection, entryCount, dataSize } = req.body;
@@ -73,7 +66,7 @@ router.post('/update-data-cache/:userId', requireAuth, async (req: Request, res:
   }
 });
 
-router.post('/record-sync-metrics/:userId', requireAuth, async (req: Request, res: Response) => {
+router.post('/record-sync-metrics/:userId', requireAuth, requireSelfParam, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const { operations } = req.body;
@@ -85,7 +78,7 @@ router.post('/record-sync-metrics/:userId', requireAuth, async (req: Request, re
   }
 });
 
-router.get('/offline-readiness/:userId', requireAuth, async (req: Request, res: Response) => {
+router.get('/offline-readiness/:userId', requireAuth, requireSelfParam, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
 
