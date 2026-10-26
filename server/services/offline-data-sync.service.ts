@@ -258,6 +258,7 @@ class OfflineDataSyncService {
       const conflict = conflictDoc.data() as DataConflict;
 
       if (!conflict) throw new Error('Conflict not found');
+      if (conflict.userId !== userId) throw new Error('Conflict access denied');
 
       let resolvedData: Record<string, any>;
 

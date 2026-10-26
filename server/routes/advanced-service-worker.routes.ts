@@ -1,17 +1,10 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response } from 'express';
+import { requireAuth, requireSelfParam } from '../middleware/requireAuth';
 import { advancedServiceWorkerService } from '../services/advanced-service-worker.service';
 
 const router = Router();
 
-const requireAuth = (req: Request, res: Response, next: NextFunction) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  next();
-};
-
-router.post('/configure-service-worker/:userId', requireAuth, async (req: Request, res: Response) => {
+router.post('/configure-service-worker/:userId', requireAuth, requireSelfParam, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const { cacheStrategy, precachePatterns, runtimeCachePatterns } = req.body;
@@ -28,7 +21,7 @@ router.post('/configure-service-worker/:userId', requireAuth, async (req: Reques
   }
 });
 
-router.post('/schedule-background-sync-task/:userId', requireAuth, async (req: Request, res: Response) => {
+router.post('/schedule-background-sync-task/:userId', requireAuth, requireSelfParam, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const { taskType, minInterval, metadata } = req.body;
@@ -40,7 +33,7 @@ router.post('/schedule-background-sync-task/:userId', requireAuth, async (req: R
   }
 });
 
-router.post('/subscribe-push-notifications/:userId', requireAuth, async (req: Request, res: Response) => {
+router.post('/subscribe-push-notifications/:userId', requireAuth, requireSelfParam, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const { endpoint, auth, p256dh, categories } = req.body;
@@ -58,7 +51,7 @@ router.post('/subscribe-push-notifications/:userId', requireAuth, async (req: Re
   }
 });
 
-router.post('/capture-offline-analytics/:userId', requireAuth, async (req: Request, res: Response) => {
+router.post('/capture-offline-analytics/:userId', requireAuth, requireSelfParam, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const { eventType, eventData, networkAvailable } = req.body;
@@ -75,7 +68,7 @@ router.post('/capture-offline-analytics/:userId', requireAuth, async (req: Reque
   }
 });
 
-router.post('/define-cache-strategy/:userId', requireAuth, async (req: Request, res: Response) => {
+router.post('/define-cache-strategy/:userId', requireAuth, requireSelfParam, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const { route, strategy, maxAge, maxEntries } = req.body;
@@ -93,7 +86,7 @@ router.post('/define-cache-strategy/:userId', requireAuth, async (req: Request, 
   }
 });
 
-router.post('/record-service-worker-metrics/:userId', requireAuth, async (req: Request, res: Response) => {
+router.post('/record-service-worker-metrics/:userId', requireAuth, requireSelfParam, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
 
@@ -104,7 +97,7 @@ router.post('/record-service-worker-metrics/:userId', requireAuth, async (req: R
   }
 });
 
-router.post('/sync-pending-analytics/:userId', requireAuth, async (req: Request, res: Response) => {
+router.post('/sync-pending-analytics/:userId', requireAuth, requireSelfParam, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
 
@@ -115,7 +108,7 @@ router.post('/sync-pending-analytics/:userId', requireAuth, async (req: Request,
   }
 });
 
-router.post('/cleanup-old-caches/:userId', requireAuth, async (req: Request, res: Response) => {
+router.post('/cleanup-old-caches/:userId', requireAuth, requireSelfParam, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const { maxAge } = req.body;
