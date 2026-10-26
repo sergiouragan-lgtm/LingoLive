@@ -7,10 +7,13 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
+  outputDir: 'output/playwright/results',
   timeout: 30000,
   use: {
     baseURL: 'http://localhost:5173',
     trace: 'on-first-retry',
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
     navigationTimeout: 30000,
   },
 
@@ -19,15 +22,19 @@ export default defineConfig({
       name: 'chromium',
       use: {
         browserName: 'chromium',
-        executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
         headless: true,
-        launchArgs: ['--disable-dev-shm-usage', '--no-sandbox'],
+        launchOptions: {
+          executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
+          args: ['--disable-dev-shm-usage', '--no-sandbox'],
+        },
       } as any,
     },
   ],
 
-  // Note: Dev server must be running separately (npm run dev)
-  // The dev server takes 30-60s to initialize due to Express + Vite + dependencies
-  // For local testing: run "npm run dev" in another terminal, then "npm run test:e2e"
-  // For CI/CD: consider building a preview artifact instead
+  webServer: {
+    command: 'npm run preview -- --host 127.0.0.1 --port 5173',
+    url: 'http://127.0.0.1:5173',
+    reuseExistingServer: !process.env.CI,
+    timeout: 120000,
+  },
 });
