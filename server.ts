@@ -883,12 +883,15 @@ async function startServer() {
     const distPath = path.join(process.cwd(), 'dist');
     console.log(`[Server] Serving static files from: ${distPath}, NODE_ENV: ${process.env.NODE_ENV}`);
     app.use(express.static(distPath));
-    app.get('*', (req, res) => {
+    // Express 5 requires a named wildcard parameter; the legacy `*` pattern
+    // throws during startup and prevents the production server from listening.
+    app.get('/{*splat}', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
 
-  server.listen(PORT, "0.0.0.0", () => {
+  const host = process.env.HOST || "0.0.0.0";
+  server.listen(PORT, host, () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
 }

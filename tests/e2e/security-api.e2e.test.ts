@@ -7,38 +7,19 @@ import { test, expect } from '@playwright/test';
  */
 
 test.describe('Security Headers & API Protection', () => {
-  test('should enforce security headers on API responses', async ({ page }) => {
-    // Intercept API responses to check headers
-    const headers: Record<string, string> = {};
+  test('should enforce security headers on API responses', async ({ request }) => {
+    const response = await request.get('/api/service-health');
+    const headers = response.headers();
 
-    page.on('response', (response) => {
-      if (response.url().includes('/api/')) {
-        const headersList = response.headers();
-        Object.entries(headersList).forEach(([key, value]) => {
-          headers[key.toLowerCase()] = value;
-        });
-      }
-    });
-
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
-
-    // Verify security headers are present
+    expect(response.status()).toBe(200);
     expect(headers['x-content-type-options']).toBe('nosniff');
     expect(headers['x-frame-options']).toBe('DENY');
     expect(headers['referrer-policy']).toContain('strict-origin');
   });
 
-  test('should include Content Security Policy header', async ({ page }) => {
-    let cspHeader = '';
-
-    page.on('response', (response) => {
-      if (response.url() === 'http://localhost:5173/') {
-        cspHeader = response.headers()['content-security-policy'] || '';
-      }
-    });
-
-    await page.goto('/');
+  test('should include Content Security Policy header', async ({ request }) => {
+    const response = await request.get('/api/service-health');
+    const cspHeader = response.headers()['content-security-policy'] || '';
 
     // CSP should be present and restrict frame sources
     expect(cspHeader).toBeTruthy();
@@ -47,10 +28,10 @@ test.describe('Security Headers & API Protection', () => {
   });
 
   test('should set appropriate CORS headers for cross-origin requests', async ({
-    page,
+    request,
   }) => {
     // Test CORS preflight response with OPTIONS method
-    const response = await page.request.fetch('/api/service-health', {
+    const response = await request.fetch('/api/service-health', {
       method: 'OPTIONS',
       headers: {
         'Origin': 'http://localhost:5173',
@@ -73,9 +54,9 @@ test.describe('Security Headers & API Protection', () => {
     }
   });
 
-  test('should reject requests from untrusted origins', async ({ page }) => {
+  test('should reject requests from untrusted origins', async ({ request }) => {
     // Attempt request from untrusted origin
-    const response = await page.request.post('/api/sync-vocabulary', {
+    const response = await request.post('/api/sync-vocabulary', {
       headers: {
         'Origin': 'http://untrusted.com',
         'Content-Type': 'application/json',
@@ -91,9 +72,9 @@ test.describe('Security Headers & API Protection', () => {
 });
 
 test.describe('Input Validation & Error Handling', () => {
-  test('should reject invalid vocabulary sync payload', async ({ page }) => {
+  test('should reject invalid vocabulary sync payload', async ({ request }) => {
     // Missing required fields
-    const response = await page.request.post('/api/sync-vocabulary', {
+    const response = await request.post('/api/sync-vocabulary', {
       headers: {
         'Authorization': 'Bearer invalid-token',
         'Content-Type': 'application/json',
@@ -109,7 +90,7 @@ test.describe('Input Validation & Error Handling', () => {
     expect(body.error || body.message).toBeTruthy();
   });
 
-  test('should validate array size constraints', async ({ page }) => {
+  test('should validate array size constraints', async ({ request }) => {
     // Attempt to sync too many words (exceeds max of 1000)
     const tooManyWords = Array(1001)
       .fill(null)
@@ -119,7 +100,7 @@ test.describe('Input Validation & Error Handling', () => {
         language: 'en',
       }));
 
-    const response = await page.request.post('/api/sync-vocabulary', {
+    const response = await request.post('/api/sync-vocabulary', {
       headers: {
         'Authorization': 'Bearer invalid-token',
         'Content-Type': 'application/json',
@@ -132,7 +113,7 @@ test.describe('Input Validation & Error Handling', () => {
     expect([400, 401]).toContain(response.status());
   });
 
-  test('should validate string length constraints', async ({ page }) => {
+  test('should validate string length constraints', async ({ request }) => {
     // Word exceeding max length of 100 characters
     const response = await page.request.post('/api/sync-vocabulary', {
       headers: {
@@ -153,8 +134,8 @@ test.describe('Input Validation & Error Handling', () => {
     expect([400, 401]).toContain(response.status());
   });
 
-  test('should reject invalid enum values', async ({ page }) => {
-    const response = await page.request.post('/api/sync-vocabulary', {
+  test('should reject invalid enum values', async ({ request }) => {
+    const response = await request.post('/api/sync-vocabulary', {
       headers: {
         'Authorization': 'Bearer invalid-token',
         'Content-Type': 'application/json',
@@ -175,29 +156,20 @@ test.describe('Input Validation & Error Handling', () => {
 });
 
 test.describe('Rate Limiting & Abuse Prevention', () => {
-  test('should track request rate limiting', async ({ page }) => {
-    let rateLimitHeaderFound = false;
-
-    page.on('response', (response) => {
-      if (response.url().includes('/api/')) {
-        const rateLimitLimit = response.headers()['ratelimit-limit'];
-        const rateLimitRemaining = response.headers()['ratelimit-remaining'];
-
-        if (rateLimitLimit || rateLimitRemaining) {
-          rateLimitHeaderFound = true;
-        }
-      }
+  test('should track request rate limiting', async ({ request }) => {
+    const response = await request.post('/api/sync-vocabulary', {
+      data: { words: [] },
     });
+    const headers = response.headers();
 
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
-
-    // Rate limit headers should be present in API responses
-    expect(rateLimitHeaderFound).toBe(true);
+    expect([400, 401, 403]).toContain(response.status());
+    expect(headers['ratelimit-limit']).toBeTruthy();
   });
 
-  test('should include X-RateLimit headers in responses', async ({ page }) => {
-    const response = await page.request.get('/api/service-health');
+  test('should include RateLimit headers in protected responses', async ({ request }) => {
+    const response = await request.post('/api/sync-vocabulary', {
+      data: { words: [] },
+    });
 
     // Should include rate limit headers
     const headers = response.headers();
@@ -206,16 +178,15 @@ test.describe('Rate Limiting & Abuse Prevention', () => {
       !!headers['x-ratelimit-remaining'] ||
       !!headers['ratelimit-limit'];
 
-    expect(response.status()).toBe(200);
-    // Rate limit headers should be present
-    expect(hasRateLimitHeader || response.status() === 200).toBe(true);
+    expect([400, 401, 403]).toContain(response.status());
+    expect(hasRateLimitHeader).toBe(true);
   });
 });
 
 test.describe('Authentication & Authorization', () => {
-  test('should require authentication for protected endpoints', async ({ page }) => {
+  test('should require authentication for protected endpoints', async ({ request }) => {
     // Attempt to access vocabulary sync without token
-    const response = await page.request.post('/api/sync-vocabulary', {
+    const response = await request.post('/api/sync-vocabulary', {
       headers: {
         'Content-Type': 'application/json',
       },
@@ -227,8 +198,8 @@ test.describe('Authentication & Authorization', () => {
     expect([401, 403]).toContain(response.status());
   });
 
-  test('should reject invalid authentication tokens', async ({ page }) => {
-    const response = await page.request.post('/api/sync-vocabulary', {
+  test('should reject invalid authentication tokens', async ({ request }) => {
+    const response = await request.post('/api/sync-vocabulary', {
       headers: {
         'Authorization': 'Bearer malformed-token',
         'Content-Type': 'application/json',
@@ -242,10 +213,10 @@ test.describe('Authentication & Authorization', () => {
   });
 
   test('should validate request payload structure on auth failure', async ({
-    page,
+    request,
   }) => {
     // Missing Authorization header
-    const response = await page.request.post('/api/sync-vocabulary', {
+    const response = await request.post('/api/sync-vocabulary', {
       headers: {
         'Content-Type': 'application/json',
       },

@@ -1,5 +1,8 @@
 import { defineConfig } from '@playwright/test';
 
+const port = process.env.PLAYWRIGHT_PORT ?? '3000';
+const baseURL = `http://127.0.0.1:${port}`;
+
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,
@@ -7,10 +10,15 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
+  outputDir: 'output/playwright/results',
   timeout: 30000,
   use: {
-    baseURL: 'http://localhost:5173',
+    // E2E must exercise the same Express process that serves the API and SPA.
+    // `vite preview` alone cannot validate API security routes and returns 404.
+    baseURL,
     trace: 'on-first-retry',
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
     navigationTimeout: 30000,
   },
 
@@ -19,15 +27,19 @@ export default defineConfig({
       name: 'chromium',
       use: {
         browserName: 'chromium',
-        executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
         headless: true,
-        launchArgs: ['--disable-dev-shm-usage', '--no-sandbox'],
+        launchOptions: {
+          executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
+          args: ['--disable-dev-shm-usage', '--no-sandbox'],
+        },
       } as any,
     },
   ],
 
-  // Note: Dev server must be running separately (npm run dev)
-  // The dev server takes 30-60s to initialize due to Express + Vite + dependencies
-  // For local testing: run "npm run dev" in another terminal, then "npm run test:e2e"
-  // For CI/CD: consider building a preview artifact instead
+  webServer: {
+    command: 'npm run build && NODE_ENV=production HOST=127.0.0.1 PORT=${PLAYWRIGHT_PORT:-3000} node dist/server.cjs',
+    url: baseURL,
+    reuseExistingServer: !process.env.CI,
+    timeout: 120000,
+  },
 });

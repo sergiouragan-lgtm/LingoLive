@@ -40,5 +40,37 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
-      - name: Run required quality gate
-        run: npm run check
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm run test:ci
+
+      - name: Integration tests
+        run: npm run test:integration
+
+      - name: Firestore rules tests
+        run: npm run test:firestore-rules
+
+      - name: Build application
+        run: npm run build
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run responsive and critical-flow Playwright tests
+        run: npm run test:e2e
+
+      - name: Upload Playwright evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: playwright-evidence
+          path: |
+            output/playwright/
+            playwright-report/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Production dependency audit
+        run: npm run audit:prod
